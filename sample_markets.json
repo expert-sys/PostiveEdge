@@ -1,0 +1,34 @@
+[
+  {
+    "event_type": "Player to Score (Player A)",
+    "outcomes": [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+    "bookmaker_odds": 2.30,
+    "outcome_type": "binary"
+  },
+  {
+    "event_type": "Player to Score (Player B)",
+    "outcomes": [0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+    "bookmaker_odds": 1.95,
+    "outcome_type": "binary"
+  },
+  {
+    "event_type": "Over 2.5 Goals",
+    "outcomes": [3, 2, 4, 1, 3, 2, 3, 1, 4, 2, 3, 2, 4, 1, 3, 2, 3, 1, 4, 2],
+    "bookmaker_odds": 1.80,
+    "outcome_type": "continuous",
+    "threshold": 2.5
+  },
+  {
+    "event_type": "Over 1.5 Assists",
+    "outcomes": [2, 1, 3, 0, 2, 1, 2, 0, 3, 1, 2, 1, 3, 0, 2, 1, 2, 0, 3, 1],
+    "bookmaker_odds": 2.10,
+    "outcome_type": "continuous",
+    "threshold": 1.5
+  },
+  {
+    "event_type": "Both Teams to Score",
+    "outcomes": [1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1],
+    "bookmaker_odds": 1.72,
+    "outcome_type": "binary"
+  }
+]

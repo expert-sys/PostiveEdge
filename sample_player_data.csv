@@ -1,0 +1,21 @@
+date,opponent,location,minutes_played,goals,assists,shots,opponent_strength
+2024-01-15,Manchester United,home,90,1,0,3,0.85
+2024-01-12,Liverpool,away,75,0,1,2,0.90
+2024-01-08,Chelsea,home,85,1,2,4,0.82
+2024-01-05,Arsenal,away,90,0,0,1,0.88
+2024-01-01,Tottenham,home,90,1,1,5,0.80
+2023-12-29,Brighton,away,60,0,0,1,0.65
+2023-12-26,Newcastle,home,90,1,0,3,0.78
+2023-12-23,Aston Villa,away,80,0,1,2,0.75
+2023-12-20,Crystal Palace,home,90,1,1,4,0.62
+2023-12-17,Fulham,away,90,0,0,2,0.70
+2023-12-14,West Ham,home,88,1,2,6,0.68
+2023-12-11,Brentford,away,45,0,0,1,0.72
+2023-12-08,Nottingham Forest,home,90,1,1,3,0.71
+2023-12-04,Manchester City,away,70,0,0,1,0.95
+2023-12-01,Leicester City,home,90,1,0,2,0.60
+2023-11-28,Southampton,away,90,0,1,3,0.55
+2023-11-25,Everton,home,82,1,0,4,0.65
+2023-11-22,Luton Town,away,90,0,0,1,0.58
+2023-11-19,Ipswich Town,home,90,1,2,5,0.63
+2023-11-15,Wolves,away,75,0,1,2,0.73
