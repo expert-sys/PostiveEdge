@@ -1,0 +1,404 @@
+{
+  "games": [
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "AFC East"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "NE New England Patriots"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "BUF Buffalo Bills"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "MIA Miami Dolphins"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "NYJ New York Jets"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "AFC North"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "PIT Pittsburgh Steelers"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "BAL Baltimore Ravens"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "CIN Cincinnati Bengals"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "CLE Cleveland Browns"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "AFC South"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "IND Indianapolis Colts"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "JAX Jacksonville Jaguars"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "HOU Houston Texans"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "TEN Tennessee Titans"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "AFC West"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "DEN Denver Broncos"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "LAC Los Angeles Chargers"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "KC Kansas City Chiefs"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "LV Las Vegas Raiders"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "W"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "9"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "7"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "4"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "2"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "W"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "6"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "4"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "3"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "2"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "W"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "8"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "6"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "5"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "1"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "W"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "8"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "7"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "5"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "2"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "NFC East"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "PHI Philadelphia Eagles"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "DAL Dallas Cowboys"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "WSH Washington Commanders"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "NYG New York Giants"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "NFC North"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "CHI Chicago Bears"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "DET Detroit Lions"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "GB Green Bay Packers"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "MIN Minnesota Vikings"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "NFC South"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "TB Tampa Bay Buccaneers"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "CAR Carolina Panthers"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "ATL Atlanta Falcons"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "NO New Orleans Saints"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "NFC West"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "SEA Seattle Seahawks"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "LAR Los Angeles Rams"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "SF San Francisco 49ers"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "ARI Arizona Cardinals"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "W"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "7"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "3"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "3"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "2"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "W"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "7"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "6"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "6"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "4"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "W"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "6"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "6"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "3"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "2"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "W"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "7"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "7"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "6"
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "stats": "3"
+    }
+  ]
+}

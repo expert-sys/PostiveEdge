@@ -1,0 +1,124 @@
+{
+  "games": [
+    {
+      "team_name": [
+        "Seahawks",
+        "Rams"
+      ],
+      "score": "19",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "49ers",
+        "Cardinals"
+      ],
+      "score": "41",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Ravens",
+        "Browns"
+      ],
+      "score": "16",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Chiefs",
+        "Broncos"
+      ],
+      "score": "19",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Lions",
+        "Eagles"
+      ],
+      "score": null,
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Commanders",
+        "Dolphins"
+      ],
+      "score": "13",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Panthers",
+        "Falcons"
+      ],
+      "score": "30",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Buccaneers",
+        "Bills"
+      ],
+      "score": "32",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Texans",
+        "Titans"
+      ],
+      "score": "16",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Bears",
+        "Vikings"
+      ],
+      "score": "19",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Packers",
+        "Giants"
+      ],
+      "score": "27",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Bengals",
+        "Steelers"
+      ],
+      "score": "12",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Chargers",
+        "Jaguars"
+      ],
+      "score": "6",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Jets",
+        "Patriots"
+      ],
+      "score": "14",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Cowboys",
+        "Raiders"
+      ],
+      "score": null,
+      "stats": null
+    }
+  ]
+}

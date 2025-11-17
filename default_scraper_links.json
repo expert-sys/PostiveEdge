@@ -1,0 +1,146 @@
+[
+  {
+    "name": "FlashScore - Soccer/Football",
+    "url": "https://www.flashscore.com/football/",
+    "template": "flashscore",
+    "notes": "Live scores for football/soccer worldwide. JS-heavy, may need to wait for content."
+  },
+  {
+    "name": "FlashScore - Basketball",
+    "url": "https://www.flashscore.com/basketball/",
+    "template": "flashscore",
+    "notes": "NBA, EuroLeague, and international basketball scores."
+  },
+  {
+    "name": "SofaScore - Live Scores All Sports",
+    "url": "https://www.sofascore.com/",
+    "template": "sofascore",
+    "notes": "Comprehensive live scores across all major sports. Excellent stats."
+  },
+  {
+    "name": "ESPN NFL Scores",
+    "url": "https://www.espn.com/nfl/scoreboard",
+    "template": "espn_nfl",
+    "notes": "NFL live scores and game summaries. Very stable."
+  },
+  {
+    "name": "ESPN NFL Odds",
+    "url": "https://www.espn.com/nfl/odds",
+    "template": "espn_odds",
+    "notes": "NFL betting lines from multiple sportsbooks."
+  },
+  {
+    "name": "ESPN NFL Injuries",
+    "url": "https://www.espn.com/nfl/injuries",
+    "template": "espn_nfl",
+    "notes": "Current injury reports for all NFL teams."
+  },
+  {
+    "name": "ESPN NFL Standings",
+    "url": "https://www.espn.com/nfl/standings",
+    "template": "espn_nfl",
+    "notes": "NFL division and conference standings."
+  },
+  {
+    "name": "ESPN NBA Scores",
+    "url": "https://www.espn.com/nba/scoreboard",
+    "template": "espn_nba",
+    "notes": "NBA live scores and box scores."
+  },
+  {
+    "name": "ESPN NBA Odds",
+    "url": "https://www.espn.com/nba/odds",
+    "template": "espn_odds",
+    "notes": "NBA betting lines from multiple books."
+  },
+  {
+    "name": "ESPN NBA Player Stats",
+    "url": "https://www.espn.com/nba/stats",
+    "template": "espn_nba",
+    "notes": "NBA player statistics and leaders."
+  },
+  {
+    "name": "ESPN MLB Scores",
+    "url": "https://www.espn.com/mlb/scoreboard",
+    "template": "espn_mlb",
+    "notes": "MLB live scores and game summaries."
+  },
+  {
+    "name": "ESPN MLB Odds",
+    "url": "https://www.espn.com/mlb/odds",
+    "template": "espn_odds",
+    "notes": "MLB betting lines including moneylines and totals."
+  },
+  {
+    "name": "ESPN NHL Scores",
+    "url": "https://www.espn.com/nhl/scoreboard",
+    "template": "espn_nhl",
+    "notes": "NHL live scores and summaries."
+  },
+  {
+    "name": "ESPN NHL Odds",
+    "url": "https://www.espn.com/nhl/odds",
+    "template": "espn_odds",
+    "notes": "NHL betting lines from various sportsbooks."
+  },
+  {
+    "name": "DraftKings NFL",
+    "url": "https://sportsbook.draftkings.com/leagues/football/nfl",
+    "template": "draftkings",
+    "notes": "DraftKings NFL odds and props. Check network tab for JSON."
+  },
+  {
+    "name": "DraftKings NBA",
+    "url": "https://sportsbook.draftkings.com/leagues/basketball/nba",
+    "template": "draftkings",
+    "notes": "DraftKings NBA odds and player props."
+  },
+  {
+    "name": "FanDuel NFL",
+    "url": "https://sportsbook.fanduel.com/navigation/nfl",
+    "template": "fanduel",
+    "notes": "FanDuel NFL betting markets. Structured and predictable."
+  },
+  {
+    "name": "FanDuel NBA",
+    "url": "https://sportsbook.fanduel.com/navigation/nba",
+    "template": "fanduel",
+    "notes": "FanDuel NBA betting markets and props."
+  },
+  {
+    "name": "Pinnacle NFL",
+    "url": "https://www.pinnacle.com/en/football/nfl/matchups/",
+    "template": "pinnacle",
+    "notes": "Pinnacle sharp lines for NFL. Known for accurate odds."
+  },
+  {
+    "name": "Pinnacle NBA",
+    "url": "https://www.pinnacle.com/en/basketball/nba/matchups/",
+    "template": "pinnacle",
+    "notes": "Pinnacle sharp lines for NBA."
+  },
+  {
+    "name": "BetFair Exchange - NFL",
+    "url": "https://www.betfair.com/exchange/plus/american-football",
+    "template": "betfair",
+    "notes": "BetFair exchange odds with liquidity. True market prices."
+  },
+  {
+    "name": "BetFair Exchange - NBA",
+    "url": "https://www.betfair.com/exchange/plus/basketball",
+    "template": "betfair",
+    "notes": "BetFair NBA exchange with back/lay odds."
+  },
+  {
+    "name": "PointsBet NFL",
+    "url": "https://pointsbet.com/sports/american-football/NFL",
+    "template": "pointsbet",
+    "notes": "PointsBet NFL markets and spreads."
+  },
+  {
+    "name": "PointsBet NBA",
+    "url": "https://pointsbet.com/sports/basketball/NBA",
+    "template": "pointsbet",
+    "notes": "PointsBet NBA markets."
+  }
+]

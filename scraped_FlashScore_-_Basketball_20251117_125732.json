@@ -1,0 +1,2939 @@
+{
+  "games": [
+    {
+      "team_name": [
+        "Limoges",
+        "Lyon-Villeurbanne",
+        "Le Mans",
+        "Monaco",
+        "Sassari",
+        "Trento",
+        "Varese",
+        "Cantu",
+        "Reggiana",
+        "Venezia",
+        "Olimpia Milano",
+        "Trapani",
+        "Basket Napoli",
+        "Brescia",
+        "Manresa",
+        "Forca Lleida",
+        "Valencia",
+        "Tenerife",
+        "Real Madrid",
+        "Bilbao",
+        "Murcia",
+        "Breogan",
+        "Barcelona",
+        "Baskonia",
+        "Trabzonspor",
+        "Besiktas",
+        "Merkezefendi",
+        "Tofas",
+        "Esenler Erokspor",
+        "Fenerbahce",
+        "Boston Celtics",
+        "Los Angeles Clippers",
+        "San Antonio Spurs",
+        "Sacramento Kings",
+        "Washington Wizards",
+        "Brooklyn Nets",
+        "Houston Rockets",
+        "Orlando Magic",
+        "New Orleans Pelicans",
+        "Golden State Warriors",
+        "Dallas Mavericks",
+        "Portland Trail Blazers",
+        "Phoenix Suns",
+        "Atlanta Hawks",
+        "Utah Jazz",
+        "Chicago Bulls",
+        "Dartmouth",
+        "Appalachian State",
+        "UMBC Retrievers",
+        "Wagner",
+        "Wright State",
+        "Kent State",
+        "Morehead State",
+        "Kentucky Christian",
+        "Ohio State",
+        "Notre Dame",
+        "Hampton",
+        "Holy Cross",
+        "Northern Kentucky",
+        "University of the Cumberlands (KY)",
+        "Valparaiso",
+        "Bryant University",
+        "Western Carolina",
+        "Stetson",
+        "Central Arkansas",
+        "Samford",
+        "Fairfield",
+        "Loyola Maryland",
+        "Kennesaw State",
+        "South Florida",
+        "Maine Black Bears",
+        "Quinnipiac",
+        "Oklahoma State",
+        "Texas A&M-CC",
+        "South Dakota Coyotes",
+        "Western Michigan",
+        "UMass",
+        "Central Connecticut State",
+        "Virginia Tech",
+        "Charlotte",
+        "Wake Forest",
+        "UMass Lowell",
+        "Cleveland State",
+        "Radford",
+        "Auburn",
+        "Houston",
+        "Western Kentucky",
+        "Tennessee State",
+        "Alabama A&M",
+        "Lindenwood",
+        "Fordham",
+        "Manhattanville",
+        "Sacramento State",
+        "Presbyterian",
+        "Southern Indiana",
+        "Loras Duhawks",
+        "Loyola Chicago",
+        "Colorado State",
+        "Marist",
+        "Harvard",
+        "Memphis",
+        "UNLV",
+        "Indiana",
+        "Incarnate Word",
+        "Cincinnati",
+        "Mount St. Mary's",
+        "Long Beach State",
+        "Illinois State",
+        "Purdue",
+        "Akron",
+        "CS Northridge",
+        "Troy",
+        "Florida",
+        "Miami (FL)"
+      ],
+      "score": "65",
+      "time": "13:00",
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Limoges",
+        "Lyon-Villeurbanne"
+      ],
+      "score": "65",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Le Mans",
+        "Monaco"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Sassari",
+        "Trento"
+      ],
+      "score": "89",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Varese",
+        "Cantu"
+      ],
+      "score": "91",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Reggiana",
+        "Venezia"
+      ],
+      "score": "79",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Olimpia Milano",
+        "Trapani"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Basket Napoli",
+        "Brescia"
+      ],
+      "score": "72",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Manresa",
+        "Forca Lleida"
+      ],
+      "score": "99",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Valencia",
+        "Tenerife"
+      ],
+      "score": "96",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Real Madrid",
+        "Bilbao"
+      ],
+      "score": "82",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Murcia",
+        "Breogan"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Barcelona",
+        "Baskonia"
+      ],
+      "score": "91",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Trabzonspor",
+        "Besiktas"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Merkezefendi",
+        "Tofas"
+      ],
+      "score": "78",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Esenler Erokspor",
+        "Fenerbahce"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Boston Celtics",
+        "Los Angeles Clippers"
+      ],
+      "score": "121",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "San Antonio Spurs",
+        "Sacramento Kings"
+      ],
+      "score": "123",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Washington Wizards",
+        "Brooklyn Nets"
+      ],
+      "score": "42",
+      "time": null,
+      "status": "2nd Quarter 7"
+    },
+    {
+      "team_name": [
+        "Houston Rockets",
+        "Orlando Magic"
+      ],
+      "score": "-",
+      "time": "13:00",
+      "status": null
+    },
+    {
+      "team_name": [
+        "New Orleans Pelicans",
+        "Golden State Warriors"
+      ],
+      "score": "-",
+      "time": "13:00",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Dallas Mavericks",
+        "Portland Trail Blazers"
+      ],
+      "score": "-",
+      "time": "13:30",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Phoenix Suns",
+        "Atlanta Hawks"
+      ],
+      "score": "-",
+      "time": "14:00",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Utah Jazz",
+        "Chicago Bulls"
+      ],
+      "score": "-",
+      "time": "14:00",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Dartmouth",
+        "Appalachian State"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "UMBC Retrievers",
+        "Wagner"
+      ],
+      "score": "71",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Wright State",
+        "Kent State"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Morehead State",
+        "Kentucky Christian"
+      ],
+      "score": "121",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Ohio State",
+        "Notre Dame"
+      ],
+      "score": "64",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Hampton",
+        "Holy Cross"
+      ],
+      "score": "61",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Northern Kentucky",
+        "University of the Cumberlands (KY)"
+      ],
+      "score": "101",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Valparaiso",
+        "Bryant University"
+      ],
+      "score": "68",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Western Carolina",
+        "Stetson"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Central Arkansas",
+        "Samford"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Fairfield",
+        "Loyola Maryland"
+      ],
+      "score": "85",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Kennesaw State",
+        "South Florida"
+      ],
+      "score": "89",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Maine Black Bears",
+        "Quinnipiac"
+      ],
+      "score": "64",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Oklahoma State",
+        "Texas A&M-CC"
+      ],
+      "score": "85",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "South Dakota Coyotes",
+        "Western Michigan"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "UMass",
+        "Central Connecticut State"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Virginia Tech",
+        "Charlotte"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Wake Forest",
+        "UMass Lowell"
+      ],
+      "score": "109",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Cleveland State",
+        "Radford"
+      ],
+      "score": "87",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Auburn",
+        "Houston"
+      ],
+      "score": "72",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Western Kentucky",
+        "Tennessee State"
+      ],
+      "score": "95",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Alabama A&M",
+        "Lindenwood"
+      ],
+      "score": "74",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Fordham",
+        "Manhattanville"
+      ],
+      "score": "96",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Sacramento State",
+        "Presbyterian"
+      ],
+      "score": "64",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Southern Indiana",
+        "Loras Duhawks"
+      ],
+      "score": "91",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Loyola Chicago",
+        "Colorado State"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Marist",
+        "Harvard"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Memphis",
+        "UNLV"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Indiana",
+        "Incarnate Word"
+      ],
+      "score": "-",
+      "time": "11:30 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Cincinnati",
+        "Mount St. Mary's"
+      ],
+      "score": "-",
+      "time": "12:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Long Beach State",
+        "Illinois State"
+      ],
+      "score": "-",
+      "time": "13:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Purdue",
+        "Akron"
+      ],
+      "score": "-",
+      "time": "13:30 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "CS Northridge",
+        "Troy"
+      ],
+      "score": "-",
+      "time": "14:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Florida",
+        "Miami (FL)"
+      ],
+      "score": "-",
+      "time": "14:30 FRO",
+      "status": null
+    },
+    {
+      "team_name": null,
+      "score": null,
+      "time": null,
+      "status": null
+    },
+    {
+      "team_name": [
+        "Vllaznia",
+        "Fieri",
+        "La Union",
+        "Olimpico",
+        "Berazategui W",
+        "Rocamora W",
+        "Bochas W",
+        "San Jose W",
+        "El Talar W",
+        "Ferro W",
+        "BBC Nord",
+        "Furstenfeld",
+        "Kapfenberg Bulls",
+        "Graz UBSC",
+        "Klosterneuburg Dukes",
+        "Wels",
+        "St. Polten",
+        "Vienna Basket",
+        "Traiskirchen Lions",
+        "Swans Gmunden",
+        "Vienna United",
+        "Gussing Blackbirds",
+        "Gomel W",
+        "Horizont Minsk 2 W",
+        "Olimpia Grodno W",
+        "BC Minsk Youth W",
+        "Mechelen W",
+        "Donza W",
+        "Promo",
+        "Orlovik",
+        "Balkan",
+        "Cherno More",
+        "Sabios de Manizales",
+        "Motilones del Norte",
+        "Caribbean Storm Islands",
+        "Cimarrones del Choco",
+        "Split",
+        "Zadar",
+        "Samobor",
+        "GKK Sibenka",
+        "Mladost",
+        "Jazine",
+        "Novi Zagreb",
+        "Dakovo",
+        "Split W",
+        "Plamen Pozega W",
+        "ETHA Engomi",
+        "Keravnos",
+        "Anorthosis",
+        "AEK Larnaca",
+        "Brno U23",
+        "Vysoka",
+        "Chomutov",
+        "Liberecko",
+        "Svitavy",
+        "Opava 2",
+        "Valecnici Decin",
+        "Polabi",
+        "Horsens",
+        "Herlev Wolfpack",
+        "Solsidens",
+        "Vaerlose",
+        "Rotterdam",
+        "Belfius Mons",
+        "Zwolle",
+        "Den Helder",
+        "Den Bosch",
+        "Antwerp Giants",
+        "Ventspils",
+        "BK Liepaja",
+        "Viimsi",
+        "Tartu Ulikool",
+        "Rigas Zelli",
+        "Valmiera Glass Via",
+        "Lithuania W",
+        "Belgium W",
+        "Finland W",
+        "Sweden W",
+        "Karkkila",
+        "Huima",
+        "ACO Basket",
+        "ToPo Helsinki",
+        "Kipina",
+        "Raiders Basket",
+        "Lappeenranta W",
+        "LePy W",
+        "Bremerhaven",
+        "Koln",
+        "Tubingen",
+        "Paderborn",
+        "Koblenz",
+        "Artland",
+        "Trier",
+        "Bayern",
+        "Iraklis",
+        "Kolossos Rhodes",
+        "Promitheas",
+        "Olympiacos",
+        "Panathinaikos",
+        "Aris",
+        "Budapesti Honved Se",
+        "Szombathely",
+        "Belfast",
+        "Eanna",
+        "Limerick",
+        "St. Vincent's",
+        "Sligo",
+        "Tralee Warriors",
+        "KCYMS",
+        "Neptune",
+        "Killester",
+        "UCD Marian",
+        "Hapoel HaEmek",
+        "Maccabi Raanana",
+        "Ironi Kiryat Ata",
+        "Maccabi Rishon",
+        "Cividale",
+        "Libertas Livorno",
+        "Avellino Basket",
+        "Mestre",
+        "Basket Torino",
+        "Brindisi",
+        "Blu Basket Bergamo",
+        "Scafati",
+        "Cento",
+        "Fortitudo Bologna",
+        "Forli",
+        "Verona",
+        "JuVi Cremona",
+        "Sebastiani Rieti",
+        "Pistoia",
+        "Roseto",
+        "Rimini",
+        "Ruvo Di Puglia",
+        "Tigers-KazATU",
+        "Pavlodar",
+        "Pavlodar",
+        "Bars Petropavlovsk",
+        "Karaganda",
+        "Tigers-KazATU",
+        "Aktau W",
+        "Pavlodar W",
+        "Trepca",
+        "Rahoveci",
+        "Vellaznimi",
+        "Sigal Prishtina",
+        "Al-Riyadi",
+        "Champville",
+        "Gargzdai",
+        "Nevezis",
+        "Jonava",
+        "Lietkabelis",
+        "Alytaus Dzukija W",
+        "Panevezys W",
+        "Esch",
+        "Walferdange",
+        "Mambra Mamer",
+        "Kordall Steelers",
+        "Ettelbruck",
+        "Racing Luxembourg",
+        "Ibar Rozaje",
+        "Podgorica",
+        "Primorje",
+        "Mornar Bar",
+        "Feniks 2010",
+        "Kozuv",
+        "MKK Kumanovo",
+        "Pelister",
+        "Centrum Tigers",
+        "Nidaros Jets",
+        "Froya",
+        "Ammerud",
+        "Baerum",
+        "Kongsberg Miners",
+        "Phoenix Fuelmasters",
+        "Barangay Ginebra San Miguel",
+        "Gdynia",
+        "Gornik Walbrzych",
+        "GTK Gliwice",
+        "Krosno",
+        "Miners Katowice",
+        "Spojnia Stargard",
+        "Lancut",
+        "Inowroclaw",
+        "R. Rzeszow",
+        "Kotwica Kolobrzeg",
+        "Zubry Bialystok",
+        "Poli. Opolska",
+        "Santo Andre",
+        "Imortal B",
+        "Rapid Bucuresti",
+        "Valcea",
+        "Barnaul",
+        "Tambov",
+        "Ufa",
+        "Metallurg",
+        "University-Ugra",
+        "Chelyabinsk",
+        "Borac Zemun",
+        "Joker",
+        "Defensor",
+        "Corinthians Paulista",
+        "Dep. San Jose",
+        "Regatas",
+        "Seoul Knights",
+        "Suwon KT",
+        "Hana Bank W",
+        "Woori WON W",
+        "Fibwi Palma",
+        "Ourense",
+        "Spanish Basketball Academy",
+        "Benicarlo",
+        "Caja 87",
+        "Leonesa",
+        "Logrono",
+        "Caceres",
+        "CB Zaragoza",
+        "Salou",
+        "Iraurgi SB",
+        "Toledo",
+        "Ponferrada",
+        "CBC Valladolid",
+        "IK Eos",
+        "Fryshuset Basket",
+        "SAM Massagno",
+        "Neuchatel",
+        "Harem Spor",
+        "Konya BBSK",
+        "OGM Ormanspor",
+        "Cayirova",
+        "Balikesir",
+        "Goztepe",
+        "Kerasus",
+        "ITU",
+        "BC Dnipro",
+        "Cherkaski Mavpy",
+        "Kryvbas",
+        "Rivne",
+        "BK Zaporozhye",
+        "Kharkivski Sokoly",
+        "Niko-Basket Mykolaiv",
+        "Kyiv Basket",
+        "Caledonia Gladiators",
+        "Surrey 89ers",
+        "Sheffield Sharks",
+        "Manchester Basketball",
+        "Cheshire Phoenix",
+        "London Lions",
+        "College Park Skyhawks",
+        "Capital City Go-Go",
+        "Grand Rapids Gold",
+        "Motor City Cruise",
+        "Osceola Magic",
+        "Birmingham Squadron",
+        "Windy City Bulls",
+        "Sioux Falls Skyforce",
+        "Iowa Wolves",
+        "Noblesville Boom",
+        "Memphis Hustle",
+        "Austin Toros Spurs",
+        "Mexico City Capitanes",
+        "Oklahoma City Blue",
+        "South Bay Lakers",
+        "Rip City Remix",
+        "San Diego Clippers",
+        "Salt Lake City Stars",
+        "Canisius W",
+        "Cornell W",
+        "Cincinnati Bearcats W",
+        "Georgetown (KY) W",
+        "UConn W",
+        "Ohio State W",
+        "Davidson W",
+        "Iona W",
+        "Dayton W",
+        "Belmont Bruins W",
+        "Eastern Kentucky W",
+        "North Dakota W",
+        "Marist W",
+        "Holy Cross W",
+        "Maryland W",
+        "Princeton W",
+        "Navy W",
+        "Florida Gators W",
+        "NC State W",
+        "TCU W",
+        "Nebraska Cornhuskers W",
+        "North Dakota St W",
+        "New Hampshire Wildcats W",
+        "New England Pilgrims W",
+        "Pittsburgh W",
+        "Scranton Royals W",
+        "William & Mary W",
+        "Old Dominion W",
+        "Appalachian State W",
+        "Wofford W",
+        "Austin Peay W",
+        "Indiana State Sycamores W",
+        "Bellarmine W",
+        "Miami (Ohio) W",
+        "Buffalo W",
+        "Fordham W",
+        "Chattanooga Mocs W",
+        "UAB W",
+        "Cleveland State W",
+        "Akron W",
+        "Drexel W",
+        "Loyola Maryland Greyhounds W",
+        "Gardner Webb W",
+        "Hampton W",
+        "Georgia W",
+        "Jacksonville St. W",
+        "High Point W",
+        "East Carolina W",
+        "Iowa State W",
+        "Norfolk State W",
+        "James Madison W",
+        "Villanova W",
+        "Kansas State W",
+        "Texas A&M W",
+        "Liberty W",
+        "Duke W",
+        "Loyola Chicago W",
+        "Md.-East. Shore W",
+        "Michigan State W",
+        "Western Michigan W",
+        "N. Carolina A&T W",
+        "Winston-Salem W",
+        "Rutgers W",
+        "Fairleigh Dickinson W",
+        "Saint Josephs Hawks W",
+        "Penn State W",
+        "Siena W",
+        "Dartmouth W",
+        "St. Francis (PA) W",
+        "Lafayette W",
+        "St. Thomas (Minn.) W",
+        "NJIT W",
+        "Syracuse W",
+        "Wagner W",
+        "Toledo W",
+        "Detroit Titans W",
+        "Towson Tigers W",
+        "Coppin State W",
+        "Virginia Cavaliers W",
+        "Radford W",
+        "Wright State W",
+        "Evansville W",
+        "Youngstown State W",
+        "Bucknell W",
+        "Baylor W",
+        "Le Moyne Dolphins W",
+        "Clemson W",
+        "Louisville W",
+        "Colorado Buffaloes W",
+        "Portland State W",
+        "Denver W",
+        "CS Fullerton W",
+        "Georgia Tech W",
+        "Jacksonville Dolphins W",
+        "Lamar W",
+        "UT Arlington W",
+        "Louisiana Monroe W",
+        "Arkansas-Pine Bluff W",
+        "Northern Iowa Panthers W",
+        "Iowa Hawkeyes W",
+        "Tarleton W",
+        "Mcneese State W",
+        "Texas Tech W",
+        "Arkansas Razorbacks W",
+        "UMBC Retrievers W",
+        "Brown Bears W",
+        "UT Martin W",
+        "Fisk W",
+        "Wisconsin Badgers W",
+        "Wisc. Green Bay W",
+        "Kent State W",
+        "Niagara W",
+        "Western Carolina W",
+        "Oklahoma Sooners W",
+        "Arizona Wildcats W",
+        "Grambling St. W",
+        "Idaho State W",
+        "South Dakota W",
+        "New Mexico State W",
+        "New Mexico W",
+        "Santa Clara W",
+        "Arizona State W",
+        "Alabama State W",
+        "Faulkner W",
+        "Butler W",
+        "Northern Kentucky Norse W",
+        "Florida State W",
+        "Indiana W",
+        "Gonzaga W",
+        "Stanford Cardinal W",
+        "Miss. Valley St. W",
+        "Lipscomb Bisons W",
+        "Oregon W",
+        "Army W",
+        "Pacific W",
+        "Seton Hall W",
+        "Saint Marys Gaels W",
+        "Nevada W",
+        "San Francisco W",
+        "UC San Diego Tritons W",
+        "Texas Longhorns W",
+        "Texas W",
+        "Valparaiso W",
+        "Milwaukee Panthers W",
+        "Furman Paladins W",
+        "Campbell Fighting Camels W",
+        "Charlotte 49ers W",
+        "Oakland W",
+        "California Golden Bears W",
+        "Harvard Crimson W"
+      ],
+      "score": "108",
+      "time": "13:00",
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Vllaznia",
+        "Fieri"
+      ],
+      "score": "108",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "La Union",
+        "Olimpico"
+      ],
+      "score": "-",
+      "time": "13:00",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Berazategui W",
+        "Rocamora W"
+      ],
+      "score": "41",
+      "time": null,
+      "status": "Half Time"
+    },
+    {
+      "team_name": [
+        "Bochas W",
+        "San Jose W"
+      ],
+      "score": "17",
+      "time": null,
+      "status": "2nd Quarter 4"
+    },
+    {
+      "team_name": [
+        "El Talar W",
+        "Ferro W"
+      ],
+      "score": "-",
+      "time": "13:30",
+      "status": null
+    },
+    {
+      "team_name": [
+        "BBC Nord",
+        "Furstenfeld"
+      ],
+      "score": "79",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Kapfenberg Bulls",
+        "Graz UBSC"
+      ],
+      "score": "91",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Klosterneuburg Dukes",
+        "Wels"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "St. Polten",
+        "Vienna Basket"
+      ],
+      "score": "91",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Traiskirchen Lions",
+        "Swans Gmunden"
+      ],
+      "score": "72",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Vienna United",
+        "Gussing Blackbirds"
+      ],
+      "score": "75",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Gomel W",
+        "Horizont Minsk 2 W"
+      ],
+      "score": "47",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Olimpia Grodno W",
+        "BC Minsk Youth W"
+      ],
+      "score": "70",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Mechelen W",
+        "Donza W"
+      ],
+      "score": "-",
+      "time": null,
+      "status": "Postponed"
+    },
+    {
+      "team_name": [
+        "Promo",
+        "Orlovik"
+      ],
+      "score": "79",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Balkan",
+        "Cherno More"
+      ],
+      "score": "85",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Sabios de Manizales",
+        "Motilones del Norte"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "4th Quarter 10"
+    },
+    {
+      "team_name": [
+        "Caribbean Storm Islands",
+        "Cimarrones del Choco"
+      ],
+      "score": "16",
+      "time": null,
+      "status": "2nd Quarter 5"
+    },
+    {
+      "team_name": [
+        "Split",
+        "Zadar"
+      ],
+      "score": "88",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Samobor",
+        "GKK Sibenka"
+      ],
+      "score": "87",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Mladost",
+        "Jazine"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Novi Zagreb",
+        "Dakovo"
+      ],
+      "score": "72",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Split W",
+        "Plamen Pozega W"
+      ],
+      "score": "36",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "ETHA Engomi",
+        "Keravnos"
+      ],
+      "score": "81",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Anorthosis",
+        "AEK Larnaca"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Brno U23",
+        "Vysoka"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Chomutov",
+        "Liberecko"
+      ],
+      "score": "92",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Svitavy",
+        "Opava 2"
+      ],
+      "score": "91",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Valecnici Decin",
+        "Polabi"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Horsens",
+        "Herlev Wolfpack"
+      ],
+      "score": "89",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Solsidens",
+        "Vaerlose"
+      ],
+      "score": "63",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Rotterdam",
+        "Belfius Mons"
+      ],
+      "score": "103",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Zwolle",
+        "Den Helder"
+      ],
+      "score": "97",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Den Bosch",
+        "Antwerp Giants"
+      ],
+      "score": "78",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Ventspils",
+        "BK Liepaja"
+      ],
+      "score": "104",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Viimsi",
+        "Tartu Ulikool"
+      ],
+      "score": "86",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Rigas Zelli",
+        "Valmiera Glass Via"
+      ],
+      "score": "82",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Lithuania W",
+        "Belgium W"
+      ],
+      "score": "73",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Finland W",
+        "Sweden W"
+      ],
+      "score": "86",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Karkkila",
+        "Huima"
+      ],
+      "score": "97",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "ACO Basket",
+        "ToPo Helsinki"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Kipina",
+        "Raiders Basket"
+      ],
+      "score": "96",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Lappeenranta W",
+        "LePy W"
+      ],
+      "score": "61",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Bremerhaven",
+        "Koln"
+      ],
+      "score": "89",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Tubingen",
+        "Paderborn"
+      ],
+      "score": "104",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Koblenz",
+        "Artland"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Trier",
+        "Bayern"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Iraklis",
+        "Kolossos Rhodes"
+      ],
+      "score": "86",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Promitheas",
+        "Olympiacos"
+      ],
+      "score": "64",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Panathinaikos",
+        "Aris"
+      ],
+      "score": "82",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Budapesti Honved Se",
+        "Szombathely"
+      ],
+      "score": "73",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Belfast",
+        "Eanna"
+      ],
+      "score": "85",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Limerick",
+        "St. Vincent's"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Sligo",
+        "Tralee Warriors"
+      ],
+      "score": "95",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "KCYMS",
+        "Neptune"
+      ],
+      "score": "92",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Killester",
+        "UCD Marian"
+      ],
+      "score": "61",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Hapoel HaEmek",
+        "Maccabi Raanana"
+      ],
+      "score": "90",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Ironi Kiryat Ata",
+        "Maccabi Rishon"
+      ],
+      "score": "-",
+      "time": null,
+      "status": "Postponed"
+    },
+    {
+      "team_name": [
+        "Cividale",
+        "Libertas Livorno"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Avellino Basket",
+        "Mestre"
+      ],
+      "score": "75",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Basket Torino",
+        "Brindisi"
+      ],
+      "score": "66",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Blu Basket Bergamo",
+        "Scafati"
+      ],
+      "score": "95",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Cento",
+        "Fortitudo Bologna"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Forli",
+        "Verona"
+      ],
+      "score": "74",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "JuVi Cremona",
+        "Sebastiani Rieti"
+      ],
+      "score": "74",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Pistoia",
+        "Roseto"
+      ],
+      "score": "81",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Rimini",
+        "Ruvo Di Puglia"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Tigers-KazATU",
+        "Pavlodar"
+      ],
+      "score": "68",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Pavlodar",
+        "Bars Petropavlovsk"
+      ],
+      "score": "-",
+      "time": "21:00",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Karaganda",
+        "Tigers-KazATU"
+      ],
+      "score": "-",
+      "time": "23:30",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Aktau W",
+        "Pavlodar W"
+      ],
+      "score": "58",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Trepca",
+        "Rahoveci"
+      ],
+      "score": "92",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Vellaznimi",
+        "Sigal Prishtina"
+      ],
+      "score": "86",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Al-Riyadi",
+        "Champville"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Gargzdai",
+        "Nevezis"
+      ],
+      "score": "86",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Jonava",
+        "Lietkabelis"
+      ],
+      "score": "85",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Alytaus Dzukija W",
+        "Panevezys W"
+      ],
+      "score": "67",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Esch",
+        "Walferdange"
+      ],
+      "score": "89",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Mambra Mamer",
+        "Kordall Steelers"
+      ],
+      "score": "96",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Ettelbruck",
+        "Racing Luxembourg"
+      ],
+      "score": "93",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Ibar Rozaje",
+        "Podgorica"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Primorje",
+        "Mornar Bar"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Feniks 2010",
+        "Kozuv"
+      ],
+      "score": "73",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "MKK Kumanovo",
+        "Pelister"
+      ],
+      "score": "79",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Centrum Tigers",
+        "Nidaros Jets"
+      ],
+      "score": "107",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Froya",
+        "Ammerud"
+      ],
+      "score": "91",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Baerum",
+        "Kongsberg Miners"
+      ],
+      "score": "86",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Phoenix Fuelmasters",
+        "Barangay Ginebra San Miguel"
+      ],
+      "score": "93",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Gdynia",
+        "Gornik Walbrzych"
+      ],
+      "score": "85",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "GTK Gliwice",
+        "Krosno"
+      ],
+      "score": "98",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Miners Katowice",
+        "Spojnia Stargard"
+      ],
+      "score": "70",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Lancut",
+        "Inowroclaw"
+      ],
+      "score": "91",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "R. Rzeszow",
+        "Kotwica Kolobrzeg"
+      ],
+      "score": "85",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Zubry Bialystok",
+        "Poli. Opolska"
+      ],
+      "score": "81",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Santo Andre",
+        "Imortal B"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Rapid Bucuresti",
+        "Valcea"
+      ],
+      "score": "82",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Barnaul",
+        "Tambov"
+      ],
+      "score": "66",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Ufa",
+        "Metallurg"
+      ],
+      "score": "72",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "University-Ugra",
+        "Chelyabinsk"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Borac Zemun",
+        "Joker"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Defensor",
+        "Corinthians Paulista"
+      ],
+      "score": "75",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Dep. San Jose",
+        "Regatas"
+      ],
+      "score": "70",
+      "time": null,
+      "status": "4th Quarter 5"
+    },
+    {
+      "team_name": [
+        "Seoul Knights",
+        "Suwon KT"
+      ],
+      "score": "-",
+      "time": "23:00",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Hana Bank W",
+        "Woori WON W"
+      ],
+      "score": "-",
+      "time": "23:00",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Fibwi Palma",
+        "Ourense"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Spanish Basketball Academy",
+        "Benicarlo"
+      ],
+      "score": "68",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Caja 87",
+        "Leonesa"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Logrono",
+        "Caceres"
+      ],
+      "score": "79",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "CB Zaragoza",
+        "Salou"
+      ],
+      "score": "116",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Iraurgi SB",
+        "Toledo"
+      ],
+      "score": "83",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Ponferrada",
+        "CBC Valladolid"
+      ],
+      "score": "89",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "IK Eos",
+        "Fryshuset Basket"
+      ],
+      "score": "90",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "SAM Massagno",
+        "Neuchatel"
+      ],
+      "score": "53",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Harem Spor",
+        "Konya BBSK"
+      ],
+      "score": "74",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "OGM Ormanspor",
+        "Cayirova"
+      ],
+      "score": "72",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Balikesir",
+        "Goztepe"
+      ],
+      "score": "65",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Kerasus",
+        "ITU"
+      ],
+      "score": "65",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "BC Dnipro",
+        "Cherkaski Mavpy"
+      ],
+      "score": "87",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Kryvbas",
+        "Rivne"
+      ],
+      "score": "75",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "BK Zaporozhye",
+        "Kharkivski Sokoly"
+      ],
+      "score": "78",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Niko-Basket Mykolaiv",
+        "Kyiv Basket"
+      ],
+      "score": "-",
+      "time": null,
+      "status": "Postponed"
+    },
+    {
+      "team_name": [
+        "Caledonia Gladiators",
+        "Surrey 89ers"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Sheffield Sharks",
+        "Manchester Basketball"
+      ],
+      "score": "98",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Cheshire Phoenix",
+        "London Lions"
+      ],
+      "score": "74",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "College Park Skyhawks",
+        "Capital City Go-Go"
+      ],
+      "score": "104",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Grand Rapids Gold",
+        "Motor City Cruise"
+      ],
+      "score": "117",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Osceola Magic",
+        "Birmingham Squadron"
+      ],
+      "score": "118",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Windy City Bulls",
+        "Sioux Falls Skyforce"
+      ],
+      "score": "152",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Iowa Wolves",
+        "Noblesville Boom"
+      ],
+      "score": "137",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Memphis Hustle",
+        "Austin Toros Spurs"
+      ],
+      "score": "-",
+      "time": "12:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Mexico City Capitanes",
+        "Oklahoma City Blue"
+      ],
+      "score": "-",
+      "time": "13:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "South Bay Lakers",
+        "Rip City Remix"
+      ],
+      "score": "-",
+      "time": "14:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "San Diego Clippers",
+        "Salt Lake City Stars"
+      ],
+      "score": "-",
+      "time": "15:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Canisius W",
+        "Cornell W"
+      ],
+      "score": "50",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Cincinnati Bearcats W",
+        "Georgetown (KY) W"
+      ],
+      "score": "100",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "UConn W",
+        "Ohio State W"
+      ],
+      "score": "100",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Davidson W",
+        "Iona W"
+      ],
+      "score": "82",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Dayton W",
+        "Belmont Bruins W"
+      ],
+      "score": "66",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Eastern Kentucky W",
+        "North Dakota W"
+      ],
+      "score": "57",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Marist W",
+        "Holy Cross W"
+      ],
+      "score": "78",
+      "time": null,
+      "status": "After Overtime"
+    },
+    {
+      "team_name": [
+        "Maryland W",
+        "Princeton W"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Navy W",
+        "Florida Gators W"
+      ],
+      "score": "69",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "NC State W",
+        "TCU W"
+      ],
+      "score": "59",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Nebraska Cornhuskers W",
+        "North Dakota St W"
+      ],
+      "score": "82",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "New Hampshire Wildcats W",
+        "New England Pilgrims W"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Pittsburgh W",
+        "Scranton Royals W"
+      ],
+      "score": "63",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "William & Mary W",
+        "Old Dominion W"
+      ],
+      "score": "53",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Appalachian State W",
+        "Wofford W"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Austin Peay W",
+        "Indiana State Sycamores W"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Bellarmine W",
+        "Miami (Ohio) W"
+      ],
+      "score": "58",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Buffalo W",
+        "Fordham W"
+      ],
+      "score": "67",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Chattanooga Mocs W",
+        "UAB W"
+      ],
+      "score": "66",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Cleveland State W",
+        "Akron W"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Drexel W",
+        "Loyola Maryland Greyhounds W"
+      ],
+      "score": "66",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Gardner Webb W",
+        "Hampton W"
+      ],
+      "score": "55",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Georgia W",
+        "Jacksonville St. W"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "High Point W",
+        "East Carolina W"
+      ],
+      "score": "84",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Iowa State W",
+        "Norfolk State W"
+      ],
+      "score": "98",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "James Madison W",
+        "Villanova W"
+      ],
+      "score": "73",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Kansas State W",
+        "Texas A&M W"
+      ],
+      "score": "72",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Liberty W",
+        "Duke W"
+      ],
+      "score": "57",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Loyola Chicago W",
+        "Md.-East. Shore W"
+      ],
+      "score": "67",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Michigan State W",
+        "Western Michigan W"
+      ],
+      "score": "98",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "N. Carolina A&T W",
+        "Winston-Salem W"
+      ],
+      "score": "74",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Rutgers W",
+        "Fairleigh Dickinson W"
+      ],
+      "score": "59",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Saint Josephs Hawks W",
+        "Penn State W"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Siena W",
+        "Dartmouth W"
+      ],
+      "score": "55",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "St. Francis (PA) W",
+        "Lafayette W"
+      ],
+      "score": "55",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "St. Thomas (Minn.) W",
+        "NJIT W"
+      ],
+      "score": "63",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Syracuse W",
+        "Wagner W"
+      ],
+      "score": "78",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Toledo W",
+        "Detroit Titans W"
+      ],
+      "score": "66",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Towson Tigers W",
+        "Coppin State W"
+      ],
+      "score": "65",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Virginia Cavaliers W",
+        "Radford W"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Wright State W",
+        "Evansville W"
+      ],
+      "score": "69",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Youngstown State W",
+        "Bucknell W"
+      ],
+      "score": "60",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Baylor W",
+        "Le Moyne Dolphins W"
+      ],
+      "score": "99",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Clemson W",
+        "Louisville W"
+      ],
+      "score": "54",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Colorado Buffaloes W",
+        "Portland State W"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Denver W",
+        "CS Fullerton W"
+      ],
+      "score": "60",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Georgia Tech W",
+        "Jacksonville Dolphins W"
+      ],
+      "score": "64",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Lamar W",
+        "UT Arlington W"
+      ],
+      "score": "66",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Louisiana Monroe W",
+        "Arkansas-Pine Bluff W"
+      ],
+      "score": "79",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Northern Iowa Panthers W",
+        "Iowa Hawkeyes W"
+      ],
+      "score": "41",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Tarleton W",
+        "Mcneese State W"
+      ],
+      "score": "47",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Texas Tech W",
+        "Arkansas Razorbacks W"
+      ],
+      "score": "80",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "UMBC Retrievers W",
+        "Brown Bears W"
+      ],
+      "score": "54",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "UT Martin W",
+        "Fisk W"
+      ],
+      "score": "79",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Wisconsin Badgers W",
+        "Wisc. Green Bay W"
+      ],
+      "score": "76",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Kent State W",
+        "Niagara W"
+      ],
+      "score": "92",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Western Carolina W",
+        "Oklahoma Sooners W"
+      ],
+      "score": "32",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Arizona Wildcats W",
+        "Grambling St. W"
+      ],
+      "score": "85",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Idaho State W",
+        "South Dakota W"
+      ],
+      "score": "63",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "New Mexico State W",
+        "New Mexico W"
+      ],
+      "score": "45",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Santa Clara W",
+        "Arizona State W"
+      ],
+      "score": "77",
+      "time": null,
+      "status": "Finished"
+    },
+    {
+      "team_name": [
+        "Alabama State W",
+        "Faulkner W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Butler W",
+        "Northern Kentucky Norse W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Florida State W",
+        "Indiana W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Gonzaga W",
+        "Stanford Cardinal W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Miss. Valley St. W",
+        "Lipscomb Bisons W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Oregon W",
+        "Army W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Pacific W",
+        "Seton Hall W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Saint Marys Gaels W",
+        "Nevada W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "San Francisco W",
+        "UC San Diego Tritons W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Texas Longhorns W",
+        "Texas W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Valparaiso W",
+        "Milwaukee Panthers W"
+      ],
+      "score": "-",
+      "time": "11:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Furman Paladins W",
+        "Campbell Fighting Camels W"
+      ],
+      "score": "-",
+      "time": "13:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "Charlotte 49ers W",
+        "Oakland W"
+      ],
+      "score": "-",
+      "time": "14:00 FRO",
+      "status": null
+    },
+    {
+      "team_name": [
+        "California Golden Bears W",
+        "Harvard Crimson W"
+      ],
+      "score": "-",
+      "time": "16:30 FRO",
+      "status": null
+    }
+  ]
+}

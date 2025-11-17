@@ -1,0 +1,68 @@
+{
+  "games": [
+    {
+      "team_name": [
+        "Nets",
+        "Wizards"
+      ],
+      "score": "56",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Magic",
+        "Rockets"
+      ],
+      "score": null,
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Warriors",
+        "Pelicans"
+      ],
+      "score": null,
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Trail Blazers",
+        "Mavericks"
+      ],
+      "score": null,
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Hawks",
+        "Suns"
+      ],
+      "score": null,
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Bulls",
+        "Jazz"
+      ],
+      "score": null,
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Clippers",
+        "Celtics"
+      ],
+      "score": "118",
+      "stats": null
+    },
+    {
+      "team_name": [
+        "Kings",
+        "Spurs"
+      ],
+      "score": "110",
+      "stats": null
+    }
+  ]
+}

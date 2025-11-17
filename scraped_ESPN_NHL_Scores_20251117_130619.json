@@ -1,0 +1,44 @@
+{
+  "games": [
+    {
+      "team_name": [
+        "Canucks",
+        "Lightning"
+      ],
+      "score": "1",
+      "period": null
+    },
+    {
+      "team_name": [
+        "Golden Knights",
+        "Wild"
+      ],
+      "score": "1",
+      "period": null
+    },
+    {
+      "team_name": [
+        "Red Wings",
+        "Rangers"
+      ],
+      "score": null,
+      "period": null
+    },
+    {
+      "team_name": [
+        "Islanders",
+        "Avalanche"
+      ],
+      "score": null,
+      "period": null
+    },
+    {
+      "team_name": [
+        "Predators",
+        "Penguins"
+      ],
+      "score": "0",
+      "period": null
+    }
+  ]
+}
