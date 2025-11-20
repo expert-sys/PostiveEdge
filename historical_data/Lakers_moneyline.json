@@ -1,0 +1,36 @@
+{
+  "outcomes": [
+    1,
+    0,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    0,
+    1,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1
+  ],
+  "metadata": {
+    "team": "Lakers",
+    "market_type": "moneyline",
+    "type": "sample_data",
+    "win_probability": 0.58,
+    "created_at": "2025-11-17T18:30:27.261084"
+  }
+}

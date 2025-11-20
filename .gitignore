@@ -43,6 +43,27 @@ results/
 *.json~
 *.csv~
 
+# Data outputs (generated files)
+data/outputs/*.json
+data/scraped/*.json
+!data/outputs/.gitkeep
+!data/scraped/.gitkeep
+
+# Debug files
+debug/*.html
+debug/*.txt
+debug/*.log
+!debug/.gitkeep
+
+# Archive
+archive/*
+!archive/.gitkeep
+
+# Temporary files
+*.tmp
+temp/
+*.log
+
 # Testing
 .pytest_cache/
 .coverage

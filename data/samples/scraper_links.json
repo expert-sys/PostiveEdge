@@ -1,0 +1,446 @@
+[
+  {
+    "id": 1,
+    "name": "FlashScore - Soccer/Football",
+    "url": "https://www.flashscore.com/football/",
+    "template": "flashscore",
+    "selectors": {
+      "game_container": ".event__match, .sportName",
+      "team_name": ".event__participant",
+      "score": ".event__score",
+      "time": ".event__time",
+      "status": ".event__stage"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "Live scores for football/soccer worldwide. JS-heavy, may need to wait for content.",
+    "created_at": "2025-11-17T13:05:19.197869",
+    "last_scraped": "2025-11-17T15:19:22.182783",
+    "scrape_count": 2
+  },
+  {
+    "id": 2,
+    "name": "FlashScore - Basketball",
+    "url": "https://www.flashscore.com/basketball/",
+    "template": "flashscore",
+    "selectors": {
+      "game_container": ".event__match, .sportName",
+      "team_name": ".event__participant",
+      "score": ".event__score",
+      "time": ".event__time",
+      "status": ".event__stage"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NBA, EuroLeague, and international basketball scores.",
+    "created_at": "2025-11-17T13:05:19.198454",
+    "last_scraped": "2025-11-17T15:19:26.138948",
+    "scrape_count": 2
+  },
+  {
+    "id": 3,
+    "name": "SofaScore - Live Scores All Sports",
+    "url": "https://www.sofascore.com/",
+    "template": "sofascore",
+    "selectors": {
+      "game_container": "[class*='event'], [class*='match']",
+      "team_name": "[class*='participant'], [class*='team']",
+      "score": "[class*='score']",
+      "odds": "[class*='odds']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "Comprehensive live scores across all major sports. Excellent stats.",
+    "created_at": "2025-11-17T13:05:19.198864",
+    "last_scraped": "2025-11-17T15:19:29.471262",
+    "scrape_count": 2
+  },
+  {
+    "id": 4,
+    "name": "ESPN NFL Scores",
+    "url": "https://www.espn.com/nfl/scoreboard",
+    "template": "espn_nfl",
+    "selectors": {
+      "game_container": ".Scoreboard__Row, .Table__TR",
+      "team_name": ".ScoreCell__TeamName, .Table__Team",
+      "score": ".ScoreCell__Score",
+      "stats": ".Boxscore__Team, .Table__TD"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NFL live scores and game summaries. Very stable.",
+    "created_at": "2025-11-17T13:05:19.199370",
+    "last_scraped": "2025-11-17T15:19:34.091556",
+    "scrape_count": 2
+  },
+  {
+    "id": 5,
+    "name": "ESPN NFL Odds",
+    "url": "https://www.espn.com/nfl/odds",
+    "template": "espn_odds",
+    "selectors": {
+      "game_container": ".Odds__Table, .OddsGrid__Game",
+      "team_name": ".Odds__Team, .OddsGrid__Team",
+      "spread": ".Odds__Spread",
+      "moneyline": ".Odds__Moneyline",
+      "total": ".Odds__Total"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NFL betting lines from multiple sportsbooks.",
+    "created_at": "2025-11-17T13:05:19.199940",
+    "last_scraped": "2025-11-17T15:19:38.721562",
+    "scrape_count": 2
+  },
+  {
+    "id": 6,
+    "name": "ESPN NFL Injuries",
+    "url": "https://www.espn.com/nfl/injuries",
+    "template": "espn_nfl",
+    "selectors": {
+      "game_container": ".Scoreboard__Row, .Table__TR",
+      "team_name": ".ScoreCell__TeamName, .Table__Team",
+      "score": ".ScoreCell__Score",
+      "stats": ".Boxscore__Team, .Table__TD"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "Current injury reports for all NFL teams.",
+    "created_at": "2025-11-17T13:05:19.200525",
+    "last_scraped": "2025-11-17T15:19:43.396202",
+    "scrape_count": 2
+  },
+  {
+    "id": 7,
+    "name": "ESPN NFL Standings",
+    "url": "https://www.espn.com/nfl/standings",
+    "template": "espn_nfl",
+    "selectors": {
+      "game_container": ".Scoreboard__Row, .Table__TR",
+      "team_name": ".ScoreCell__TeamName, .Table__Team",
+      "score": ".ScoreCell__Score",
+      "stats": ".Boxscore__Team, .Table__TD"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NFL division and conference standings.",
+    "created_at": "2025-11-17T13:05:19.200977",
+    "last_scraped": "2025-11-17T15:19:48.138122",
+    "scrape_count": 2
+  },
+  {
+    "id": 8,
+    "name": "ESPN NBA Scores",
+    "url": "https://www.espn.com/nba/scoreboard",
+    "template": "espn_nba",
+    "selectors": {
+      "game_container": ".Scoreboard__Row, .Table__TR",
+      "team_name": ".ScoreCell__TeamName, .Table__Team",
+      "score": ".ScoreCell__Score",
+      "stats": ".Boxscore__Team, .PlayerStats"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NBA live scores and box scores.",
+    "created_at": "2025-11-17T13:05:19.201459",
+    "last_scraped": "2025-11-17T15:19:52.447003",
+    "scrape_count": 2
+  },
+  {
+    "id": 9,
+    "name": "ESPN NBA Odds",
+    "url": "https://www.espn.com/nba/odds",
+    "template": "espn_odds",
+    "selectors": {
+      "game_container": ".Odds__Table, .OddsGrid__Game",
+      "team_name": ".Odds__Team, .OddsGrid__Team",
+      "spread": ".Odds__Spread",
+      "moneyline": ".Odds__Moneyline",
+      "total": ".Odds__Total"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NBA betting lines from multiple books.",
+    "created_at": "2025-11-17T13:05:19.202040",
+    "last_scraped": "2025-11-17T15:19:57.358833",
+    "scrape_count": 2
+  },
+  {
+    "id": 10,
+    "name": "ESPN NBA Player Stats",
+    "url": "https://www.espn.com/nba/stats",
+    "template": "espn_nba",
+    "selectors": {
+      "game_container": ".Scoreboard__Row, .Table__TR",
+      "team_name": ".ScoreCell__TeamName, .Table__Team",
+      "score": ".ScoreCell__Score",
+      "stats": ".Boxscore__Team, .PlayerStats"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NBA player statistics and leaders.",
+    "created_at": "2025-11-17T13:05:19.202499",
+    "last_scraped": "2025-11-17T15:20:02.124867",
+    "scrape_count": 2
+  },
+  {
+    "id": 11,
+    "name": "ESPN MLB Scores",
+    "url": "https://www.espn.com/mlb/scoreboard",
+    "template": "espn_mlb",
+    "selectors": {
+      "game_container": ".Scoreboard__Row, .Table__TR",
+      "team_name": ".ScoreCell__TeamName",
+      "score": ".ScoreCell__Score",
+      "pitcher": ".Baseball__Pitcher"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "MLB live scores and game summaries.",
+    "created_at": "2025-11-17T13:05:19.202936",
+    "last_scraped": "2025-11-17T15:20:07.195669",
+    "scrape_count": 2
+  },
+  {
+    "id": 12,
+    "name": "ESPN MLB Odds",
+    "url": "https://www.espn.com/mlb/odds",
+    "template": "espn_odds",
+    "selectors": {
+      "game_container": ".Odds__Table, .OddsGrid__Game",
+      "team_name": ".Odds__Team, .OddsGrid__Team",
+      "spread": ".Odds__Spread",
+      "moneyline": ".Odds__Moneyline",
+      "total": ".Odds__Total"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "MLB betting lines including moneylines and totals.",
+    "created_at": "2025-11-17T13:05:19.203378",
+    "last_scraped": "2025-11-17T15:20:12.209097",
+    "scrape_count": 2
+  },
+  {
+    "id": 13,
+    "name": "ESPN NHL Scores",
+    "url": "https://www.espn.com/nhl/scoreboard",
+    "template": "espn_nhl",
+    "selectors": {
+      "game_container": ".Scoreboard__Row, .Table__TR",
+      "team_name": ".ScoreCell__TeamName",
+      "score": ".ScoreCell__Score",
+      "period": ".ScoreCell__Period"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NHL live scores and summaries.",
+    "created_at": "2025-11-17T13:05:19.203843",
+    "last_scraped": "2025-11-17T15:20:17.878542",
+    "scrape_count": 2
+  },
+  {
+    "id": 14,
+    "name": "ESPN NHL Odds",
+    "url": "https://www.espn.com/nhl/odds",
+    "template": "espn_odds",
+    "selectors": {
+      "game_container": ".Odds__Table, .OddsGrid__Game",
+      "team_name": ".Odds__Team, .OddsGrid__Team",
+      "spread": ".Odds__Spread",
+      "moneyline": ".Odds__Moneyline",
+      "total": ".Odds__Total"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "NHL betting lines from various sportsbooks.",
+    "created_at": "2025-11-17T13:05:19.204304",
+    "last_scraped": "2025-11-17T15:20:23.278536",
+    "scrape_count": 2
+  },
+  {
+    "id": 15,
+    "name": "DraftKings NFL",
+    "url": "https://sportsbook.draftkings.com/leagues/football/nfl",
+    "template": "draftkings",
+    "selectors": {
+      "game_container": "[class*='event'], [class*='game']",
+      "team_name": "[class*='team'], [class*='participant']",
+      "spread": "[class*='spread']",
+      "moneyline": "[class*='moneyline']",
+      "total": "[class*='total'], [class*='over']",
+      "prop": "[class*='prop']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "DraftKings NFL odds and props. Check network tab for JSON.",
+    "created_at": "2025-11-17T13:05:19.204775",
+    "last_scraped": "2025-11-17T15:20:30.347941",
+    "scrape_count": 2
+  },
+  {
+    "id": 16,
+    "name": "DraftKings NBA",
+    "url": "https://sportsbook.draftkings.com/leagues/basketball/nba",
+    "template": "draftkings",
+    "selectors": {
+      "game_container": "[class*='event'], [class*='game']",
+      "team_name": "[class*='team'], [class*='participant']",
+      "spread": "[class*='spread']",
+      "moneyline": "[class*='moneyline']",
+      "total": "[class*='total'], [class*='over']",
+      "prop": "[class*='prop']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "DraftKings NBA odds and player props.",
+    "created_at": "2025-11-17T13:05:19.205251",
+    "last_scraped": "2025-11-17T15:20:37.375686",
+    "scrape_count": 2
+  },
+  {
+    "id": 17,
+    "name": "FanDuel NFL",
+    "url": "https://sportsbook.fanduel.com/navigation/nfl",
+    "template": "fanduel",
+    "selectors": {
+      "game_container": "[class*='event'], [class*='market']",
+      "team_name": "[class*='runner'], [class*='team']",
+      "odds": "[class*='odds'], [class*='price']",
+      "spread": "[class*='handicap']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "FanDuel NFL betting markets. Structured and predictable.",
+    "created_at": "2025-11-17T13:05:19.205771",
+    "last_scraped": "2025-11-17T15:20:41.677156",
+    "scrape_count": 2
+  },
+  {
+    "id": 18,
+    "name": "FanDuel NBA",
+    "url": "https://sportsbook.fanduel.com/navigation/nba",
+    "template": "fanduel",
+    "selectors": {
+      "game_container": "[class*='event'], [class*='market']",
+      "team_name": "[class*='runner'], [class*='team']",
+      "odds": "[class*='odds'], [class*='price']",
+      "spread": "[class*='handicap']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "FanDuel NBA betting markets and props.",
+    "created_at": "2025-11-17T13:05:19.206346",
+    "last_scraped": "2025-11-17T15:20:46.523320",
+    "scrape_count": 2
+  },
+  {
+    "id": 19,
+    "name": "Pinnacle NFL",
+    "url": "https://www.pinnacle.com/en/football/nfl/matchups/",
+    "template": "pinnacle",
+    "selectors": {
+      "game_container": ".event-row, [class*='market']",
+      "team_name": ".team-name, [class*='participant']",
+      "spread": "[class*='spread']",
+      "moneyline": "[class*='moneyline']",
+      "total": "[class*='total']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "Pinnacle sharp lines for NFL. Known for accurate odds.",
+    "created_at": "2025-11-17T13:05:19.206880",
+    "last_scraped": "2025-11-17T15:20:51.301288",
+    "scrape_count": 2
+  },
+  {
+    "id": 20,
+    "name": "Pinnacle NBA",
+    "url": "https://www.pinnacle.com/en/basketball/nba/matchups/",
+    "template": "pinnacle",
+    "selectors": {
+      "game_container": ".event-row, [class*='market']",
+      "team_name": ".team-name, [class*='participant']",
+      "spread": "[class*='spread']",
+      "moneyline": "[class*='moneyline']",
+      "total": "[class*='total']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "Pinnacle sharp lines for NBA.",
+    "created_at": "2025-11-17T13:05:19.207441",
+    "last_scraped": "2025-11-17T15:20:56.156346",
+    "scrape_count": 2
+  },
+  {
+    "id": 21,
+    "name": "BetFair Exchange - NFL",
+    "url": "https://www.betfair.com/exchange/plus/american-football",
+    "template": "betfair",
+    "selectors": {
+      "game_container": ".event-row, [class*='market']",
+      "team_name": ".runner-name, [class*='selection']",
+      "back_odds": "[class*='back']",
+      "lay_odds": "[class*='lay']",
+      "liquidity": "[class*='depth'], [class*='volume']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "BetFair exchange odds with liquidity. True market prices.",
+    "created_at": "2025-11-17T13:05:19.207981",
+    "last_scraped": "2025-11-17T15:21:00.713366",
+    "scrape_count": 2
+  },
+  {
+    "id": 22,
+    "name": "BetFair Exchange - NBA",
+    "url": "https://www.betfair.com/exchange/plus/basketball",
+    "template": "betfair",
+    "selectors": {
+      "game_container": ".event-row, [class*='market']",
+      "team_name": ".runner-name, [class*='selection']",
+      "back_odds": "[class*='back']",
+      "lay_odds": "[class*='lay']",
+      "liquidity": "[class*='depth'], [class*='volume']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "BetFair NBA exchange with back/lay odds.",
+    "created_at": "2025-11-17T13:05:19.208558",
+    "last_scraped": "2025-11-17T15:21:05.136942",
+    "scrape_count": 2
+  },
+  {
+    "id": 23,
+    "name": "PointsBet NFL",
+    "url": "https://pointsbet.com/sports/american-football/NFL",
+    "template": "pointsbet",
+    "selectors": {
+      "game_container": "[class*='event'], [class*='fixture']",
+      "team_name": "[class*='team'], [class*='competitor']",
+      "odds": "[class*='odds'], [class*='price']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "PointsBet NFL markets and spreads.",
+    "created_at": "2025-11-17T13:05:19.209399",
+    "last_scraped": "2025-11-17T15:21:10.182493",
+    "scrape_count": 2
+  },
+  {
+    "id": 24,
+    "name": "PointsBet NBA",
+    "url": "https://pointsbet.com/sports/basketball/NBA",
+    "template": "pointsbet",
+    "selectors": {
+      "game_container": "[class*='event'], [class*='fixture']",
+      "team_name": "[class*='team'], [class*='competitor']",
+      "odds": "[class*='odds'], [class*='price']"
+    },
+    "extraction_type": "games",
+    "wait_strategy": "auto",
+    "notes": "PointsBet NBA markets.",
+    "created_at": "2025-11-17T13:05:19.210045",
+    "last_scraped": "2025-11-17T15:21:14.272423",
+    "scrape_count": 2
+  }
+]
