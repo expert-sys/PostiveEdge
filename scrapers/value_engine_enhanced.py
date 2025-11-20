@@ -45,23 +45,24 @@ class EnhancedValueEngine(ValueEngine):
 
         # Minimum sample thresholds
         self.absolute_minimum = 4  # Don't show if n < 4
-        self.confidence_threshold = 8  # Reduce confidence if n < 8
+        self.baseline_sample_size = 6.5  # Baseline for predictions (6-7)
+        self.confidence_threshold = 6  # Baseline confidence at 6-7
 
     def calculate_adaptive_prior_weight(self, sample_size: int) -> float:
         """
         Calculate adaptive prior weight based on sample size.
-        Larger samples get less shrinkage.
+        6-7 is baseline with minimal shrinkage. Smaller samples get more shrinkage.
 
         Returns: prior weight (higher = more shrinkage toward prior)
         """
-        if sample_size >= 20:
-            return 3  # Minimal shrinkage
-        elif sample_size >= 12:
-            return 6
+        if sample_size >= 6 and sample_size <= 7:
+            return 2  # Baseline: minimal shrinkage (favor the data)
         elif sample_size >= 8:
-            return 10
+            return 2  # Above baseline: minimal shrinkage
+        elif sample_size >= 4:
+            return 5  # Below baseline: moderate shrinkage
         else:
-            return self.base_prior_weight  # Maximum shrinkage
+            return self.base_prior_weight  # Very small: maximum shrinkage
 
     def apply_adaptive_bayesian_smoothing(
         self,
@@ -105,21 +106,21 @@ class EnhancedValueEngine(ValueEngine):
 
         Returns: (confidence_score, confidence_level)
         """
-        # Base score from sample size
-        if sample_size >= 20:
-            base_score = 95
+        # Base score from sample size (6-7 is baseline)
+        if sample_size >= 6 and sample_size <= 7:
+            base_score = 70  # Baseline: good confidence
+        elif sample_size >= 8:
+            base_score = 75  # Above baseline: slightly higher
+        elif sample_size >= 10:
+            base_score = 80
         elif sample_size >= 15:
             base_score = 85
-        elif sample_size >= 10:
-            base_score = 70
-        elif sample_size >= 8:
-            base_score = 55
-        elif sample_size >= 6:
-            base_score = 40
+        elif sample_size >= 20:
+            base_score = 95
         elif sample_size >= 4:
-            base_score = 25
+            base_score = 50  # Below baseline: reduced but not penalized heavily
         else:
-            base_score = 10
+            base_score = 25
 
         # Adjust for variance if provided
         if variance is not None:
@@ -253,14 +254,12 @@ class EnhancedValueEngine(ValueEngine):
             variance
         )
 
-        # FILTER 2: Reduce confidence for small samples
-        if sample_size < self.confidence_threshold:
-            confidence_score *= 0.7  # Reduce by 30%
+        # FILTER 2: Only reduce confidence for very small samples (below baseline)
+        if sample_size < 6:
+            confidence_score *= 0.85  # Slight reduction (15%) for below baseline
             if confidence_level == "HIGH":
                 confidence_level = "MEDIUM"
-            elif confidence_level == "MEDIUM":
-                confidence_level = "LOW"
-            notes += f" | Confidence reduced (n < {self.confidence_threshold})"
+            notes += f" | Below baseline sample size (n={sample_size}, baseline=6-7)"
 
         # ENHANCEMENT 3: Apply context adjustments
         context_adjustment = 0.0

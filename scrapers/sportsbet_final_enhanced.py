@@ -728,18 +728,42 @@ def scrape_nba_overview(headless: bool = True) -> List[Dict]:
             # Changed from "networkidle" to "load" for better reliability
             logger.info("Attempting to load page (timeout: 60s)...")
             page.goto(url, wait_until="load", timeout=60000)
-            logger.info("Page loaded, waiting for content...")
-            time.sleep(3)
+            logger.info("Page loaded, waiting for dynamic content...")
+            
+            # Wait longer for dynamic content to load
+            time.sleep(5)
+            
+            # Try scrolling to trigger lazy loading
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            time.sleep(2)
+            page.evaluate("window.scrollTo(0, 0)")
+            time.sleep(2)
 
-            # Wait for game links to appear or timeout
-            try:
-                page.wait_for_selector('a[href*="/betting/basketball"]', timeout=10000)
-                logger.info("Found basketball links!")
-            except:
-                logger.warning("No basketball links found after 10s wait")
+            # Wait for game links to appear with multiple strategies
+            selectors_to_try = [
+                'a[href*="/betting/basketball-us/nba"]',
+                'a[href*="/betting/basketball"]',
+                '[data-testid*="game"]',
+                '[class*="event"]',
+                '[class*="match"]'
+            ]
+            
+            found_selector = None
+            for selector in selectors_to_try:
+                try:
+                    page.wait_for_selector(selector, timeout=5000)
+                    logger.info(f"Found content using selector: {selector}")
+                    found_selector = selector
+                    break
+                except:
+                    continue
+            
+            if not found_selector:
+                logger.warning("No content selectors found, continuing anyway...")
 
             # Take screenshot for debugging
             screenshot_file = Path(__file__).parent.parent / "debug" / "sportsbet_nba_page.png"
+            screenshot_file.parent.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=str(screenshot_file), full_page=False)
             logger.info(f"Saved screenshot to {screenshot_file}")
 
@@ -748,51 +772,129 @@ def scrape_nba_overview(headless: bool = True) -> List[Dict]:
 
             # Debug: Save HTML to see what we're getting
             debug_file = Path(__file__).parent.parent / "debug" / "sportsbet_nba_page.html"
-            debug_file.parent.mkdir(exist_ok=True)
+            debug_file.parent.mkdir(parents=True, exist_ok=True)
             with open(debug_file, 'w', encoding='utf-8') as f:
                 f.write(html)
             logger.info(f"Saved page HTML to {debug_file}")
 
-            # Try to find all basketball links
-            all_links = soup.find_all('a', href=re.compile(r'/betting/basketball'))
-            logger.info(f"Found {len(all_links)} total basketball links")
-
+            # Try multiple strategies to find game links
+            links = []
+            
+            # Strategy 1: Direct NBA game links
             links = soup.find_all('a', href=re.compile(r'/betting/basketball-us/nba/.*-\d+$'))
-            logger.info(f"Found {len(links)} NBA game links matching pattern")
-
-            # Debug: Show first few links
-            if all_links and not links:
-                logger.info("Sample basketball links found:")
-                for link in all_links[:5]:
-                    logger.info(f"  {link.get('href', 'NO HREF')}")
+            logger.info(f"Strategy 1: Found {len(links)} NBA game links with pattern '/betting/basketball-us/nba/.*-\\d+$'")
+            
+            # Strategy 2: Any basketball links ending with numbers
+            if not links:
+                links = soup.find_all('a', href=re.compile(r'/betting/basketball.*-\d+$'))
+                logger.info(f"Strategy 2: Found {len(links)} basketball links ending with numbers")
+            
+            # Strategy 3: Links containing NBA and team names
+            if not links:
+                all_basketball_links = soup.find_all('a', href=re.compile(r'/betting/basketball'))
+                logger.info(f"Strategy 3: Found {len(all_basketball_links)} total basketball links")
+                
+                # Filter for NBA-specific patterns
+                for link in all_basketball_links:
+                    href = link.get('href', '')
+                    if '/nba/' in href and any(team in href.lower() for team in ['lakers', 'celtics', 'warriors', 'heat', 'knicks', 'bulls', 'mavericks']):
+                        links.append(link)
+                logger.info(f"Strategy 3: Filtered to {len(links)} NBA links with team names")
+            
+            # Strategy 4: Look for data attributes or other indicators
+            if not links:
+                # Try finding by data attributes
+                game_elements = soup.find_all(attrs={'data-testid': re.compile(r'game|match|event', re.I)})
+                for elem in game_elements:
+                    link_elem = elem.find('a', href=re.compile(r'/betting'))
+                    if link_elem:
+                        links.append(link_elem)
+                logger.info(f"Strategy 4: Found {len(links)} links via data attributes")
+            
+            # Debug: Show first few links found
+            if links:
+                logger.info("Sample links found:")
+                for link in links[:5]:
+                    href = link.get('href', 'NO HREF')
+                    text = link.get_text(strip=True)[:50]
+                    logger.info(f"  {href} - '{text}'")
+            else:
+                logger.warning("No game links found! Checking page structure...")
+                # Try to find any links at all
+                all_links = soup.find_all('a', href=True)
+                logger.info(f"Total links on page: {len(all_links)}")
+                if all_links:
+                    logger.info("Sample links on page:")
+                    for link in all_links[:10]:
+                        href = link.get('href', '')
+                        if '/betting' in href:
+                            logger.info(f"  {href}")
 
             games = []
             seen_urls = set()
 
-            for link in links[:20]:
+            for link in links[:30]:  # Increased limit
                 href = link.get('href')
-                if not href or href in seen_urls:
+                if not href:
+                    continue
+                
+                # Normalize href
+                if href.startswith('/'):
+                    href = f"https://www.sportsbet.com.au{href}"
+                elif not href.startswith('http'):
+                    continue
+                
+                if href in seen_urls:
                     continue
 
                 seen_urls.add(href)
-                full_url = f"https://www.sportsbet.com.au{href}"
+                
+                # Try to extract team names from URL
+                try:
+                    url_parts = href.split('/')
+                    last_part = url_parts[-1] if url_parts else ''
+                    
+                    # Remove trailing numbers
+                    if '-' in last_part:
+                        teams_str = last_part.rsplit('-', 1)[0]
+                        teams = teams_str.replace('-', ' ').title().split(' At ')
+                    else:
+                        # Try to get from link text
+                        link_text = link.get_text(strip=True)
+                        if ' @ ' in link_text or ' vs ' in link_text.lower():
+                            teams = re.split(r' @ | vs ', link_text, flags=re.I)
+                        else:
+                            teams = ['Unknown', 'Unknown']
+                    
+                    games.append({
+                        'url': href,
+                        'away_team': teams[0].strip() if len(teams) > 0 else 'Unknown',
+                        'home_team': teams[1].strip() if len(teams) > 1 else 'Unknown',
+                        'teams_str': ' @ '.join(teams) if len(teams) >= 2 else 'Unknown'
+                    })
+                except Exception as e:
+                    logger.debug(f"Error parsing link {href}: {e}")
+                    # Still add the game with URL
+                    games.append({
+                        'url': href,
+                        'away_team': 'Unknown',
+                        'home_team': 'Unknown',
+                        'teams_str': 'Unknown'
+                    })
 
-                url_parts = href.split('/')[-1]
-                teams_str = url_parts.rsplit('-', 1)[0]
-                teams = teams_str.replace('-', ' ').title().split(' At ')
-
-                games.append({
-                    'url': full_url,
-                    'away_team': teams[0] if len(teams) > 0 else 'Unknown',
-                    'home_team': teams[1] if len(teams) > 1 else 'Unknown',
-                    'teams_str': teams_str
-                })
-
-            logger.info(f"Found {len(games)} games")
+            logger.info(f"Successfully extracted {len(games)} games")
             return games
 
+        except Exception as e:
+            logger.error(f"Error scraping NBA overview: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
         finally:
-            browser.close()
+            try:
+                browser.close()
+            except:
+                pass
 
 
 if __name__ == "__main__":

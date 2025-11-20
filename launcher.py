@@ -163,24 +163,28 @@ class SimpleLauncher:
         print("RUN TESTS")
         print("=" * 70)
         print("\nSelect test:\n")
-        print("  1. Test Stats Extraction")
-        print("  2. Test Regression Fix")
-        print("  3. Test Value Engine")
-        print("  4. Run All Tests")
-        print("  5. Back to main menu")
+        print("  1. Test Engine Improvements (NEW - Comprehensive)")
+        print("  2. Test Stats Extraction")
+        print("  3. Test Regression Fix")
+        print("  4. Test Value Engine")
+        print("  5. Run All Tests")
+        print("  6. Back to main menu")
         print("\n" + "-" * 70)
 
-        choice = input("\nSelect (1-5): ").strip()
+        choice = input("\nSelect (1-6): ").strip()
 
         if choice == "1":
-            self.run_script("test_stats_extraction.py", "Stats Extraction Test")
+            self.run_script("test_engine_improvements.py", "Engine Improvements Test Suite")
         elif choice == "2":
-            self.run_script("test_regression_fix.py", "Regression Fix Test")
+            self.run_script("test_stats_extraction.py", "Stats Extraction Test")
         elif choice == "3":
-            self.run_script("tests/test_engine.py", "Value Engine Test")
+            self.run_script("test_regression_fix.py", "Regression Fix Test")
         elif choice == "4":
+            self.run_script("tests/test_engine.py", "Value Engine Test")
+        elif choice == "5":
             # Run all tests
             tests = [
+                ("test_engine_improvements.py", "Engine Improvements"),
                 ("test_stats_extraction.py", "Stats Extraction"),
                 ("test_regression_fix.py", "Regression Fix"),
                 ("tests/test_engine.py", "Value Engine")
@@ -193,7 +197,7 @@ class SimpleLauncher:
                 except Exception as e:
                     print(f"[ERROR] {e}")
             input("\n\nPress Enter to continue...")
-        elif choice == "5":
+        elif choice == "6":
             return
         else:
             print("\n[ERROR] Invalid choice")

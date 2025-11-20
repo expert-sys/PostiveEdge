@@ -15,8 +15,23 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import re
+import logging
 from typing import List, Dict, Optional, Tuple
 from scrapers.context_aware_analysis import ContextAwareAnalyzer, ContextFactors, ContextAwareAnalysis
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("insights_to_value_analysis")
+
+# Try to import NBA trend calculator (optional - falls back to parsing if not available)
+try:
+    from scrapers.nba_trend_calculator import (
+        calculate_trend_from_insight as calculate_trend_from_nba,
+        calculate_and_validate_trend
+    )
+    NBA_DATA_AVAILABLE = True
+except ImportError:
+    NBA_DATA_AVAILABLE = False
+    logger.warning("NBA trend calculator not available - will use Sportsbet insight parsing")
 
 
 def extract_historical_outcomes_from_insight(fact: str) -> Tuple[Optional[List[int]], int]:
@@ -178,18 +193,145 @@ def create_context_from_insight(insight: Dict, lineup_context: Optional[ContextF
     return context
 
 
+def get_minimum_sample_size_for_market(market: str, fact: str = "") -> int:
+    """
+    Determine minimum sample size based on market type.
+
+    Tiered approach:
+    - Player Props (points, rebounds, assists): n≥10
+    - Team Totals (over/under): n≥8
+    - Moneyline/Spread: n≥7
+    - Half-time markets: n≥12 (higher variance)
+    - H2H trends: n≥15 (lower quality data)
+
+    Args:
+        market: Market name/description
+        fact: Insight fact text (for additional context)
+
+    Returns:
+        Minimum sample size required for this market type
+    """
+    market_lower = market.lower()
+    fact_lower = fact.lower()
+
+    # Player prop markets - highest variance
+    player_prop_keywords = ['points', 'rebounds', 'assists', 'steals', 'blocks',
+                           'threes', '3-pointers', 'field goals', 'free throws']
+    if any(keyword in market_lower for keyword in player_prop_keywords):
+        return 10
+
+    # Half-time markets - very high variance
+    if 'half' in market_lower or '1h' in market_lower or 'ht' in market_lower:
+        return 12
+
+    # H2H trends - low quality
+    if ('head to head' in fact_lower or 'h2h' in fact_lower or
+        'last met' in fact_lower or 'previous meetings' in fact_lower):
+        return 15
+
+    # Team totals (over/under)
+    if 'total' in market_lower or 'over' in market_lower or 'under' in market_lower:
+        return 8
+
+    # Moneyline/Spread - baseline
+    if 'winner' in market_lower or 'spread' in market_lower or 'handicap' in market_lower:
+        return 7
+
+    # Default - conservative baseline
+    return 7
+
+
+def validate_insight_context(
+    insight: Dict,
+    home_team: Optional[str] = None,
+    away_team: Optional[str] = None
+) -> Tuple[bool, List[str]]:
+    """
+    Validate that insight context filters match the actual game context.
+
+    Args:
+        insight: Insight dictionary with 'fact' field
+        home_team: Name of home team in the actual game
+        away_team: Name of away team in the actual game
+
+    Returns:
+        (is_valid, warnings) - False if context mismatch detected
+    """
+    fact = insight.get('fact', '').lower()
+    warnings = []
+
+    if not home_team or not away_team:
+        # Can't validate without game context
+        return (True, warnings)
+
+    # Extract team mentioned in insight
+    # Look for team names in the fact
+    home_mentioned = home_team.lower() in fact
+    away_mentioned = away_team.lower() in fact
+
+    # Check home/away filters
+    has_home_filter = ('at home' in fact or 'home games' in fact) and 'away' not in fact
+    has_away_filter = ('road' in fact or 'away' in fact or 'away games' in fact) and 'home' not in fact
+
+    if has_home_filter:
+        # Insight mentions "at home" - verify it's about the home team
+        if away_mentioned and not home_mentioned:
+            warnings.append(
+                f"CONTEXT MISMATCH: Insight mentions '{away_team}' with 'home' filter, "
+                f"but {away_team} is the AWAY team (home team is {home_team})"
+            )
+            return (False, warnings)
+
+    if has_away_filter:
+        # Insight mentions "away" or "road" - verify it's about the away team
+        if home_mentioned and not away_mentioned:
+            warnings.append(
+                f"CONTEXT MISMATCH: Insight mentions '{home_team}' with 'away/road' filter, "
+                f"but {home_team} is the HOME team (away team is {away_team})"
+            )
+            return (False, warnings)
+
+    # Check opponent filters (e.g., "vs Lakers")
+    vs_match = re.search(r'(?:vs|against)\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)', insight.get('fact', ''))
+    if vs_match:
+        mentioned_opponent = vs_match.group(1)
+        # Check if mentioned opponent is actually the opponent in this game
+        if home_mentioned:
+            # Home team is the subject, opponent should be away team
+            if mentioned_opponent.lower() not in away_team.lower():
+                warnings.append(
+                    f"OPPONENT MISMATCH: Insight says '{home_team}' vs '{mentioned_opponent}', "
+                    f"but actual opponent is {away_team}"
+                )
+                return (False, warnings)
+        elif away_mentioned:
+            # Away team is the subject, opponent should be home team
+            if mentioned_opponent.lower() not in home_team.lower():
+                warnings.append(
+                    f"OPPONENT MISMATCH: Insight says '{away_team}' vs '{mentioned_opponent}', "
+                    f"but actual opponent is {home_team}"
+                )
+                return (False, warnings)
+
+    return (True, warnings)
+
+
 def analyze_insight_with_context(
     insight: Dict,
-    minimum_sample_size: int = 4,
-    lineup_context: Optional[ContextFactors] = None
+    minimum_sample_size: int = 5,
+    lineup_context: Optional[ContextFactors] = None,
+    home_team: Optional[str] = None,
+    away_team: Optional[str] = None
 ) -> Optional[ContextAwareAnalysis]:
     """
     Analyze a single insight using Context-Aware Analysis.
 
     Args:
         insight: Dictionary with keys 'fact', 'market', 'result', 'odds', 'tags'
-        minimum_sample_size: Minimum number of historical games needed (default: 4)
+        minimum_sample_size: Minimum number of historical games needed (default: 5, baseline is 6-7)
         lineup_context: Optional lineup context from RotoWire
+        home_team: Home team name (for context validation)
+        away_team: Away team name (for context validation)
 
     Returns:
         ContextAwareAnalysis object or None if can't analyze
@@ -203,14 +345,79 @@ def analyze_insight_with_context(
     if not odds:
         return None
 
-    # Extract historical outcomes from the insight
-    outcomes, sample_size = extract_historical_outcomes_from_insight(fact)
+    # Validate insight context against game context
+    context_valid, context_warnings = validate_insight_context(insight, home_team, away_team)
+    if not context_valid:
+        for warning in context_warnings:
+            logger.warning(f"✗ {warning}")
+        logger.warning(f"✗ Insight rejected due to context mismatch: {fact[:80]}...")
+        return None
 
+    # Log context warnings even if valid
+    if context_warnings:
+        for warning in context_warnings:
+            logger.info(f"  [CONTEXT] {warning}")
+
+    # AUTO-REJECT narrative trends (zero predictive value)
+    fact_lower = fact.lower()
+    narrative_indicators = [
+        'after overtime', 'after leading', 'after trailing', 'when leading',
+        'when trailing', 'in overtime', 'following a win', 'following a loss',
+        'after winning', 'after losing'
+    ]
+    if any(indicator in fact_lower for indicator in narrative_indicators):
+        logger.warning(f"✗ AUTO-REJECTED narrative trend (zero predictive value): {fact[:80]}...")
+        return None
+
+    # Try to calculate trend from actual NBA.com data first (with validation)
+    # Falls back to parsing Sportsbet insight if NBA data unavailable
+    outcomes = None
+    sample_size = 0
+    validation_result = None
+
+    if NBA_DATA_AVAILABLE:
+        try:
+            # Use validation function to backcheck Sportsbet claims against NBA data
+            outcomes, sample_size, validation_result = calculate_and_validate_trend(
+                insight,
+                season="2024-25",
+                require_validation=True  # Reject insights that fail validation
+            )
+
+            if outcomes and sample_size > 0:
+                logger.debug(f"✓ Validated trend from NBA.com: {sum(outcomes)}/{sample_size}")
+
+                # Log validation warnings if any
+                if validation_result and validation_result.get('warnings'):
+                    for warning in validation_result['warnings']:
+                        if 'REJECTED' not in warning:  # Don't log rejected again
+                            logger.info(f"  [VALIDATION] {warning}")
+            elif validation_result and not validation_result.get('is_valid'):
+                # Insight failed validation - reject it completely (don't fallback to parsing)
+                logger.warning(f"✗ Insight rejected due to validation failure: {fact[:80]}...")
+                return None
+        except Exception as e:
+            logger.debug(f"Could not calculate from NBA data, falling back to parsing: {e}")
+
+    # Fallback to parsing Sportsbet insight (only if NBA data unavailable, not if validation failed)
+    if not outcomes and validation_result is None:
+        logger.info("Using Sportsbet insight parsing (NBA data unavailable)")
+        outcomes, sample_size = extract_historical_outcomes_from_insight(fact)
+    
     if not outcomes:
         return None
 
-    # FILTER: Absolute minimum of 4 samples
-    if sample_size < minimum_sample_size:
+    # FILTER: Use tiered minimum sample size based on market type
+    required_minimum = get_minimum_sample_size_for_market(market, fact)
+
+    # Apply the higher of the two minimums (tiered or user-specified)
+    effective_minimum = max(required_minimum, minimum_sample_size)
+
+    if sample_size < effective_minimum:
+        logger.debug(
+            f"✗ Insufficient sample size: {sample_size} < {effective_minimum} "
+            f"(market type requires n≥{required_minimum})"
+        )
         return None
 
     # Extract recent vs historical
@@ -245,7 +452,7 @@ def analyze_insight_with_context(
 # Keep old function for backward compatibility
 def analyze_insight_with_value_engine(
     insight: Dict,
-    minimum_sample_size: int = 4
+    minimum_sample_size: int = 5
 ) -> Optional[ContextAwareAnalysis]:
     """Legacy wrapper - now uses context-aware analysis."""
     return analyze_insight_with_context(insight, minimum_sample_size)
@@ -253,16 +460,20 @@ def analyze_insight_with_value_engine(
 
 def analyze_all_insights(
     insights: List[Dict],
-    minimum_sample_size: int = 4,
-    lineup_context: Optional[ContextFactors] = None
+    minimum_sample_size: int = 5,
+    lineup_context: Optional[ContextFactors] = None,
+    home_team: Optional[str] = None,
+    away_team: Optional[str] = None
 ) -> List[Dict]:
     """
     Analyze all insights with context-aware analysis.
 
     Args:
         insights: List of insight dictionaries
-        minimum_sample_size: Minimum historical sample size
+        minimum_sample_size: Minimum historical sample size (default: 5, baseline is 6-7)
         lineup_context: Optional lineup context from RotoWire
+        home_team: Home team name (for context validation)
+        away_team: Away team name (for context validation)
 
     Returns:
         List of dictionaries with insight + context-aware analysis
@@ -271,7 +482,13 @@ def analyze_all_insights(
     results = []
 
     for insight in insights:
-        analysis = analyze_insight_with_context(insight, minimum_sample_size, lineup_context)
+        analysis = analyze_insight_with_context(
+            insight,
+            minimum_sample_size,
+            lineup_context,
+            home_team,
+            away_team
+        )
 
         if analysis:
             # Calculate sample size from historical probability
@@ -290,6 +507,7 @@ def analyze_all_insights(
                 'analysis': {
                     # Core metrics
                     'sample_size': sample_size,
+                    'sample_weight': analysis.sample_weight,  # Include sample weight
                     'historical_probability': analysis.historical_probability,
                     'adjusted_probability': analysis.adjusted_probability,
                     'bookmaker_probability': analysis.bookmaker_probability,

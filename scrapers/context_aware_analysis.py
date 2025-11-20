@@ -30,7 +30,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 import statistics
 import math
@@ -138,8 +138,17 @@ class ContextAwareAnalysis:
     has_value: bool
     value_percentage: float
     ev_per_100: float  # Standard EV
-    risk_adjusted_ev: float  # EV * (Confidence / 100)
+    risk_adjusted_ev: float  # Properly risk-adjusted EV (Kelly/variance-based)
     implied_odds: float
+    
+    # NEW: Statistical improvements
+    raw_historical_frequency: float  # Raw frequency (k/n) for display
+    bayesian_probability: float  # Jeffreys prior: (k+0.5)/(n+1)
+    blended_probability: float  # Blended with market probability (70/30 or 50/50)
+    confidence_interval_lower: float  # Wilson/Jeffreys lower bound
+    confidence_interval_upper: float  # Wilson/Jeffreys upper bound
+    kelly_fraction: float  # Kelly fraction for stake sizing
+    edge_category: str  # "Strong edge", "Moderate edge", "Weak edge", "No edge"
 
     # Recommendations (must come before optional fields)
     recommendation: str  # "STRONG BET", "BET", "CONSIDER", "PASS", "AVOID"
@@ -187,7 +196,15 @@ class ContextAwareAnalysis:
             'historical_variance': self.historical_variance,
             'recommendation': self.recommendation,
             'reasons': self.reasons,
-            'warnings': self.warnings
+            'warnings': self.warnings,
+            # NEW: Statistical improvements
+            'raw_historical_frequency': getattr(self, 'raw_historical_frequency', self.historical_probability),
+            'bayesian_probability': getattr(self, 'bayesian_probability', self.historical_probability),
+            'blended_probability': getattr(self, 'blended_probability', self.adjusted_probability),
+            'confidence_interval_lower': getattr(self, 'confidence_interval_lower', None),
+            'confidence_interval_upper': getattr(self, 'confidence_interval_upper', None),
+            'kelly_fraction': getattr(self, 'kelly_fraction', 0.0),
+            'edge_category': getattr(self, 'edge_category', 'No edge')
         }
 
 
@@ -200,11 +217,11 @@ class ContextAwareAnalyzer:
         self.recency_weight = 0.3  # Weight for recent vs historical (0.3 = 30% recent, 70% historical)
 
         # Bayesian regression parameters
-        self.regression_threshold = 30  # Sample size where we fully trust the data
+        self.regression_threshold = 6.5  # Baseline sample size (6-7) for minimal regression
         self.league_avg_probability = 0.50  # Default prior for most props
 
-        # NEW: Sample size weighting threshold
-        self.sample_weight_threshold = 10  # Sample size for full weight (n/10)
+        # NEW: Sample size weighting threshold (6-7 is baseline)
+        self.sample_weight_threshold = 6.5  # Baseline sample size for full weight
 
         # NEW: Market-specific variance profiles
         self.market_variances = {
@@ -230,15 +247,52 @@ class ContextAwareAnalyzer:
         """
         IMPROVEMENT 1: Sample Size Weighting
 
-        Calculate weight based on sample size to prevent small sample flukes.
-        Formula: min(1, n / threshold)
+        Calculate weight based on sample size with 6-7 as baseline.
+        6-7 gets full weight, larger samples maintain full weight.
 
         Examples:
-            n=4  -> weight=0.4
-            n=10 -> weight=1.0
-            n=20 -> weight=1.0
+            n=4  -> weight=0.6 (below baseline)
+            n=6  -> weight=1.0 (baseline)
+            n=7  -> weight=1.0 (baseline)
+            n=10 -> weight=1.0 (above baseline, full weight)
         """
-        return min(1.0, sample_size / self.sample_weight_threshold)
+        if sample_size >= 6:
+            return 1.0  # Baseline and above: full weight
+        else:
+            # Below baseline: scale from 0.5 at n=1 to 1.0 at n=6
+            return 0.5 + (sample_size - 1) * (0.5 / 5.0)
+
+    def calculate_confidence_interval(
+        self,
+        successes: int,
+        total: int,
+        confidence_level: float = 0.95
+    ) -> Tuple[float, float]:
+        """
+        IMPROVEMENT: Fix #2 - Calculate Wilson confidence interval
+        
+        Uses Wilson score interval which works well for all sample sizes.
+        More appropriate than normal approximation for small samples.
+        """
+        if total == 0:
+            return (0.0, 1.0)
+        
+        k = successes
+        n = total
+        
+        # Wilson score interval
+        z = 1.96 if confidence_level == 0.95 else 2.576 if confidence_level == 0.99 else 1.645
+        p_hat = k / n
+        
+        # Wilson score interval formula
+        denominator = 1 + (z**2 / n)
+        center = (p_hat + (z**2 / (2 * n))) / denominator
+        margin = (z / denominator) * math.sqrt((p_hat * (1 - p_hat) / n) + (z**2 / (4 * n**2)))
+        
+        lower = max(0.0, center - margin)
+        upper = min(1.0, center + margin)
+        
+        return (lower, upper)
 
     def calculate_composite_confidence(
         self,
@@ -259,9 +313,19 @@ class ContextAwareAnalyzer:
         # Edge component (0-40 points)
         edge_component = min(40.0, (abs(edge_pct) / max_edge) * 40.0)
 
-        # Sample component (0-40 points) - using sqrt to avoid over-penalizing medium samples
-        sample_component = min(40.0, (math.sqrt(sample_size) / math.sqrt(max_sample)) * 40.0)
-
+        # Sample component (0-40 points) - penalize below-baseline more aggressively
+        if sample_size >= 6:
+            # Baseline and above: normal scaling
+            sample_component = min(40.0, (math.sqrt(sample_size) / math.sqrt(max_sample)) * 40.0)
+        else:
+            # Below baseline: heavily penalize
+            # n=1: 3, n=2: 6, n=3: 9, n=4: 12, n=5: 18 (vs 30+ for baseline)
+            if sample_size <= 3:
+                sample_component = sample_size * 3.0
+            else:
+                # Extra penalty for n=4,5
+                sample_component = 9.0 + (sample_size - 3) * 4.5  # n=4: 13.5, n=5: 18
+        
         # Recency component (0-20 points)
         recency_component = recency_score * 20.0
 
@@ -314,17 +378,93 @@ class ContextAwareAnalyzer:
     def calculate_risk_adjusted_ev(
         self,
         standard_ev: float,
-        confidence_score: float
+        adjusted_prob: float,
+        bookmaker_odds: float,
+        sample_size: int,
+        variance: Optional[float] = None,
+        confidence_score: float = 50.0
     ) -> float:
         """
-        IMPROVEMENT 4: Risk-Adjusted EV
-
-        Formula: Risk-Adjusted EV = EV * (Confidence / 100)
-
-        This accounts for uncertainty and prevents small-sample high-edge bets
-        from looking overly attractive.
+        FIX #5: Risk-Adjusted EV must reflect risk
+        
+        If confidence is 40-50%, EV should be reduced heavily or possibly negative.
+        Low confidence = high risk = heavily reduced EV.
         """
-        return standard_ev * (confidence_score / 100.0)
+        # FIX #5: Confidence-based risk adjustment
+        # Low confidence (40-50%) should heavily reduce or make EV negative
+        if confidence_score < 40:
+            # Very low confidence: Make EV negative or zero
+            return min(0.0, standard_ev * 0.1)  # 90% reduction, can go negative
+        elif confidence_score < 50:
+            # Low confidence: Heavy reduction (70-80% reduction)
+            confidence_multiplier = confidence_score / 100.0  # 0.4 to 0.5
+            return standard_ev * confidence_multiplier * 0.5  # Additional 50% penalty
+        elif confidence_score < 60:
+            # Moderate confidence: Moderate reduction
+            confidence_multiplier = 0.5 + ((confidence_score - 50) / 10.0) * 0.3  # 0.5 to 0.8
+            return standard_ev * confidence_multiplier
+        elif confidence_score < 80:
+            # Good confidence: Light reduction
+            confidence_multiplier = 0.8 + ((confidence_score - 60) / 20.0) * 0.15  # 0.8 to 0.95
+            return standard_ev * confidence_multiplier
+        else:
+            # High confidence: Minimal reduction
+            confidence_multiplier = 0.95 + ((confidence_score - 80) / 20.0) * 0.05  # 0.95 to 1.0
+            return standard_ev * confidence_multiplier
+        
+        # Old method (kept as fallback, but confidence-based is primary)
+        # Calculate variance if not provided
+        if variance is None:
+            variance = adjusted_prob * (1 - adjusted_prob)
+        
+        # Variance penalty
+        std_dev = math.sqrt(variance) if variance > 0 else 0.1
+        variance_penalty = 1.0 / (1.0 + std_dev * 2.0)
+        
+        # Sample size penalty
+        if sample_size < 20:
+            sample_penalty = 0.3  # Heavy penalty for very small samples
+        elif sample_size < 30:
+            sample_penalty = 0.6  # Moderate penalty
+        else:
+            sample_penalty = 1.0  # No penalty
+        
+        # Combine penalties
+        risk_adjusted_ev = standard_ev * variance_penalty * sample_penalty
+        
+        return risk_adjusted_ev
+    
+    def _calculate_kelly_fraction(
+        self,
+        probability: float,
+        odds: float,
+        sample_size: int,
+        fractional_kelly: float = 0.25  # Use quarter Kelly for safety
+    ) -> float:
+        """
+        Calculate Kelly fraction: f* = (p*odds - 1) / (odds - 1)
+        Then apply fractional Kelly and sample size adjustment
+        """
+        if odds <= 1.0:
+            return 0.0
+        
+        # Full Kelly fraction
+        kelly = (probability * odds - 1.0) / (odds - 1.0)
+        
+        # Only bet if positive edge
+        if kelly <= 0:
+            return 0.0
+        
+        # Apply fractional Kelly (quarter Kelly for safety)
+        kelly = kelly * fractional_kelly
+        
+        # Reduce Kelly for small samples
+        if sample_size < 30:
+            sample_adjustment = min(1.0, sample_size / 30.0)
+            kelly = kelly * sample_adjustment
+        
+        # Cap at reasonable maximum (5% of bankroll)
+        return min(0.05, max(0.0, kelly))
 
     def calculate_kelly_stake(
         self,
@@ -416,6 +556,63 @@ class ContextAwareAnalyzer:
         except:
             return 0.0
 
+    def analyze_correlation(self, analyzed_bets: List[Dict]) -> Dict[str, Any]:
+        """
+        IMPROVEMENT: Fix #7 - Correlation Analysis for Multiple Bets on Same Game
+        
+        Identifies games with multiple bets and calculates correlation risk.
+        High correlation means if the game goes wrong, all bets fail together.
+        
+        Returns:
+            Dict with correlation warnings and recommendations
+        """
+        # Group bets by game
+        games = {}
+        for bet in analyzed_bets:
+            game_key = self._extract_game_key(
+                bet.get('market', ''),
+                bet.get('insight', {}).get('fact', '')
+            )
+            if game_key not in games:
+                games[game_key] = []
+            games[game_key].append(bet)
+        
+        # Find games with multiple bets
+        correlated_games = {k: v for k, v in games.items() if len(v) > 1}
+        
+        warnings = []
+        recommendations = []
+        
+        for game_key, bets in correlated_games.items():
+            num_bets = len(bets)
+            total_risk_adj_ev = sum(b.get('analysis', {}).get('risk_adjusted_ev', 0) for b in bets)
+            
+            # High correlation risk if 3+ bets on same game
+            if num_bets >= 3:
+                warnings.append(
+                    f"Game '{game_key}': {num_bets} correlated bets "
+                    f"(Total Risk-Adj EV: ${total_risk_adj_ev:.2f}). "
+                    f"If game outcome is unexpected, all bets may fail together."
+                )
+                recommendations.append(
+                    f"Consider diversifying: Keep max 2 bets per game, "
+                    f"or reduce stake sizes by {min(50, num_bets * 15)}% for correlation risk."
+                )
+            elif num_bets == 2:
+                # Moderate correlation - just note it
+                warnings.append(
+                    f"Game '{game_key}': 2 bets detected. "
+                    f"Consider diversifying across different games/markets."
+                )
+        
+        return {
+            'correlated_games': len(correlated_games),
+            'total_bets': len(analyzed_bets),
+            'warnings': warnings,
+            'recommendations': recommendations,
+            'correlation_risk': 'HIGH' if len(correlated_games) > 0 and any(len(bets) >= 3 for bets in correlated_games.values()) else 'LOW'
+        }
+
     def detect_duplicates(self, analyzed_bets: List[Dict]) -> List[Dict]:
         """
         IMPROVEMENT 6: Duplicate/Conflicting Bet Detection
@@ -506,10 +703,32 @@ class ContextAwareAnalyzer:
         if is_win_loss and not has_player_stats:
             return 'STREAK'
 
-        # H2H_TREND (low) - head-to-head, opponent-specific
+        # H2H_TREND (low) - head-to-head, opponent-specific, not causally meaningful
         h2h_indicators = ['against the', 'vs the', 'versus', 'matchup', 'all-time', 'in his career against']
         if any(ind in fact_lower for ind in h2h_indicators):
             return 'H2H_TREND'
+
+        # Check for conference filters (low-medium predictive value)
+        # These should ideally be validated against opponent's actual conference
+        # For now, treat as low quality (better than zero)
+        conference_indicators = [
+            'vs eastern conference', 'vs western conference', 'vs east', 'vs west',
+            'eastern conference', 'western conference',
+            'against eastern', 'against western', 'east teams', 'west teams'
+        ]
+        if any(ind in fact_lower for ind in conference_indicators):
+            # Conference filters have some predictive value if opponent is from that conference
+            # TODO: Validate opponent's actual conference for better accuracy
+            return 'TEAM_PACE_SPLIT'  # Medium weight (0.7)
+
+        # Non-predictive indicators (favorites/favourites splits)
+        non_predictive_indicators = [
+            'as home favorite', 'as home favourites', 'as away favorite',
+            'as away favourites', 'as favorite', 'as favourite'
+        ]
+        if any(ind in fact_lower for ind in non_predictive_indicators):
+            # Favorite/underdog splits have zero predictive value
+            return 'NARRATIVE_SPLIT'  # Zero weight
 
         # TEAM_PACE_SPLIT (medium) - team pace, tempo, total points trends
         pace_indicators = ['total points', 'total match points', 'pace', 'tempo', 'gone over', 'gone under']
@@ -517,7 +736,8 @@ class ContextAwareAnalyzer:
             return 'TEAM_PACE_SPLIT'
 
         # PLAYER_USAGE_SPLIT (medium) - player stats with context (home/road, vs conference)
-        usage_indicators = ['home', 'road', 'away', 'vs east', 'vs west', 'as underdog', 'as favorite']
+        # But only if it's about actual performance metrics, not role-based
+        usage_indicators = ['home', 'road', 'away']
         if any(ind in fact_lower for ind in usage_indicators) and ('scored' in fact_lower or 'recorded' in fact_lower or 'made' in fact_lower):
             return 'PLAYER_USAGE_SPLIT'
 
@@ -553,8 +773,16 @@ class ContextAwareAnalyzer:
         if league_avg is None:
             league_avg = self.league_avg_probability
 
-        # Calculate regression weight based on sample size
-        regression_weight = min(1.0, sample_size / self.regression_threshold)
+        # Calculate regression weight based on sample size (6-7 is baseline)
+        # More aggressive regression for below-baseline samples
+        if sample_size >= 6:
+            # Baseline and above: minimal regression (90%+ weight on observed)
+            regression_weight = 0.9 + min(0.1, (sample_size - 6) * 0.01)
+        else:
+            # Below baseline: very aggressive regression (only n=5 should reach here)
+            # n=5: 0.70 (since n<5 is filtered out)
+            regression_weight = 0.25 + (sample_size - 1) * (0.45 / 4.0)
+        regression_weight = min(1.0, regression_weight)
 
         # Apply Bayesian regression
         adjusted_prob = (historical_prob * regression_weight) + (league_avg * (1 - regression_weight))
@@ -573,7 +801,7 @@ class ContextAwareAnalyzer:
         player_name: Optional[str] = None,
         insight_fact: Optional[str] = None,
         market: Optional[str] = None
-    ) -> ContextAwareAnalysis:
+    ) -> Optional[ContextAwareAnalysis]:
         """
         Perform context-aware value analysis
 
@@ -592,16 +820,56 @@ class ContextAwareAnalyzer:
             context_factors = ContextFactors()
 
         sample_size = len(historical_outcomes)
+        
+        # Safety filter: Don't analyze if sample size is below minimum (5)
+        if sample_size < self.min_sample_size:
+            return None
 
-        # 1. Calculate raw historical probability
-        raw_historical_prob = sum(historical_outcomes) / sample_size
+        # 1. Calculate Bayesian probability using Jeffreys prior (SPECIFICATION)
+        # Formula: P_bayesian = (k + 0.5) / (n + 1) where k = successes, n = total
+        # This prevents inflated estimates from small sample sizes
+        successes = sum(historical_outcomes)
+        bayesian_prob = (successes + 0.5) / (sample_size + 1)
 
-        # 2. Apply sample size regression (prevents 5/5 = 100% problem)
-        historical_prob = self.apply_sample_size_regression(
-            raw_historical_prob,
-            sample_size,
-            self.league_avg_probability
-        )
+        # Store raw frequency for display
+        raw_historical_frequency = successes / sample_size if sample_size > 0 else 0.5
+
+        # AGGRESSIVE REGRESSION TO MEAN for extreme probabilities and small samples
+        # League average is 50% - extreme probabilities (>75% or <25%) with small samples are unreliable
+        LEAGUE_AVERAGE = 0.50
+
+        # Calculate how much to regress based on sample size and extremeness
+        if sample_size < 15:
+            # Small samples: regress heavily toward 50%
+            if bayesian_prob > 0.75 or bayesian_prob < 0.25:
+                # Extreme probability with small sample - very unreliable
+                regression_weight = 0.70  # 70% toward league average
+            elif bayesian_prob > 0.65 or bayesian_prob < 0.35:
+                # Moderately extreme
+                regression_weight = 0.50  # 50% toward league average
+            else:
+                # More reasonable
+                regression_weight = 0.30  # 30% toward league average
+        elif sample_size < 25:
+            # Medium samples: moderate regression
+            if bayesian_prob > 0.75 or bayesian_prob < 0.25:
+                regression_weight = 0.50
+            elif bayesian_prob > 0.65 or bayesian_prob < 0.35:
+                regression_weight = 0.35
+            else:
+                regression_weight = 0.20
+        else:
+            # Large samples: light regression
+            if bayesian_prob > 0.80 or bayesian_prob < 0.20:
+                regression_weight = 0.30
+            elif bayesian_prob > 0.70 or bayesian_prob < 0.30:
+                regression_weight = 0.20
+            else:
+                regression_weight = 0.10
+
+        # Apply regression to mean
+        bayesian_prob = (bayesian_prob * (1 - regression_weight)) + (LEAGUE_AVERAGE * regression_weight)
+        historical_prob = bayesian_prob
 
         # 3. Classify trend type for quality weighting
         trend_type = 'PLAYER_STATS_FLOOR'  # Default
@@ -647,21 +915,114 @@ class ContextAwareAnalyzer:
         # 5. Calculate value metrics
         bookmaker_prob = 1 / bookmaker_odds
         implied_odds = 1 / adjusted_prob if adjusted_prob > 0 else 999
-        raw_edge = (adjusted_prob - bookmaker_prob) * 100
+        
+        # FIX #1 & #2: Start from market odds, adjust slightly
+        # UPDATED: Even more conservative blending to prevent inflated probabilities
+        # For n < 10: Treat trends as very weak clues (95% market, 5% Bayesian)
+        # For n < 15: Still mostly market (92% market, 8% Bayesian)
+        # For n < 25: Heavily weight market (85% market, 15% Bayesian)
+        # For n < 40: More balanced (70% market, 30% Bayesian)
+        # For n >= 40: Trust the data more (50% market, 50% Bayesian)
+        # IMPORTANT: Always blend - final prob can NEVER equal raw trend
+
+        if sample_size < 10:
+            # Very small sample: 95% market, 5% Bayesian (extremely weak clue)
+            w_market = 0.95
+            w_bayesian = 0.05
+        elif sample_size < 15:
+            # Small sample: 92% market, 8% Bayesian
+            w_market = 0.92
+            w_bayesian = 0.08
+        elif sample_size < 25:
+            # Below average: 85% market, 15% Bayesian
+            w_market = 0.85
+            w_bayesian = 0.15
+        elif sample_size < 40:
+            # Average: 70% market, 30% Bayesian
+            w_market = 0.70
+            w_bayesian = 0.30
+        else:
+            # Large sample: 50% market, 50% Bayesian
+            w_market = 0.50
+            w_bayesian = 0.50
+        
+        # Calculate adjustment from Bayesian probability
+        # Start from market, adjust slightly based on trend
+        bayesian_adjustment = bayesian_prob - bookmaker_prob
+
+        # For small samples, make adjustment extremely small
+        if sample_size < 10:
+            adjustment_multiplier = 0.05  # Only 5% of the difference
+        elif sample_size < 15:
+            adjustment_multiplier = 0.08  # 8% of the difference
+        elif sample_size < 25:
+            adjustment_multiplier = 0.15  # 15% of the difference
+        elif sample_size < 40:
+            adjustment_multiplier = 0.30  # 30% of the difference
+        else:
+            adjustment_multiplier = 0.50  # 50% of the difference
+        
+        # Apply small adjustment to market probability
+        adjusted_from_market = bookmaker_prob + (bayesian_adjustment * adjustment_multiplier)
+        
+        # Ensure we always have a blend (never equals raw trend)
+        blended_prob = (w_market * bookmaker_prob) + (w_bayesian * bayesian_prob)
+        
+        # Use the more conservative of the two (the one closer to market)
+        blended_prob = min(blended_prob, adjusted_from_market) if bayesian_prob > bookmaker_prob else max(blended_prob, adjusted_from_market)
+        
+        # Ensure blended_prob is never equal to raw trend (always different)
+        if abs(blended_prob - bayesian_prob) < 0.001:
+            # Force a blend by moving slightly toward market
+            blended_prob = bookmaker_prob * 0.95 + bayesian_prob * 0.05
+        
+        # FIX #3: Cap edges based on sample size (stricter for small samples)
+        raw_edge = (blended_prob - bookmaker_prob) * 100
+
+        # Stricter caps based on sample size (updated for better accuracy)
+        if sample_size < 10:
+            max_edge = 2.5  # Very small samples: max 2.5% edge
+        elif sample_size < 15:
+            max_edge = 3.5  # Small samples: max 3.5% edge
+        elif sample_size < 20:
+            max_edge = 4.0  # Below baseline: max 4% edge
+        elif sample_size < 30:
+            max_edge = 5.0  # Moderate samples: max 5% edge
+        else:
+            max_edge = 6.0  # Large samples: max 6% edge
+
+        # Apply cap
+        capped_edge = max(-max_edge, min(max_edge, raw_edge))
+        
+        # Categorize edge (for reporting)
+        if capped_edge > 6.0:
+            edge_category = "Strong edge"
+        elif capped_edge > 3.0:
+            edge_category = "Moderate edge"
+        elif capped_edge > 0.0:
+            edge_category = "Weak edge"
+        else:
+            edge_category = "No edge"
 
         # IMPROVEMENT 1: Sample Size Weighting for Edge
         sample_weight = self.calculate_sample_weight(sample_size)
-        weighted_edge = raw_edge * sample_weight
+        weighted_edge = capped_edge * sample_weight
 
         # IMPROVEMENT 3: Context-Adjusted Edge
         context_adjusted_edge = self.adjust_edge_for_context(weighted_edge, context_factors)
 
-        # Final value determination
-        has_value = context_adjusted_edge > 0
-        value_pct = context_adjusted_edge
-
-        # Expected Value (standard formula)
-        ev_per_100 = (adjusted_prob * (bookmaker_odds - 1) - (1 - adjusted_prob)) * 100
+        # Expected Value (IMPROVEMENT: Fix #4 - Proper EV formula)
+        # EV = (p · (odds - 1) - (1 - p)) per unit
+        # Use blended probability for EV calculation
+        ev_per_unit = (blended_prob * (bookmaker_odds - 1)) - (1 - blended_prob)
+        ev_per_100 = ev_per_unit * 100
+        
+        # Final value determination: Use EV > 0 instead of edge > 0
+        # This is more appropriate when using blended probabilities
+        # The blended probability already accounts for market efficiency,
+        # so if EV is positive, there's value even if edge is small
+        has_value = ev_per_100 > 0  # Use EV instead of edge for value detection
+        value_pct = context_adjusted_edge  # Still report edge for display
 
         # 6. Risk assessment
         risk_score, risk_level = self._calculate_risk(
@@ -671,34 +1032,81 @@ class ContextAwareAnalyzer:
             sample_size
         )
 
-        # IMPROVEMENT 2: Composite Confidence Scoring
-        # Get recency score (0-1) from recency adjustment
-        recency_score = min(1.0, max(0.0, recency_adj.confidence / 100.0))
-
-        (composite_confidence, edge_comp, sample_comp, recency_comp) = self.calculate_composite_confidence(
-            abs(context_adjusted_edge),
-            sample_size,
-            recency_score,
-            max_edge=30.0,
-            max_sample=30
-        )
-
-        # IMPROVEMENT 5: Market-Specific Adjustments
-        market_variance = self.get_market_variance(market or "Default")
-        final_confidence = composite_confidence * market_variance.confidence_multiplier
-
-        # Determine confidence level from score
-        if final_confidence >= 75:
-            confidence_level = "VERY_HIGH"
-        elif final_confidence >= 60:
-            confidence_level = "HIGH"
-        elif final_confidence >= 40:
-            confidence_level = "MEDIUM"
+        # SPECIFICATION: Confidence Rating (0-100)
+        # Must be based on: sample size, variance, predictive strength, market efficiency,
+        # team/player stability, injury/rotation reliability
+        # DO NOT correlate confidence with historical hit rate
+        
+        # Calculate variance of outcomes
+        outcome_variance = statistics.variance(historical_outcomes) if len(historical_outcomes) > 1 else 0.0
+        
+        # Sample size component (0-40 points)
+        if sample_size >= 30:
+            sample_score = 40.0  # Large sample
+        elif sample_size >= 15:
+            sample_score = 30.0  # Moderate sample
+        elif sample_size >= 10:
+            sample_score = 20.0  # Small sample
         else:
-            confidence_level = "LOW"
+            sample_score = 10.0  # Very small sample
+        
+        # Variance component (0-20 points) - lower variance = higher confidence
+        variance_score = max(0.0, 20.0 - (outcome_variance * 40.0))
+        
+        # Predictive strength of trend (0-20 points)
+        trend_type = self.classify_trend_type(insight_fact or "", market or "")
+        trend_quality = self.trend_quality_weights.get(trend_type, self.trend_quality_weights['PLAYER_USAGE_SPLIT'])
+        trend_score = trend_quality['confidence_boost'] + 20.0  # Convert from boost to score
+        
+        # Market efficiency (0-10 points) - assume moderate efficiency
+        market_efficiency_score = 7.0
+        
+        # Team/player stability (0-10 points) - based on minutes consistency
+        if minutes_proj.benching_risk == "LOW":
+            stability_score = 10.0
+        elif minutes_proj.benching_risk == "MEDIUM":
+            stability_score = 6.0
+        else:
+            stability_score = 3.0
+        
+        # Calculate final confidence (0-100)
+        final_confidence = sample_score + variance_score + trend_score + market_efficiency_score + stability_score
+        final_confidence = max(0.0, min(100.0, final_confidence))
+        
+        # Categorize confidence
+        if final_confidence >= 80:
+            confidence_level = "VERY_HIGH"  # Large sample, consistent context, low variance
+        elif final_confidence >= 60:
+            confidence_level = "HIGH"  # Moderate sample or moderate variance
+        elif final_confidence >= 40:
+            confidence_level = "MEDIUM"  # Small sample or high variance
+        else:
+            confidence_level = "LOW"  # Unreliable trend; not recommended
+        
+        # Store components for reporting
+        edge_comp = 0.0  # Not used in confidence calculation per spec
+        sample_comp = sample_score
+        recency_comp = 0.0  # Not used per spec
 
-        # IMPROVEMENT 4: Risk-Adjusted EV
-        risk_adjusted_ev = self.calculate_risk_adjusted_ev(ev_per_100, final_confidence)
+        # Get market variance profile (for reporting)
+        market_variance = self.get_market_variance(market or "Default")
+
+        # Calculate confidence intervals
+        ci_lower, ci_upper = self.calculate_confidence_interval(successes, sample_size, 0.95)
+        
+        # FIX #5: Risk-Adjusted EV must reflect risk (use confidence score)
+        variance = blended_prob * (1 - blended_prob)
+        risk_adjusted_ev = self.calculate_risk_adjusted_ev(
+            ev_per_100, 
+            blended_prob, 
+            bookmaker_odds, 
+            sample_size,
+            variance,
+            final_confidence  # Pass confidence score for proper risk adjustment
+        )
+        
+        # Calculate Kelly fraction for stake sizing
+        kelly_frac = self._calculate_kelly_fraction(blended_prob, bookmaker_odds, sample_size)
 
         # IMPROVEMENT 7: Streak and Variance Info
         recent_streak = self.calculate_recent_streak(historical_outcomes, window=8)
@@ -760,7 +1168,15 @@ class ContextAwareAnalyzer:
             historical_variance=historical_variance,
             recommendation=recommendation,
             reasons=reasons,
-            warnings=warnings
+            warnings=warnings,
+            # NEW: Statistical improvements
+            raw_historical_frequency=raw_historical_frequency,
+            bayesian_probability=bayesian_prob,  # This is the Bayesian probability (k+0.5)/(n+1)
+            blended_probability=blended_prob,
+            confidence_interval_lower=ci_lower,
+            confidence_interval_upper=ci_upper,
+            kelly_fraction=kelly_frac,
+            edge_category=edge_category
         )
 
     def _analyze_minutes(
@@ -1096,8 +1512,10 @@ class ContextAwareAnalyzer:
             elif historical_variance > 0.35:
                 warnings.append("High variance - inconsistent outcomes")
 
-        # Sample size warnings
-        if sample_size < 10:
+        # Sample size warnings (6-7 is baseline)
+        if sample_size < 6:
+            warnings.append(f"Below baseline sample size (n={sample_size}, baseline=6-7) - reduced confidence")
+        elif sample_size < 10:
             warnings.append(f"Small sample size (n={sample_size}) - probability regressed to league avg")
         elif sample_size < 20:
             warnings.append(f"Moderate sample size (n={sample_size}) - some regression applied")
@@ -1125,11 +1543,20 @@ class ContextAwareAnalyzer:
 
         # Generate recommendation (with strict trend quality filtering)
         # Auto-avoid low-quality trends regardless of apparent "value"
+        # Also penalize below-baseline sample sizes (n < 6)
         if trend_type == 'NARRATIVE_SPLIT':
             recommendation = "AVOID"
             warnings.append("Narrative splits have ZERO predictive power - avoiding")
         elif not has_value:
             recommendation = "AVOID"
+        elif sample_size < 6:
+            # Below baseline: downgrade recommendation
+            if has_value and value_pct > 10 and confidence_level in ["HIGH", "VERY_HIGH"]:
+                recommendation = "CONSIDER"  # Can only be CONSIDER at best
+                warnings.append(f"Below baseline sample size (n={sample_size}) - downgraded from BET")
+            else:
+                recommendation = "PASS"
+                warnings.append(f"Below baseline sample size (n={sample_size}, baseline=6-7) - insufficient data")
         elif trend_type == 'STREAK' and confidence_level != "VERY_HIGH":
             recommendation = "AVOID"
             warnings.append("Streaks have very low predictive power - avoiding")

@@ -46,10 +46,10 @@ from enum import Enum
 
 BAYESIAN_PRIOR_ALPHA = 1.0
 BAYESIAN_PRIOR_BETA = 1.0
-SAMPLE_WEIGHT_BASE = 20.0
+SAMPLE_WEIGHT_BASE = 6.5  # Baseline sample size (6-7)
 LEAGUE_AVG = 0.5
 VOLATILITY_SHRINK = 1.0
-REGRESSION_SHRINK_N = 10.0
+REGRESSION_SHRINK_N = 6.5  # Baseline for regression (6-7)
 
 
 # -----------------------------
@@ -206,12 +206,24 @@ def bayesian_shrinkage(wins: int, n: int,
 
 def sample_size_weight(n: int, base: float = SAMPLE_WEIGHT_BASE) -> float:
     """
-    Calculate weight based on sample size using logarithmic scaling.
+    Calculate weight based on sample size with 6-7 as baseline.
+    Low sample sizes (6-7) get full weight, larger samples get same or slightly less.
     Returns value between 0 and 1.
     """
     if n <= 0:
         return 0.0
-    return min(1.0, math.log(n + 1) / math.log(base + 1))
+    # 6-7 is baseline (full weight = 1.0)
+    # Below 6: linearly scale from 0.5 to 1.0
+    # Above 7: maintain full weight (or slight reduction)
+    if n < 6:
+        # Scale from 0.5 at n=1 to 1.0 at n=6
+        return 0.5 + (n - 1) * (0.5 / 5.0)
+    elif n <= 7:
+        return 1.0  # Full weight for baseline
+    else:
+        # Slight reduction for very large samples (optional, or keep at 1.0)
+        # For now, keep at 1.0 to favor low samples
+        return 1.0
 
 
 def regression_to_mean(observed_p: float, n: int,
@@ -219,9 +231,17 @@ def regression_to_mean(observed_p: float, n: int,
                        shrink_n: float = REGRESSION_SHRINK_N) -> float:
     """
     Regress observed probability toward league average based on sample size.
-    Larger samples = less regression.
+    6-7 is baseline with minimal regression. Smaller samples get more regression.
     """
-    w = min(1.0, n / (shrink_n + 1e-9))
+    # At baseline (6-7), use full weight (minimal regression)
+    # Below baseline, apply more regression
+    if n >= 6:
+        # Baseline and above: minimal regression (90%+ weight on observed)
+        w = 0.9 + min(0.1, (n - 6) * 0.01)  # 0.9 at n=6, up to 1.0 at n=16+
+    else:
+        # Below baseline: scale regression from 0.5 at n=1 to 0.9 at n=6
+        w = 0.5 + (n - 1) * (0.4 / 5.0)
+    w = min(1.0, w)
     return observed_p * w + league_avg * (1 - w)
 
 
@@ -458,8 +478,17 @@ class EnhancedValueEngine:
         # 1. Raw probability
         raw_p = wins / n if n > 0 else self.league_avg
 
-        # 2. Bayesian shrinkage (prevents 5/5 = 100% problem)
-        bayes_p = bayesian_shrinkage(wins, n)
+        # 2. Bayesian shrinkage (less aggressive for baseline 6-7)
+        # Use smaller prior for baseline samples to give more weight
+        if n >= 6 and n <= 7:
+            # Baseline: minimal shrinkage
+            bayes_p = bayesian_shrinkage(wins, n, prior_alpha=0.5, prior_beta=0.5)
+        elif n < 6:
+            # Below baseline: moderate shrinkage
+            bayes_p = bayesian_shrinkage(wins, n, prior_alpha=1.0, prior_beta=1.0)
+        else:
+            # Above baseline: minimal shrinkage (trust the data)
+            bayes_p = bayesian_shrinkage(wins, n, prior_alpha=0.5, prior_beta=0.5)
 
         # 3. Recency weighting
         outcomes_array = np.array(historical_outcomes)
@@ -534,10 +563,10 @@ class EnhancedValueEngine:
         confidence = self._compute_confidence(n, adjusted_p, recency_p, market_agreement)
 
         # 12. Add warnings for risky situations
-        if n < 5:
+        if n < 4:
             warnings.append(f"Very small sample size (n={n})")
-        if n < 10:
-            warnings.append(f"Small sample - probability heavily regressed")
+        elif n < 6:
+            warnings.append(f"Below baseline sample size (n={n}, baseline=6-7)")
         if team_a_stats and team_a_stats.choke_pct and team_a_stats.choke_pct > 25:
             warnings.append(f"Team has {team_a_stats.choke_pct:.1f}% choke rate")
         if abs(value_pct) > 20:
@@ -579,12 +608,20 @@ class EnhancedValueEngine:
         recency_score: float,
         market_agreement: float
     ) -> float:
-        """Calculate confidence score (0-100)"""
+        """Calculate confidence score (0-100) with 6-7 as baseline"""
         w_n = sample_size_weight(n, self.sample_weight_base)
         volatility = 1.0 - volatility_adjustment(perceived_p)
 
-        # Weighted combination
-        base = 0.6 * w_n + 0.3 * recency_score + 0.1 * market_agreement
+        # Weighted combination - baseline (6-7) gets full confidence component
+        # Below baseline: reduce confidence component
+        if n >= 6:
+            # Baseline and above: full confidence from sample size
+            sample_confidence = w_n
+        else:
+            # Below baseline: scale confidence
+            sample_confidence = w_n * 0.8  # Slight reduction
+        
+        base = 0.6 * sample_confidence + 0.3 * recency_score + 0.1 * market_agreement
 
         # Penalize high volatility
         confidence = base * (1.0 - 0.4 * volatility)
