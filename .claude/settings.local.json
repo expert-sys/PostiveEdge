@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile:*)",
+      "Bash(python -c:*)",
+      "Bash(powershell:*)",
+      "Bash(dir \"C:\\Users\\nikor\\Documents\\GitHub\\PostiveEdge\\debug\\insights_expanded.png\")",
+      "Bash(python:*)",
+      "WebFetch(domain:www.statmuse.com)",
+      "Bash(start python:*)",
+      "Bash(cmd /c SHOW_BETS.bat)",
+      "Bash(ls:*)",
+      "Bash(tee:*)",
+      "Bash(timeout 90 echo:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

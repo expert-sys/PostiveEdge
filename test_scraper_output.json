@@ -1,0 +1,348 @@
+{
+  "away_team": "Los Angeles Lakers",
+  "home_team": "Boston Celtics",
+  "url": "https://www.sportsbet.com.au/betting/basketball-us/nba/los-angeles-lakers-at-boston-celtics-9911701",
+  "scraped_at": "2025-12-05T20:48:13.142157",
+  "markets": {
+    "total": 8,
+    "moneyline": [
+      {
+        "selection_text": "Los Angeles Lakers",
+        "odds": 2.96,
+        "team": "Los Angeles Lakers",
+        "line": null,
+        "market_category": "moneyline"
+      },
+      {
+        "selection_text": "Boston Celtics0",
+        "odds": 1.4,
+        "team": "Boston Celtics",
+        "line": null,
+        "market_category": "moneyline"
+      }
+    ],
+    "handicap": [
+      {
+        "selection_text": "Los Angeles Lakers(+6.5)0",
+        "odds": 1.9,
+        "team": "Los Angeles Lakers",
+        "line": "+6.5",
+        "market_category": "handicap"
+      },
+      {
+        "selection_text": "Boston Celtics(-6.5)0",
+        "odds": 1.9,
+        "team": "Boston Celtics",
+        "line": "-6.5",
+        "market_category": "handicap"
+      }
+    ],
+    "totals": [
+      {
+        "selection_text": "Over(+223.5)0",
+        "odds": 1.9,
+        "team": null,
+        "line": "+223.5",
+        "market_category": "total"
+      },
+      {
+        "selection_text": "Under(+223.5)0",
+        "odds": 1.9,
+        "team": null,
+        "line": "+223.5",
+        "market_category": "total"
+      }
+    ],
+    "props": []
+  },
+  "match_insights": [
+    {
+      "fact": "The Celtics have won each of their last nine home games with both teams on the second leg of a back-to-back.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Win/Loss"
+      ],
+      "market": "Match",
+      "result": "Boston Celtics",
+      "odds": 1.4,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Each of the Lakers' last five games have gone OVER the total match points line.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Over/Under"
+      ],
+      "market": "Total Points (Over 223.5)",
+      "result": "Over",
+      "odds": 1.9,
+      "icon": "https://cdn.gtgnetwork.com/icons/sports/sportsbet/nba_icon.png"
+    },
+    {
+      "fact": "Austin Reaves has made four or more three-pointers in seven of his last eight appearances with the Lakers as underdogs against Eastern Conference opponents.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Player Three-pointers",
+        "Austin Reaves"
+      ],
+      "market": "Austin Reaves Made Threes",
+      "result": "Over",
+      "odds": 1.96,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/los_angeles_lakers.png"
+    },
+    {
+      "fact": "Payton Pritchard has recorded four or more assists in each of the Celtics' last four games as favourites.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Ast 4+",
+        "Payton Pritchard"
+      ],
+      "market": "Payton Pritchard To Record 4+ Assists",
+      "result": "Payton Pritchard",
+      "odds": 1.32,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Anfernee Simons has recorded two or more assists in each of his last 12 appearances against the Lakers.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Ast 2+",
+        "Anfernee Simons"
+      ],
+      "market": "Anfernee Simons To Record 2+ Assists",
+      "result": "Anfernee Simons",
+      "odds": 1.22,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Deandre Ayton has recorded two or more assists in each of his last three appearances with his team as a road underdog against the Celtics.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Ast 2+",
+        "Deandre Ayton"
+      ],
+      "market": "Deandre Ayton To Record 2+ Assists",
+      "result": "Deandre Ayton",
+      "odds": 1.53,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/los_angeles_lakers.png"
+    },
+    {
+      "fact": "Derrick White has recorded six or more assists in nine of the Celtics' last 10 games as favourites against Western Conference opponents.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Ast 6+",
+        "Derrick White"
+      ],
+      "market": "Derrick White To Record 6+ Assists",
+      "result": "Derrick White",
+      "odds": 2.18,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Jaylen Brown has scored 30+ points in each of the Celtics' last four home games against teams that held a winning record.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Alt 30+",
+        "Jaylen Brown"
+      ],
+      "market": "Jaylen Brown To Score 30+ Points",
+      "result": "Jaylen Brown",
+      "odds": 1.96,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Deandre Ayton has scored 16+ points in 11 of his last 12 appearances with his team as a road underdog against Eastern Conference opponents.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Alt 15+",
+        "Deandre Ayton"
+      ],
+      "market": "Deandre Ayton To Score 15+ Points",
+      "result": "Deandre Ayton",
+      "odds": 1.45,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/los_angeles_lakers.png"
+    },
+    {
+      "fact": "Anfernee Simons has scored 16+ points in each of the Celtics' last three games as favourites.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Alt 15+",
+        "Anfernee Simons"
+      ],
+      "market": "Anfernee Simons To Score 15+ Points",
+      "result": "Anfernee Simons",
+      "odds": 2.6,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Derrick White has scored 15+ points in each of his last eight appearances against teams that held a winning record.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Alt 15+",
+        "Derrick White"
+      ],
+      "market": "Derrick White To Score 15+ Points",
+      "result": "Derrick White",
+      "odds": 1.45,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Neemias Queta has scored 13+ points in each of the Celtics' last three games against Western Conference opponents.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Alt 10+",
+        "Neemias Queta"
+      ],
+      "market": "Neemias Queta To Score 10+ Points",
+      "result": "Neemias Queta",
+      "odds": 1.68,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Rui Hachimura has recorded four or more rebounds in each of his last six road appearances against Celtics teams that held a winning record.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Reb 4+",
+        "Rui Hachimura"
+      ],
+      "market": "Rui Hachimura To Record 4+ Rebounds",
+      "result": "Rui Hachimura",
+      "odds": 1.55,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/los_angeles_lakers.png"
+    },
+    {
+      "fact": "Neemias Queta has recorded eight or more rebounds in each of the Celtics' last four games against Western Conference opponents.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Reb 8+",
+        "Neemias Queta"
+      ],
+      "market": "Neemias Queta To Record 8+ Rebounds",
+      "result": "Neemias Queta",
+      "odds": 1.4,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Jaylen Brown has recorded six or more rebounds in each of the Celtics' last three games against the Lakers.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Reb 6+",
+        "Jaylen Brown"
+      ],
+      "market": "Jaylen Brown To Record 6+ Rebounds",
+      "result": "Jaylen Brown",
+      "odds": 1.59,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "Deandre Ayton has recorded 10+ rebounds in each of his last three appearances against the Celtics.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Reb 10+",
+        "Deandre Ayton"
+      ],
+      "market": "Deandre Ayton To Record 10+ Rebounds",
+      "result": "Deandre Ayton",
+      "odds": 1.64,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/los_angeles_lakers.png"
+    },
+    {
+      "fact": "The Celtics have won the first half in each of their last nine home games against opponents who are on the second leg of a back-to-back.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "H1 Winner"
+      ],
+      "market": "1st Half Winner",
+      "result": "Boston Celtics",
+      "odds": 1.51,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    },
+    {
+      "fact": "The Celtics have covered the line in each of their last six games.",
+      "tags": [
+        "Boston Celtics",
+        "Los Angeles Lakers",
+        "Spread"
+      ],
+      "market": "Handicap Betting",
+      "result": "Boston Celtics",
+      "odds": 1.9,
+      "icon": "https://cdn.gtgnetwork.com/icons/teams/basketball/sportsbet/boston_celtics.png"
+    }
+  ],
+  "insights_count": 18,
+  "match_stats": {
+    "data_range": "Last 10 Matches",
+    "away_team": {
+      "team_name": "Los Angeles Lakers",
+      "avg_points_for": null,
+      "avg_points_against": null,
+      "avg_winning_margin": null,
+      "avg_losing_margin": null,
+      "avg_total_points": null,
+      "favorite_win_pct": null,
+      "underdog_win_pct": null,
+      "night_win_pct": null,
+      "night_loss_pct": null,
+      "clutch_win_pct": null,
+      "reliability_pct": null,
+      "comeback_pct": null,
+      "choke_pct": null
+    },
+    "home_team": {
+      "team_name": "Boston Celtics",
+      "avg_points_for": null,
+      "avg_points_against": null,
+      "avg_winning_margin": null,
+      "avg_losing_margin": null,
+      "avg_total_points": null,
+      "favorite_win_pct": null,
+      "underdog_win_pct": null,
+      "night_win_pct": null,
+      "night_loss_pct": null,
+      "clutch_win_pct": null,
+      "reliability_pct": null,
+      "comeback_pct": null,
+      "choke_pct": null
+    }
+  },
+  "team_insights": {
+    "away_team": "Los Angeles Lakers",
+    "home_team": "Boston Celtics",
+    "away_season_results": [],
+    "home_season_results": [],
+    "head_to_head": [],
+    "extraction_errors": []
+  },
+  "match_preview": null,
+  "insight_cards": [],
+  "insights_extraction_stats": {
+    "total_json_insights": 18,
+    "total_dom_insights": 0,
+    "combined_insights": 18,
+    "show_tip_buttons_clicked": 0,
+    "display_more_clicks": 0,
+    "match_preview_found": false,
+    "season_results_away": 0,
+    "season_results_home": 0,
+    "head_to_head_games": 0,
+    "team_stats_populated": true
+  }
+}

@@ -1,45 +1,109 @@
-# Sports Value Engine - Implied Probability & EV Calculator
+# NBA Betting System - Intelligent Value Finder
 
-A comprehensive Python engine for calculating implied probability, odds, and expected value (EV) for any sports market using historical performance data.
+A comprehensive NBA betting analysis system that scrapes Sportsbet insights, validates with DataBallr player stats, and projects high-confidence value bets using statistical models.
+
+## System Overview
+
+**Complete Pipeline:**
+1. **Scrape Sportsbet** → NBA games, odds, insights, player props
+2. **Validate with DataBallr** → Player game logs, historical hit rates
+3. **Project Value** → Statistical models + historical analysis
+4. **Rank Bets** → High-confidence recommendations (70%+ confidence, positive EV)
 
 ## Features
 
-- **Implied Probability Calculation** - Binary and continuous outcomes
-- **Odds Conversion** - Convert between probability and decimal odds
-- **Value Rating** - Compare historical vs. bookmaker odds
-- **Expected Value (EV)** - Calculate profit/loss expectation
-- **Sample Size Handling** - Bayesian shrinkage and fallback strategies
-- **Data Processing** - Load from CSV, JSON, or manual input
-- **Batch Analysis** - Analyze multiple markets at once
-- **Recency Weighting** - Give more weight to recent games
-- **Opponent Adjustment** - Normalize by opponent strength
-- **Home/Away Splits** - Separate analysis by location
-- **Minutes Adjustment** - Normalize player stats by minutes played
+- **Automated Data Collection** - Scrapes Sportsbet NBA markets and insights
+- **Player Stats Validation** - Cross-references with DataBallr game logs
+- **Statistical Projections** - Combines model predictions (70%) + historical data (30%)
+- **Value Detection** - Identifies positive EV bets with edge calculation
+- **Confidence Scoring** - Multi-factor confidence assessment
+- **Correlation Control** - Limits bets per game to avoid over-exposure
+- **Smart Caching** - Reduces API calls and speeds up analysis
 
-## Installation
+## Quick Start
 
 ### Prerequisites
-- Python 3.7 or higher
-- No external dependencies required (uses only Python standard library)
+- Python 3.8 or higher
+- Internet connection (for scraping)
 
-### Setup
+### Installation & First Run
 
-**Windows (Batch):**
+**Windows:**
 ```bash
-run.bat
-```
-
-**Windows (PowerShell):**
-```powershell
-.\run.ps1
+run_betting_system.bat
 ```
 
 **Linux/Mac:**
 ```bash
-python main.py
+chmod +x run_betting_system.sh
+./run_betting_system.sh
 ```
 
-If you get Python not found errors on Windows, ensure Python is added to your PATH.
+The launcher will automatically:
+1. Create a virtual environment
+2. Install dependencies (Playwright, BeautifulSoup4)
+3. Download browser drivers (one-time setup)
+4. Run the analysis
+
+### Command Line Options
+
+```bash
+# Analyze all available games (default)
+python nba_betting_system.py
+
+# Analyze only 3 games (faster)
+python nba_betting_system.py --games 3
+
+# Higher confidence threshold (75%+)
+python nba_betting_system.py --min-confidence 75
+
+# Custom output file
+python nba_betting_system.py --output my_bets.json
+```
+
+## Example Output
+
+```
+================================================================================
+FINAL RECOMMENDATIONS
+================================================================================
+
+1. LeBron James - Points Over 25.5
+   Game: Lakers @ Warriors (7:30 PM ET)
+   Odds: 1.90 | Confidence: 78% | Strength: HIGH
+   Edge: +5.2% | EV: +8.4%
+   Historical: 65.0% (20 games)
+   Projected: 70.3%
+
+2. Stephen Curry - Three Pointers Made Over 3.5
+   Game: Lakers @ Warriors (7:30 PM ET)
+   Odds: 2.10 | Confidence: 75% | Strength: HIGH
+   Edge: +4.8% | EV: +7.1%
+   Historical: 60.0% (20 games)
+   Projected: 68.5%
+
+✓ Saved 2 recommendations to betting_recommendations.json
+```
+
+## Understanding the Results
+
+### Confidence Score (0-100%)
+- **80%+**: Very High - Strong model agreement + large sample + significant edge
+- **70-79%**: High - Good model confidence with positive indicators
+- **60-69%**: Medium - Acceptable confidence, smaller edge
+- **<60%**: Low - Filtered out by default
+
+### Expected Value (EV)
+- **Positive EV**: Long-term profitable bet
+- **+5% or higher**: Excellent value
+- **+3% to +5%**: Good value
+- **+1% to +3%**: Marginal value
+- **Negative EV**: Avoid
+
+### Edge Percentage
+The difference between your projected probability and the bookmaker's implied probability.
+- **+5% edge**: You estimate 55% chance, bookmaker implies 50%
+- **Higher edge = Better value**
 
 ## Quick Start
 
@@ -421,14 +485,91 @@ Improvements welcome! Consider:
 - Performance tracking dashboard
 - Bet slip management
 
+## Testing the System
+
+Before running a full analysis, test that everything is set up correctly:
+
+```bash
+python test_system.py
+```
+
+This will verify:
+- ✓ All dependencies installed
+- ✓ Scraper modules present
+- ✓ Cache directory created
+- ✓ Main script ready
+
+## Documentation
+
+- **📖 [Setup Guide](SETUP_GUIDE.md)** - Complete installation instructions
+- **🏗️ [System Architecture](SYSTEM_ARCHITECTURE.md)** - Technical details and design
+- **⚡ [Quick Reference](QUICK_REFERENCE.md)** - Commands, metrics, and tips
+- **📊 [Workflow Diagram](WORKFLOW_DIAGRAM.md)** - Visual system flow
+- **📝 [Changelog](CHANGELOG.md)** - Version history and changes
+- **✅ [Rework Complete](REWORK_COMPLETE.md)** - Summary of system rework
+
+## Troubleshooting
+
+### Common Issues
+
+**"Player not in cache"**
+```bash
+echo "Player Name" >> PLAYERS_TO_ADD.txt
+python build_databallr_player_cache.py
+```
+
+**"No games found"**
+- Check NBA schedule - system only works when games are available
+
+**"Insufficient data"**
+- Expected for rookies/injured players - system automatically skips
+
+**Scraping fails**
+- Check internet connection
+- Verify Playwright installed: `playwright install chromium`
+- Check logs: `tail -f nba_betting_system.log`
+
+See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed troubleshooting.
+
+## Performance
+
+- **1 game**: ~30-60 seconds
+- **3 games**: ~2-3 minutes  
+- **All games (5-10)**: ~5-10 minutes
+
+First run takes longer (browser installation). Subsequent runs use cache.
+
+## Responsible Betting
+
+⚠️ **Important Reminders:**
+- This system is for educational/research purposes only
+- Sports betting involves risk - never bet more than you can afford to lose
+- Past performance does not guarantee future results
+- Always verify injury reports and lineups before betting
+- Check that sports betting is legal in your jurisdiction
+- Set limits and stick to them
+
+## Contributing
+
+Improvements welcome! Areas for contribution:
+- Team market analysis (spreads, totals, moneylines)
+- Live betting support
+- Additional sports (NFL, MLB, NHL)
+- Machine learning models
+- Performance tracking dashboard
+- Mobile app
+
 ## License
 
-MIT License - Use freely for personal and commercial projects
+MIT License - See LICENSE file for details
 
-## Support
+## Disclaimer
 
-For issues, questions, or suggestions, please check the documentation and code comments.
+This system is for educational and research purposes only. The authors are not responsible for any financial losses incurred through use of this system. Sports betting involves risk. Always bet responsibly and within your means.
 
 ---
 
-**Happy Value Hunting! 🎯**
+**Happy Betting! 🏀📊**
+
+*Built with Python, Playwright, and statistical models*
+

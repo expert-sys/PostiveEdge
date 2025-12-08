@@ -22,13 +22,15 @@ from scrapers.context_aware_analysis import ContextAwareAnalyzer, ContextFactors
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("insights_to_value_analysis")
 
+# Disable NBA API usage - system uses only Databallr and Sportsbet
 # Try to import NBA trend calculator (optional - falls back to parsing if not available)
 try:
     from scrapers.nba_trend_calculator import (
         calculate_trend_from_insight as calculate_trend_from_nba,
         calculate_and_validate_trend
     )
-    NBA_DATA_AVAILABLE = True
+    # Disabled: System uses only Databallr and Sportsbet, not NBA API
+    NBA_DATA_AVAILABLE = False
 except ImportError:
     NBA_DATA_AVAILABLE = False
     logger.warning("NBA trend calculator not available - will use Sportsbet insight parsing")
@@ -214,31 +216,32 @@ def get_minimum_sample_size_for_market(market: str, fact: str = "") -> int:
     market_lower = market.lower()
     fact_lower = fact.lower()
 
-    # Player prop markets - highest variance
+    # RELAXED: Lower thresholds to catch more insights (projection model will validate)
+    # Player prop markets - relaxed from 10 to 5
     player_prop_keywords = ['points', 'rebounds', 'assists', 'steals', 'blocks',
                            'threes', '3-pointers', 'field goals', 'free throws']
     if any(keyword in market_lower for keyword in player_prop_keywords):
-        return 10
+        return 5  # Lowered from 10 - projection model will validate
 
-    # Half-time markets - very high variance
+    # Half-time markets - relaxed from 12 to 6
     if 'half' in market_lower or '1h' in market_lower or 'ht' in market_lower:
-        return 12
+        return 6  # Lowered from 12
 
-    # H2H trends - low quality
+    # H2H trends - relaxed from 15 to 8
     if ('head to head' in fact_lower or 'h2h' in fact_lower or
         'last met' in fact_lower or 'previous meetings' in fact_lower):
-        return 15
+        return 8  # Lowered from 15
 
-    # Team totals (over/under)
+    # Team totals (over/under) - relaxed from 8 to 5
     if 'total' in market_lower or 'over' in market_lower or 'under' in market_lower:
-        return 8
+        return 5  # Lowered from 8
 
-    # Moneyline/Spread - baseline
+    # Moneyline/Spread - relaxed from 7 to 5
     if 'winner' in market_lower or 'spread' in market_lower or 'handicap' in market_lower:
-        return 7
+        return 5  # Lowered from 7
 
-    # Default - conservative baseline
-    return 7
+    # Default - relaxed baseline
+    return 5  # Lowered from 7
 
 
 def validate_insight_context(
@@ -358,16 +361,31 @@ def analyze_insight_with_context(
         for warning in context_warnings:
             logger.info(f"  [CONTEXT] {warning}")
 
-    # AUTO-REJECT narrative trends (zero predictive value)
+    # AUTO-REJECT player narrative trends (zero predictive value)
+    # But allow team narrative trends with strict confidence requirements
     fact_lower = fact.lower()
     narrative_indicators = [
         'after overtime', 'after leading', 'after trailing', 'when leading',
         'when trailing', 'in overtime', 'following a win', 'following a loss',
         'after winning', 'after losing'
     ]
-    if any(indicator in fact_lower for indicator in narrative_indicators):
-        logger.warning(f"✗ AUTO-REJECTED narrative trend (zero predictive value): {fact[:80]}...")
-        return None
+    has_narrative = any(indicator in fact_lower for indicator in narrative_indicators)
+    
+    if has_narrative:
+        # Check if it's a player trend (has individual stats) vs team trend
+        player_stat_indicators = ['scored', 'recorded', 'made', 'points', 'assists', 'rebounds', 
+                                 'steals', 'blocks', 'threes', 'field goals', 'free throws']
+        has_player_stats = any(stat in fact_lower for stat in player_stat_indicators)
+        
+        # Check for player pronouns
+        has_player_pronouns = ' his ' in fact_lower or 'his last' in fact_lower
+        
+        # Only reject if it's clearly a player narrative trend
+        if has_player_stats or has_player_pronouns:
+            logger.warning(f"✗ AUTO-REJECTED player narrative trend (zero predictive value): {fact[:80]}...")
+            return None
+        # Otherwise, it's a team narrative trend - allow it but it will need strict confidence (75+)
+        logger.info(f"  [TEAM NARRATIVE] Allowing team narrative trend (requires 75+ confidence): {fact[:80]}...")
 
     # Try to calculate trend from actual NBA.com data first (with validation)
     # Falls back to parsing Sportsbet insight if NBA data unavailable

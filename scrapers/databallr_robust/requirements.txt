@@ -1,0 +1,17 @@
+# DataballR Robust Scraper Requirements
+# Python 3.10+
+
+# Core dependencies
+playwright>=1.40.0
+beautifulsoup4>=4.12.0
+pandas>=2.0.0
+pyarrow>=14.0.0
+
+# HTTP clients (at least one required)
+httpx>=0.25.0
+# OR
+# requests>=2.31.0
+
+# Optional but recommended
+lxml>=4.9.0  # Faster HTML parsing
+

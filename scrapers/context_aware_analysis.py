@@ -238,6 +238,7 @@ class ContextAwareAnalyzer:
             'PLAYER_STATS_FLOOR': {'weight': 1.0, 'confidence_boost': 20, 'description': 'HIGH'},
             'PLAYER_USAGE_SPLIT': {'weight': 0.7, 'confidence_boost': 10, 'description': 'MEDIUM'},
             'TEAM_PACE_SPLIT': {'weight': 0.7, 'confidence_boost': 10, 'description': 'MEDIUM'},
+            'TEAM_NARRATIVE_TREND': {'weight': 0.3, 'confidence_boost': -20, 'description': 'LOW', 'min_confidence': 60},  # Relaxed: requires 60+ confidence (was 75)
             'H2H_TREND': {'weight': 0.3, 'confidence_boost': -10, 'description': 'LOW'},
             'STREAK': {'weight': 0.15, 'confidence_boost': -25, 'description': 'VERY_LOW'},
             'NARRATIVE_SPLIT': {'weight': 0.0, 'confidence_boost': -40, 'description': 'ZERO'}
@@ -688,11 +689,48 @@ class ContextAwareAnalyzer:
         fact_lower = insight_fact.lower()
         market_lower = market.lower()
 
-        # NARRATIVE_SPLIT (zero predictive value) - after OT, after leading at halftime, etc.
+        # Check for narrative indicators (after OT, after leading, etc.)
         narrative_indicators = ['after overtime', 'after leading', 'after trailing', 'when leading',
-                               'when trailing', 'in overtime', 'following a win', 'following a loss']
-        if any(ind in fact_lower for ind in narrative_indicators):
-            return 'NARRATIVE_SPLIT'
+                               'when trailing', 'in overtime', 'following a win', 'following a loss',
+                               'after winning', 'after losing']
+        has_narrative = any(ind in fact_lower for ind in narrative_indicators)
+        
+        if has_narrative:
+            # Distinguish between team and player narrative trends
+            # Team indicators: "they", "their", team names, team outcomes (won/lost games, totals)
+            # Player indicators: player names, "he", "his", individual stats (scored, recorded, made)
+            is_team_trend = False
+            is_player_trend = False
+            
+            # Check for player indicators (individual stats)
+            player_stat_indicators = ['scored', 'recorded', 'made', 'points', 'assists', 'rebounds', 
+                                     'steals', 'blocks', 'threes', 'field goals', 'free throws']
+            has_player_stats = any(stat in fact_lower for stat in player_stat_indicators)
+            
+            # Check for team indicators
+            team_indicators = ['they', 'their', 'team', 'games', 'won', 'lost', 'total', 'over', 'under']
+            has_team_indicators = any(ind in fact_lower for ind in team_indicators)
+            
+            # If it has player stats, it's a player trend
+            if has_player_stats:
+                is_player_trend = True
+            # If it has team indicators and no player stats, it's likely a team trend
+            elif has_team_indicators and not has_player_stats:
+                is_team_trend = True
+            # Default: if unclear, check for "his" vs "their" pronouns
+            elif ' his ' in fact_lower or 'his last' in fact_lower:
+                is_player_trend = True
+            elif ' their ' in fact_lower or 'their last' in fact_lower:
+                is_team_trend = True
+            
+            # Return appropriate type
+            if is_player_trend:
+                return 'NARRATIVE_SPLIT'  # Still reject player narrative trends
+            elif is_team_trend:
+                return 'TEAM_NARRATIVE_TREND'  # Allow team narrative trends with strict confidence
+            else:
+                # Default to rejecting if unclear
+                return 'NARRATIVE_SPLIT'
 
         # STREAK (very low) - team/player win/loss streaks
         streak_indicators = ['won each of their last', 'lost each of their last', 'have won',
@@ -1040,38 +1078,63 @@ class ContextAwareAnalyzer:
         # Calculate variance of outcomes
         outcome_variance = statistics.variance(historical_outcomes) if len(historical_outcomes) > 1 else 0.0
         
-        # Sample size component (0-40 points)
+        # Sample size component (0-40 points) - MORE CONSERVATIVE
         if sample_size >= 30:
             sample_score = 40.0  # Large sample
+        elif sample_size >= 20:
+            sample_score = 30.0  # Good sample
         elif sample_size >= 15:
-            sample_score = 30.0  # Moderate sample
+            sample_score = 22.0  # Moderate sample (reduced from 30)
         elif sample_size >= 10:
-            sample_score = 20.0  # Small sample
+            sample_score = 15.0  # Small sample (reduced from 20)
         else:
-            sample_score = 10.0  # Very small sample
+            sample_score = 8.0  # Very small sample (reduced from 10)
         
         # Variance component (0-20 points) - lower variance = higher confidence
         variance_score = max(0.0, 20.0 - (outcome_variance * 40.0))
         
-        # Predictive strength of trend (0-20 points)
+        # Predictive strength of trend (0-20 points) - REDUCED MAX
         trend_type = self.classify_trend_type(insight_fact or "", market or "")
         trend_quality = self.trend_quality_weights.get(trend_type, self.trend_quality_weights['PLAYER_USAGE_SPLIT'])
-        trend_score = trend_quality['confidence_boost'] + 20.0  # Convert from boost to score
+        # Cap trend score contribution
+        trend_score = min(15.0, trend_quality['confidence_boost'] + 10.0)  # Reduced max from 20 to 15
         
         # Market efficiency (0-10 points) - assume moderate efficiency
         market_efficiency_score = 7.0
         
         # Team/player stability (0-10 points) - based on minutes consistency
         if minutes_proj.benching_risk == "LOW":
-            stability_score = 10.0
+            stability_score = 8.0  # Reduced from 10
         elif minutes_proj.benching_risk == "MEDIUM":
-            stability_score = 6.0
+            stability_score = 5.0  # Reduced from 6
         else:
-            stability_score = 3.0
+            stability_score = 2.0  # Reduced from 3
         
-        # Calculate final confidence (0-100)
-        final_confidence = sample_score + variance_score + trend_score + market_efficiency_score + stability_score
+        # Calculate base confidence (0-100)
+        base_confidence = sample_score + variance_score + trend_score + market_efficiency_score + stability_score
+        
+        # AGGRESSIVE CAPS for small samples (fix overconfidence issue)
+        if sample_size < 10:
+            max_confidence = 60.0  # Very small samples capped at 60
+        elif sample_size < 15:
+            max_confidence = 70.0  # Small samples capped at 70
+        elif sample_size < 20:
+            max_confidence = 80.0  # Moderate samples capped at 80
+        elif sample_size < 30:
+            max_confidence = 90.0  # Good samples capped at 90
+        else:
+            max_confidence = 100.0  # Large samples can reach 100
+        
+        # Apply cap
+        final_confidence = min(base_confidence, max_confidence)
         final_confidence = max(0.0, min(100.0, final_confidence))
+        
+        # Enforce minimum confidence for TEAM_NARRATIVE_TREND (relaxed requirement)
+        if trend_type == 'TEAM_NARRATIVE_TREND':
+            min_confidence = trend_quality.get('min_confidence', 60)  # Relaxed from 75
+            if final_confidence < min_confidence:
+                # Confidence too low for team narrative trends - reject
+                final_confidence = 0.0  # Set to 0 to trigger rejection
         
         # Categorize confidence
         if final_confidence >= 80:
@@ -1128,6 +1191,7 @@ class ContextAwareAnalyzer:
             risk_adjusted_ev,  # Use risk-adjusted EV for recommendations
             risk_level,
             confidence_level,
+            final_confidence,
             minutes_proj,
             recency_adj,
             trend_type,
@@ -1446,6 +1510,7 @@ class ContextAwareAnalyzer:
         ev_per_100: float,
         risk_level: str,
         confidence_level: str,
+        final_confidence: float,
         minutes_proj: MinutesProjection,
         recency_adj: RecencyAdjustment,
         trend_type: str,
@@ -1468,6 +1533,8 @@ class ContextAwareAnalyzer:
         trend_desc = trend_quality.get('description', 'MEDIUM')
         if trend_type == 'NARRATIVE_SPLIT':
             warnings.append(f"NARRATIVE SPLIT trend (ZERO predictive value)")
+        elif trend_type == 'TEAM_NARRATIVE_TREND':
+            warnings.append(f"TEAM NARRATIVE trend (VERY LOW predictive value - requires 75+ confidence)")
         elif trend_type == 'STREAK':
             warnings.append(f"STREAK trend (VERY LOW predictive value)")
         elif trend_type == 'H2H_TREND':
@@ -1547,6 +1614,9 @@ class ContextAwareAnalyzer:
         if trend_type == 'NARRATIVE_SPLIT':
             recommendation = "AVOID"
             warnings.append("Narrative splits have ZERO predictive power - avoiding")
+        elif trend_type == 'TEAM_NARRATIVE_TREND' and final_confidence < trend_quality.get('min_confidence', 60):
+            recommendation = "AVOID"
+            warnings.append(f"Team narrative trend requires minimum {trend_quality.get('min_confidence', 60)} confidence - current: {final_confidence:.0f}")
         elif not has_value:
             recommendation = "AVOID"
         elif sample_size < 6:
@@ -1576,6 +1646,10 @@ class ContextAwareAnalyzer:
             recommendation = "STRONG BET"
         elif value_pct > 8 and confidence_level in ["HIGH", "VERY_HIGH"] and trend_type != 'H2H_TREND':
             recommendation = "BET"
+        elif value_pct > 10 and confidence_level == "VERY_HIGH" and trend_type == 'TEAM_NARRATIVE_TREND':
+            # Team narrative trends need very high confidence and good value
+            recommendation = "CONSIDER"
+            warnings.append("Team narrative trend - proceed with caution, early value opportunity")
         elif value_pct > 3 and trend_type in ['PLAYER_STATS_FLOOR', 'PLAYER_USAGE_SPLIT']:
             recommendation = "CONSIDER"
         else:

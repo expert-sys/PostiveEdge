@@ -1,0 +1,57 @@
+PLAYERS NOT IN DATABALLR CACHE (Need PlayerIDs.txt entries):
+=============================================================
+These players need to be found on databallr.com and added to PlayerIDs.txt
+
+1. Quentin Grimes
+2. Kyshawn George
+3. Tyrese Maxey
+4. Bilal Coulibaly
+5. Jakob Poeltl
+6. Deni Avdija
+7. Immanuel Quickley
+8. Shaedon Sharpe
+9. Donovan Clingan
+10. Jeremiah Fears
+11. Donte DiVincenzo
+12. Vince Williams Jr.
+13. Devin Vassell
+14. De'Aaron Fox
+15. Jaylen Wells
+16. Zach Edey
+17. Derrick White
+18. Anfernee Simons
+19. Josh Hart
+20. Ajay Mitchell
+21. Jalen Williams
+
+TOTAL: 21 players need databallr IDs
+
+
+PLAYERS FOUND IN DATABALLR BUT NBA CACHE LOOKUP FAILED:
+========================================================
+These players are in databallr cache but the NBA.com cache lookup is failing.
+This is a different issue - the NBA cache might be expired or the name matching is failing.
+
+1. Khris Middleton (databallr ID: 203114)
+2. Jerami Grant (databallr ID: 203924)
+3. Brandon Ingram (databallr ID: 1627742)
+4. Anthony Edwards (databallr ID: 1630162)
+5. Julius Randle (databallr ID: 203944)
+6. Zion Williamson (databallr ID: 1629627)
+7. Rudy Gobert (databallr ID: 203497)
+8. Harrison Barnes (databallr ID: 203084)
+9. Jalen Brunson (databallr ID: 1628973)
+10. Mikal Bridges (databallr ID: 1628969)
+11. Karl-Anthony Towns (databallr ID: 1626157)
+12. Jaylen Brown (databallr ID: 1627759)
+13. Buddy Hield (databallr ID: 1627741)
+14. Shai Gilgeous-Alexander (databallr ID: 1628983)
+
+TOTAL: 14 players - NBA cache issue (not databallr cache issue)
+
+NOTE: The NBA cache error shows:
+"Player cache expired (age: 11 days)"
+"Error building player cache: HTTPSConnectionPool(host='stats.nba.com', port=443): Read timed out"
+
+This suggests the NBA.com API is timing out when trying to refresh the cache.
+

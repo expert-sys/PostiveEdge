@@ -107,6 +107,37 @@ class GameLogEntry:
         return asdict(self)
 
 
+@dataclass
+class AdvancedPlayerStats:
+    player_id: int
+    player_name: str
+    season: str
+    usg_pct: float
+    ts_pct: float
+    pie: float
+    ast_ratio: float
+    ast_pct: float
+    efg_pct: float
+    off_rating: float
+    def_rating: float
+    net_rating: float
+
+
+@dataclass
+class AdvancedTeamStats:
+    team_id: int
+    team_name: str
+    season: str
+    pace: float
+    off_rating: float
+    def_rating: float
+    net_rating: float
+    efg_pct: float
+    oreb_pct: float
+    dreb_pct: float
+    reb_pct: float
+
+
 def get_season_id(season: str) -> str:
     """Convert season string to NBA API season ID"""
     # "2024-25" -> "2024-25"
@@ -178,26 +209,80 @@ def get_team_id(team_name: str) -> Optional[int]:
     return None
 
 
+def _cache_dir() -> Path:
+    return Path(__file__).parent.parent / "data" / "cache"
+
+
+def _read_cache(filename: str) -> Optional[List[Dict]]:
+    try:
+        p = _cache_dir() / filename
+        if not p.exists():
+            return None
+        with open(p, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _write_cache(filename: str, rows: List[Dict]) -> None:
+    try:
+        d = _cache_dir()
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / filename
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(rows, f, indent=2)
+    except Exception:
+        pass
+
+
 def get_player_game_log(
     player_name: str,
     season: str = "2024-25",
     last_n_games: Optional[int] = None,
-    retries: int = 2
+    retries: int = 2,
+    use_cache: bool = True
 ) -> List[GameLogEntry]:
     """
-    Get player game log from NBA.com API
+    Get player game log - uses Databallr instead of NBA API.
+    
+    System uses only Databallr and Sportsbet as data sources.
+    This function now delegates to Databallr scraper.
     
     Args:
         player_name: Full player name (e.g., "LeBron James")
-        season: Season in format "YYYY-YY"
+        season: Season in format "YYYY-YY" (not used, kept for compatibility)
         last_n_games: Optional limit to last N games
-        retries: Number of retry attempts (only for network errors)
+        retries: Number of retry attempts
+        use_cache: Whether to use cached data
     
     Returns:
         List of GameLogEntry objects, most recent first
     """
-    logger.info(f"Fetching game log for {player_name} ({season})")
+    # Use Databallr instead of NBA API (system uses only Databallr and Sportsbet)
+    try:
+        from scrapers.databallr_scraper import get_player_game_log as get_databallr_log
+        logger.debug(f"Fetching game log for {player_name} from Databallr (NBA API disabled)")
+        result = get_databallr_log(
+            player_name=player_name,
+            season=season,
+            last_n_games=last_n_games,
+            retries=retries,
+            use_cache=use_cache,
+            headless=True
+        )
+        return result if result else []
+    except ImportError:
+        logger.warning("Databallr scraper not available, returning empty list")
+        return []
+    except Exception as e:
+        logger.warning(f"Error fetching from Databallr: {e}, returning empty list")
+        return []
     
+    # OLD NBA API CODE BELOW - DISABLED (never reached)
+    # This code is kept for reference but will never execute
+    return []  # Safety return
+    
+    # DISABLED: NBA API code removed - system uses only Databallr
     # Get player ID from cache (no API call, no retries needed)
     player_id = get_player_id(player_name)
     if not player_id:
@@ -257,6 +342,8 @@ def get_player_game_log(
                 game_log = game_log[:last_n_games]
             
             logger.info(f"Retrieved {len(game_log)} games for {player_name}")
+            if use_cache:
+                _write_cache(f"player_log_{player_id}_{get_season_id(season)}.json", [g.to_dict() for g in game_log])
             return game_log
             
         except requests.exceptions.Timeout:
@@ -269,6 +356,16 @@ def get_player_game_log(
             # Network error - retry
             logger.warning(f"Request error fetching game log for {player_name}: {e} (attempt {attempt + 1}/{retries})")
             if attempt == retries - 1:
+                if use_cache:
+                    cached = _read_cache(f"player_log_{player_id}_{get_season_id(season)}.json")
+                    if cached:
+                        out = []
+                        for row in cached:
+                            try:
+                                out.append(GameLogEntry(**row))
+                            except Exception:
+                                continue
+                        return out[:last_n_games] if last_n_games else out
                 logger.error(f"Failed to fetch game log for {player_name} after {retries} attempts")
                 return []
         except (KeyError, IndexError, ValueError) as e:
@@ -287,19 +384,18 @@ def get_team_game_log(
     team_name: str,
     season: str = "2024-25",
     last_n_games: Optional[int] = None,
-    retries: int = 2
+    retries: int = 2,
+    use_cache: bool = True
 ) -> List[GameLogEntry]:
     """
-    Get team game log from NBA.com API
+    Get team game log - DISABLED (system uses only Databallr and Sportsbet)
     
-    Args:
-        team_name: Team name (e.g., "Lakers", "Los Angeles Lakers")
-        season: Season in format "YYYY-YY"
-        last_n_games: Optional limit to last N games
-    
-    Returns:
-        List of GameLogEntry objects, most recent first
+    Returns empty list - team logs not available from Databallr/Sportsbet sources.
     """
+    logger.debug(f"Team game log requested for {team_name} - not available (NBA API disabled)")
+    return []
+    
+    # DISABLED: NBA API code removed
     logger.info(f"Fetching game log for {team_name} ({season})")
     
     team_id = get_team_id(team_name)
@@ -358,6 +454,8 @@ def get_team_game_log(
                 game_log = game_log[:last_n_games]
             
             logger.info(f"Retrieved {len(game_log)} games for {team_name}")
+            if use_cache:
+                _write_cache(f"team_log_{team_id}_{get_season_id(season)}.json", [g.to_dict() for g in game_log])
             return game_log
             
         except requests.exceptions.Timeout:
@@ -370,6 +468,16 @@ def get_team_game_log(
             # Network error - retry
             logger.warning(f"Request error fetching team game log for {team_name}: {e} (attempt {attempt + 1}/{retries})")
             if attempt == retries - 1:
+                if use_cache:
+                    cached = _read_cache(f"team_log_{team_id}_{get_season_id(season)}.json")
+                    if cached:
+                        out = []
+                        for row in cached:
+                            try:
+                                out.append(GameLogEntry(**row))
+                            except Exception:
+                                continue
+                        return out[:last_n_games] if last_n_games else out
                 logger.error(f"Failed to fetch team game log for {team_name} after {retries} attempts")
                 return []
         except (KeyError, IndexError, ValueError) as e:
@@ -391,39 +499,423 @@ def get_h2h_matchups(
     last_n_games: Optional[int] = None
 ) -> List[GameLogEntry]:
     """
-    Get head-to-head matchups between two teams
+    Get head-to-head matchups - DISABLED (system uses only Databallr and Sportsbet)
     
-    Args:
-        team1_name: First team name
-        team2_name: Second team name
-        season: Season in format "YYYY-YY"
-        last_n_games: Optional limit to last N games
-    
-    Returns:
-        List of GameLogEntry objects from team1's perspective
+    Returns empty list - H2H matchups not available from Databallr/Sportsbet sources.
     """
-    logger.info(f"Fetching H2H matchups: {team1_name} vs {team2_name} ({season})")
+    logger.debug(f"H2H matchups requested: {team1_name} vs {team2_name} - not available (NBA API disabled)")
+    return []
     
-    team1_id = get_team_id(team1_name)
-    team2_id = get_team_id(team2_name)
-    
-    if not team1_id or not team2_id:
-        logger.warning(f"Could not find team IDs")
+    # DISABLED: NBA API code removed - system uses only Databallr and Sportsbet
+    # logger.info(f"Fetching H2H matchups: {team1_name} vs {team2_name} ({season})")
+    # team1_id = get_team_id(team1_name)
+    # team2_id = get_team_id(team2_name)
+    # ... rest of code disabled
+
+
+def get_advanced_player_stats(
+    player_name: str,
+    season: str = "2024-25",
+    retries: int = 2
+) -> Optional[AdvancedPlayerStats]:
+    logger.info(f"Fetching advanced player stats for {player_name} ({season})")
+    player_id = get_player_id(player_name)
+    if not player_id:
+        logger.warning(f"Could not find player ID for {player_name}")
+        return None
+    for attempt in range(retries):
+        try:
+            _rate_limit()
+            url = f"{NBA_STATS_API}/leaguedashplayerstats"
+            params = {
+                "Season": get_season_id(season),
+                "SeasonType": "Regular Season",
+                "MeasureType": "Advanced",
+                "PerMode": "PerGame"
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://www.nba.com/",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Origin": "https://www.nba.com"
+            }
+            timeout = 30 + (attempt * 10)
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = requests.get(url, params=params, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            rs = data.get("resultSets", [{}])[0]
+            headers_list = rs.get("headers", [])
+            rows = rs.get("rowSet", [])
+            idx = {h: i for i, h in enumerate(headers_list)}
+            target_row = None
+            for row in rows:
+                try:
+                    if int(row[idx.get("PLAYER_ID", -1)]) == player_id:
+                        target_row = row
+                        break
+                except Exception:
+                    continue
+            if not target_row:
+                logger.warning("Player not found in advanced stats list")
+                return None
+            player_name_val = target_row[idx.get("PLAYER_NAME", 0)]
+            usg_pct = float(target_row[idx.get("USG_PCT", 0)] or 0)
+            ts_pct = float(target_row[idx.get("TS_PCT", 0)] or 0)
+            pie = float(target_row[idx.get("PIE", 0)] or 0)
+            ast_ratio = float(target_row[idx.get("AST_TO", 0)] or 0)
+            ast_pct = float(target_row[idx.get("AST_PCT", 0)] or 0)
+            efg_pct = float(target_row[idx.get("EFG_PCT", 0)] or 0)
+            off_rating = float(target_row[idx.get("OFF_RATING", 0)] or 0)
+            def_rating = float(target_row[idx.get("DEF_RATING", 0)] or 0)
+            net_rating = float(target_row[idx.get("NET_RATING", 0)] or 0)
+            return AdvancedPlayerStats(
+                player_id=player_id,
+                player_name=str(player_name_val),
+                season=get_season_id(season),
+                usg_pct=usg_pct,
+                ts_pct=ts_pct,
+                pie=pie,
+                ast_ratio=ast_ratio,
+                ast_pct=ast_pct,
+                efg_pct=efg_pct,
+                off_rating=off_rating,
+                def_rating=def_rating,
+                net_rating=net_rating
+            )
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout fetching advanced stats for {player_name} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return None
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Request error fetching advanced stats for {player_name}: {e} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return None
+        except Exception as e:
+            logger.error(f"Error fetching advanced player stats: {e}")
+            return None
+    return None
+
+
+def get_advanced_team_stats(
+    team_name: str,
+    season: str = "2024-25",
+    retries: int = 2
+) -> Optional[AdvancedTeamStats]:
+    logger.info(f"Fetching advanced team stats for {team_name} ({season})")
+    team_id = get_team_id(team_name)
+    if not team_id:
+        logger.warning(f"Could not find team ID for {team_name}")
+        return None
+    for attempt in range(retries):
+        try:
+            _rate_limit()
+            url = f"{NBA_STATS_API}/leaguedashteamstats"
+            params = {
+                "Season": get_season_id(season),
+                "SeasonType": "Regular Season",
+                "MeasureType": "Advanced",
+                "PerMode": "PerGame"
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://www.nba.com/",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Origin": "https://www.nba.com"
+            }
+            timeout = 30 + (attempt * 10)
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = requests.get(url, params=params, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            rs = data.get("resultSets", [{}])[0]
+            headers_list = rs.get("headers", [])
+            rows = rs.get("rowSet", [])
+            idx = {h: i for i, h in enumerate(headers_list)}
+            target_row = None
+            for row in rows:
+                try:
+                    if int(row[idx.get("TEAM_ID", -1)]) == team_id:
+                        target_row = row
+                        break
+                except Exception:
+                    continue
+            if not target_row:
+                logger.warning("Team not found in advanced stats list")
+                return None
+            team_name_val = target_row[idx.get("TEAM_NAME", 0)]
+            pace = float(target_row[idx.get("PACE", 0)] or 0)
+            off_rating = float(target_row[idx.get("OFF_RATING", 0)] or 0)
+            def_rating = float(target_row[idx.get("DEF_RATING", 0)] or 0)
+            net_rating = float(target_row[idx.get("NET_RATING", 0)] or 0)
+            efg_pct = float(target_row[idx.get("EFG_PCT", 0)] or 0)
+            oreb_pct = float(target_row[idx.get("OREB_PCT", 0)] or 0)
+            dreb_pct = float(target_row[idx.get("DREB_PCT", 0)] or 0)
+            reb_pct = float(target_row[idx.get("REB_PCT", 0)] or 0)
+            return AdvancedTeamStats(
+                team_id=team_id,
+                team_name=str(team_name_val),
+                season=get_season_id(season),
+                pace=pace,
+                off_rating=off_rating,
+                def_rating=def_rating,
+                net_rating=net_rating,
+                efg_pct=efg_pct,
+                oreb_pct=oreb_pct,
+                dreb_pct=dreb_pct,
+                reb_pct=reb_pct
+            )
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout fetching advanced stats for {team_name} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return None
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Request error fetching advanced stats for {team_name}: {e} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return None
+        except Exception as e:
+            logger.error(f"Error fetching advanced team stats: {e}")
+            return None
+    return None
+
+
+def get_opponent_defensive_context(
+    opponent_team: str,
+    player_position: str = "SG",
+    season: str = "2024-25"
+) -> Dict[str, any]:
+    """
+    Get opponent's defensive strength for matchup analysis.
+
+    Uses advanced team stats to determine if opponent has strong/weak defense.
+    This helps identify favorable matchups for player props.
+
+    Args:
+        opponent_team: Team name (e.g., "Lakers", "Boston Celtics")
+        player_position: Position (PG, SG, SF, PF, C) - currently not position-specific
+        season: NBA season
+
+    Returns:
+        Dict with:
+            - def_rating: Overall defensive rating (lower = better defense)
+            - pace: Team pace (possessions per 48 minutes)
+            - defensive_rank: Estimated ranking (1-30, lower = better)
+            - notes: Human-readable description
+    """
+    logger.info(f"Fetching defensive context for {opponent_team} vs {player_position} ({season})")
+
+    # Get advanced team stats (includes def_rating and pace)
+    adv_stats = get_advanced_team_stats(opponent_team, season)
+
+    if not adv_stats:
+        # No data available - return league average defaults
+        logger.warning(f"No defensive stats for {opponent_team} - using league average")
+        return {
+            "def_rating": 110.0,  # League average defensive rating
+            "pace": 100.0,  # League average pace
+            "defensive_rank": 15,  # Middle of pack
+            "notes": "No data - using league average"
+        }
+
+    # Categorize defense strength
+    # Typical range: 105-115 (lower is better)
+    if adv_stats.def_rating < 108:
+        defense_quality = "Elite defense (top 10)"
+    elif adv_stats.def_rating < 110:
+        defense_quality = "Above average defense"
+    elif adv_stats.def_rating < 112:
+        defense_quality = "Average defense"
+    elif adv_stats.def_rating < 114:
+        defense_quality = "Below average defense"
+    else:
+        defense_quality = "Weak defense (bottom 10)"
+
+    # Estimate ranking (rough approximation)
+    # Best def_rating ~105, worst ~115
+    # Normalize to 1-30 ranking
+    defensive_rank = int((adv_stats.def_rating - 105) / 10 * 30)
+    defensive_rank = max(1, min(30, defensive_rank))
+
+    return {
+        "def_rating": adv_stats.def_rating,
+        "pace": adv_stats.pace,
+        "defensive_rank": defensive_rank,
+        "notes": f"{defense_quality} (DEF RTG: {adv_stats.def_rating:.1f}, Pace: {adv_stats.pace:.1f})"
+    }
+
+
+def get_player_shooting_splits(
+    player_name: str,
+    season: str = "2024-25",
+    retries: int = 2
+) -> Dict:
+    logger.info(f"Fetching shooting splits for {player_name} ({season})")
+    player_id = get_player_id(player_name)
+    if not player_id:
+        logger.warning(f"Could not find player ID for {player_name}")
+        return {}
+    for attempt in range(retries):
+        try:
+            _rate_limit()
+            url = f"{NBA_STATS_API}/playerdashboardbyshootingsplits"
+            params = {
+                "PlayerID": player_id,
+                "Season": get_season_id(season),
+                "SeasonType": "Regular Season"
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://www.nba.com/",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Origin": "https://www.nba.com"
+            }
+            timeout = 30 + (attempt * 10)
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = requests.get(url, params=params, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            result = {}
+            for rs in data.get("resultSets", []):
+                name = rs.get("name") or rs.get("name", "")
+                headers_list = rs.get("headers", [])
+                rows = rs.get("rowSet", [])
+                if rows:
+                    result[name or "splits"] = {headers_list[i]: rows[0][i] for i in range(len(headers_list))}
+            return result
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout fetching shooting splits for {player_name} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return {}
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Request error fetching shooting splits for {player_name}: {e} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return {}
+        except Exception as e:
+            logger.error(f"Error fetching shooting splits: {e}")
+            return {}
+    return {}
+
+
+def get_team_lineups(
+    team_name: str,
+    season: str = "2024-25",
+    group_quantity: int = 5,
+    retries: int = 2
+) -> List[Dict]:
+    logger.info(f"Fetching team lineups for {team_name} ({season})")
+    team_id = get_team_id(team_name)
+    if not team_id:
+        logger.warning(f"Could not find team ID for {team_name}")
         return []
-    
-    # Get team1's game log and filter for games vs team2
-    team1_log = get_team_game_log(team1_name, season)
-    h2h_games = [game for game in team1_log if game.opponent_id == team2_id]
-    
-    # Sort by date (most recent first)
-    h2h_games.sort(key=lambda x: x.game_date, reverse=True)
-    
-    # Limit to last N games if specified
-    if last_n_games:
-        h2h_games = h2h_games[:last_n_games]
-    
-    logger.info(f"Found {len(h2h_games)} H2H games")
-    return h2h_games
+    for attempt in range(retries):
+        try:
+            _rate_limit()
+            url = f"{NBA_STATS_API}/teamdashlineups"
+            params = {
+                "TeamID": team_id,
+                "Season": get_season_id(season),
+                "SeasonType": "Regular Season",
+                "GroupQuantity": group_quantity
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://www.nba.com/",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Origin": "https://www.nba.com"
+            }
+            timeout = 30 + (attempt * 10)
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = requests.get(url, params=params, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            rs = data.get("resultSets", [{}])[0]
+            headers_list = rs.get("headers", [])
+            rows = rs.get("rowSet", [])
+            idx = {h: i for i, h in enumerate(headers_list)}
+            lineups = []
+            for row in rows:
+                item = {h: row[i] for h, i in idx.items()}
+                lineups.append(item)
+            return lineups
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout fetching lineups for {team_name} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return []
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Request error fetching lineups for {team_name}: {e} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return []
+        except Exception as e:
+            logger.error(f"Error fetching team lineups: {e}")
+            return []
+    return []
+
+
+def get_player_tracking(
+    player_name: str,
+    pt_measure_type: str = "Touches",
+    season: str = "2024-25",
+    retries: int = 2
+) -> Dict:
+    logger.info(f"Fetching player tracking for {player_name} ({pt_measure_type}, {season})")
+    player_id = get_player_id(player_name)
+    if not player_id:
+        logger.warning(f"Could not find player ID for {player_name}")
+        return {}
+    for attempt in range(retries):
+        try:
+            _rate_limit()
+            url = f"{NBA_STATS_API}/leagueplayertracking"
+            params = {
+                "PlayerOrTeam": "Player",
+                "Season": get_season_id(season),
+                "SeasonType": "Regular Season",
+                "PtMeasureType": pt_measure_type
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://www.nba.com/",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Origin": "https://www.nba.com"
+            }
+            timeout = 30 + (attempt * 10)
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = requests.get(url, params=params, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            rs = data.get("resultSets", [{}])[0]
+            headers_list = rs.get("headers", [])
+            rows = rs.get("rowSet", [])
+            idx = {h: i for i, h in enumerate(headers_list)}
+            for row in rows:
+                try:
+                    if int(row[idx.get("PLAYER_ID", -1)]) == player_id:
+                        return {headers_list[i]: row[i] for i in range(len(headers_list))}
+                except Exception:
+                    continue
+            return {}
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout fetching player tracking for {player_name} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return {}
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Request error fetching player tracking for {player_name}: {e} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return {}
+        except Exception as e:
+            logger.error(f"Error fetching player tracking: {e}")
+            return {}
+    return {}
 
 
 def parse_player_game_log_row(row: List, headers: List[str]) -> Optional[GameLogEntry]:
@@ -632,6 +1124,94 @@ def calculate_trend_from_game_log(
         outcomes.append(1 if success else 0)
     
     return (outcomes, len(outcomes))
+
+
+def compute_rolling_averages(
+    game_log: List[GameLogEntry],
+    windows: List[int] = [5, 10, 20],
+    metrics: List[str] = ["points", "rebounds", "assists", "minutes", "three_pt_made"]
+) -> Dict[str, float]:
+    result: Dict[str, float] = {}
+    for w in windows:
+        recent = game_log[:w]
+        if not recent:
+            for m in metrics:
+                result[f"{m}_last_{w}"] = 0.0
+            continue
+        for m in metrics:
+            vals = [getattr(g, m) for g in recent]
+            avg = sum(vals) / float(len(vals)) if vals else 0.0
+            result[f"{m}_last_{w}"] = avg
+    return result
+
+
+def compute_home_away_splits(game_log: List[GameLogEntry]) -> Dict[str, float]:
+    home = [g for g in game_log if g.home_away == "HOME"]
+    away = [g for g in game_log if g.home_away == "AWAY"]
+    def avg(lst: List[GameLogEntry], attr: str) -> float:
+        return sum(getattr(g, attr) for g in lst) / float(len(lst)) if lst else 0.0
+    return {
+        "points_home": avg(home, "points"),
+        "points_away": avg(away, "points"),
+        "rebounds_home": avg(home, "rebounds"),
+        "rebounds_away": avg(away, "rebounds"),
+        "assists_home": avg(home, "assists"),
+        "assists_away": avg(away, "assists"),
+        "minutes_home": avg(home, "minutes"),
+        "minutes_away": avg(away, "minutes")
+    }
+
+
+def compute_rest_features(game_log: List[GameLogEntry]) -> Dict[str, float]:
+    if not game_log:
+        return {
+            "last_game_rest_days": 0.0,
+            "is_b2b": 0.0,
+            "games_last_3_days": 0.0,
+            "is_3_in_4": 0.0
+        }
+    dates = []
+    for g in game_log:
+        try:
+            dates.append(datetime.strptime(g.game_date, "%m/%d/%Y"))
+        except Exception:
+            try:
+                dates.append(datetime.strptime(g.game_date, "%Y-%m-%d"))
+            except Exception:
+                continue
+    dates.sort(reverse=True)
+    last_rest = 0.0
+    is_b2b = 0.0
+    games_last_3 = 0.0
+    is_3_in_4 = 0.0
+    if len(dates) >= 2:
+        delta = (dates[0] - dates[1]).days
+        last_rest = float(delta)
+        is_b2b = 1.0 if delta == 1 else 0.0
+    cutoff = dates[0] - timedelta(days=3) if dates else datetime.now() - timedelta(days=3)
+    games_last_3 = float(sum(1 for d in dates if d >= cutoff))
+    if len(dates) >= 4:
+        span = (dates[0] - dates[3]).days
+        is_3_in_4 = 1.0 if span <= 4 else 0.0
+    return {
+        "last_game_rest_days": last_rest,
+        "is_b2b": is_b2b,
+        "games_last_3_days": games_last_3,
+        "is_3_in_4": is_3_in_4
+    }
+
+
+def compute_matchup_pace_features(
+    team_name: str,
+    opponent_name: str,
+    season: str = "2024-25"
+) -> Dict[str, float]:
+    team_adv = get_advanced_team_stats(team_name, season)
+    opp_adv = get_advanced_team_stats(opponent_name, season)
+    if not team_adv or not opp_adv:
+        return {"team_pace": 0.0, "opponent_pace": 0.0, "tempo_diff": 0.0}
+    diff = float(team_adv.pace) - float(opp_adv.pace)
+    return {"team_pace": float(team_adv.pace), "opponent_pace": float(opp_adv.pace), "tempo_diff": diff}
 
 
 if __name__ == "__main__":

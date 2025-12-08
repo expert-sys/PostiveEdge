@@ -226,6 +226,102 @@ def sample_size_weight(n: int, base: float = SAMPLE_WEIGHT_BASE) -> float:
         return 1.0
 
 
+def player_prop_sample_weight(
+    current_season_games: int,
+    historical_games: int,
+    base: float = 4.5
+) -> dict:
+    """
+    Player prop sample weighting that accounts for both current season and historical data.
+    Less strict than moneyline (4-5 game baseline vs 6-7) but more aggressive for very low samples.
+
+    Args:
+        current_season_games: Number of games played in current season
+        historical_games: Total historical games available (including current season)
+        base: Baseline for full weight (default 4.5, range 4-5 games)
+
+    Returns:
+        dict with:
+            - sample_weight: Combined weight for EV calculation (0.0-1.0)
+            - confidence_cap: Maximum allowed confidence score (0.0-1.0)
+            - current_season_weight: Weight based on current season sample
+            - historical_weight: Weight based on historical sample
+            - recommendation: Whether sample is sufficient for betting
+    """
+    if current_season_games <= 0 or historical_games <= 0:
+        return {
+            'sample_weight': 0.0,
+            'confidence_cap': 0.0,
+            'current_season_weight': 0.0,
+            'historical_weight': 0.0,
+            'recommendation': 'SKIP',
+            'reason': 'No games available'
+        }
+
+    # Current season weight - more aggressive penalty for very low samples
+    # Baseline: 4-5 games (less strict than moneyline's 6-7)
+    if current_season_games < 4:
+        # Severe penalty: 1 game=0.25, 2 games=0.40, 3 games=0.55
+        current_season_weight = 0.25 + (current_season_games - 1) * 0.15
+    elif current_season_games <= 5:
+        # Baseline range: 4 games=0.85, 5 games=1.0
+        current_season_weight = 0.70 + (current_season_games - 3) * 0.15
+    else:
+        # Full weight for 6+ games
+        current_season_weight = 1.0
+
+    # Historical weight - similar to moneyline but accepts smaller samples
+    if historical_games < 6:
+        historical_weight = 0.5 + (historical_games - 1) * 0.1
+    elif historical_games <= 10:
+        historical_weight = 1.0
+    else:
+        # Slight reduction for very large samples (may be outdated)
+        historical_weight = max(0.95, 1.0 - (historical_games - 10) * 0.01)
+
+    # Combined weight: current season is MORE important (70/30 split)
+    sample_weight = 0.7 * current_season_weight + 0.3 * historical_weight
+
+    # Confidence cap based on current season games
+    # This prevents high confidence even with good historical data
+    if current_season_games <= 2:
+        confidence_cap = 0.55  # Max 55% confidence
+    elif current_season_games == 3:
+        confidence_cap = 0.65  # Max 65% confidence
+    elif current_season_games == 4:
+        confidence_cap = 0.75  # Max 75% confidence
+    elif current_season_games == 5:
+        confidence_cap = 0.85  # Max 85% confidence
+    else:
+        confidence_cap = 1.0   # No cap for 6+ games
+
+    # Betting recommendation
+    if current_season_games < 3:
+        recommendation = 'SKIP'
+        reason = f'Only {current_season_games} current season games - too volatile'
+    elif current_season_games == 3 and sample_weight < 0.6:
+        recommendation = 'WATCH'
+        reason = 'Marginal sample size - monitor for another game'
+    elif current_season_games >= 4 and sample_weight >= 0.7:
+        recommendation = 'CONSIDER'
+        reason = 'Adequate sample size for cautious betting'
+    elif current_season_games >= 6:
+        recommendation = 'BET'
+        reason = 'Sufficient sample size'
+    else:
+        recommendation = 'WATCH'
+        reason = 'Building sample size'
+
+    return {
+        'sample_weight': round(sample_weight, 3),
+        'confidence_cap': round(confidence_cap, 2),
+        'current_season_weight': round(current_season_weight, 3),
+        'historical_weight': round(historical_weight, 3),
+        'recommendation': recommendation,
+        'reason': reason
+    }
+
+
 def regression_to_mean(observed_p: float, n: int,
                        league_avg: float = LEAGUE_AVG,
                        shrink_n: float = REGRESSION_SHRINK_N) -> float:
@@ -446,7 +542,8 @@ class EnhancedValueEngine:
         market_line: Optional[float] = None,
         is_close_game: bool = False,
         days_ago: Optional[List[int]] = None,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
+        confidence_cap: float = 1.0
     ) -> EnhancedValueAnalysis:
         """
         Perform enhanced value analysis with team stats integration.
@@ -462,6 +559,7 @@ class EnhancedValueEngine:
             is_close_game: Whether this is expected to be close (for clutch adjustment)
             days_ago: Days since each outcome (for recency weighting)
             context: Additional context dict
+            confidence_cap: Maximum allowed confidence (0.0-1.0) for player props with low current season samples
 
         Returns:
             EnhancedValueAnalysis with complete breakdown
@@ -560,7 +658,7 @@ class EnhancedValueEngine:
 
         # 11. Calculate confidence
         market_agreement = context.get('market_agreement', 0.5)
-        confidence = self._compute_confidence(n, adjusted_p, recency_p, market_agreement)
+        confidence = self._compute_confidence(n, adjusted_p, recency_p, market_agreement, confidence_cap)
 
         # 12. Add warnings for risky situations
         if n < 4:
@@ -606,9 +704,15 @@ class EnhancedValueEngine:
         n: int,
         perceived_p: float,
         recency_score: float,
-        market_agreement: float
+        market_agreement: float,
+        confidence_cap: float = 1.0
     ) -> float:
-        """Calculate confidence score (0-100) with 6-7 as baseline"""
+        """
+        Calculate confidence score (0-100) with 6-7 as baseline.
+
+        Args:
+            confidence_cap: Maximum allowed confidence (0.0-1.0) for early-season player props
+        """
         w_n = sample_size_weight(n, self.sample_weight_base)
         volatility = 1.0 - volatility_adjustment(perceived_p)
 
@@ -620,11 +724,14 @@ class EnhancedValueEngine:
         else:
             # Below baseline: scale confidence
             sample_confidence = w_n * 0.8  # Slight reduction
-        
+
         base = 0.6 * sample_confidence + 0.3 * recency_score + 0.1 * market_agreement
 
         # Penalize high volatility
         confidence = base * (1.0 - 0.4 * volatility)
+
+        # Apply confidence cap (for player props with low current season games)
+        confidence = min(confidence, confidence_cap)
 
         return float(max(0.0, min(100.0, confidence * 100.0)))
 

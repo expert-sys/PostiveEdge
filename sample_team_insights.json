@@ -1,0 +1,51 @@
+{
+  "away_team": "Los Angeles Lakers",
+  "home_team": "Boston Celtics",
+  "away_season_results": [
+    {
+      "opponent": "TOR",
+      "date": "04/12/25",
+      "score_for": 123,
+      "score_against": 120,
+      "result": "W",
+      "is_home": false
+    }
+  ],
+  "home_season_results": [
+    {
+      "opponent": "WAS",
+      "date": "04/12/25",
+      "score_for": 146,
+      "score_against": 101,
+      "result": "W",
+      "is_home": false
+    }
+  ],
+  "head_to_head": [
+    {
+      "date": "Sat 8 Mar 2025",
+      "venue": "TD Garden",
+      "away_team": "LAL",
+      "home_team": "BOS",
+      "away_scores": {
+        "q1": 33,
+        "q2": 21,
+        "q3": 13,
+        "q4": 34,
+        "final": 101,
+        "ot": null
+      },
+      "home_scores": {
+        "q1": 33,
+        "q2": 25,
+        "q3": 29,
+        "q4": 24,
+        "final": 111,
+        "ot": null
+      },
+      "away_result": "L",
+      "home_result": "W"
+    }
+  ],
+  "extraction_errors": []
+}

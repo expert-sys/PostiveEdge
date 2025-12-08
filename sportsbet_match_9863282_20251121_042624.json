@@ -1,0 +1,24 @@
+{
+  "match_odds": {
+    "home_team": "Unknown",
+    "away_team": "Unknown",
+    "match_time": "Live",
+    "home_ml_odds": null,
+    "away_ml_odds": null,
+    "home_handicap": null,
+    "home_handicap_odds": null,
+    "away_handicap": null,
+    "away_handicap_odds": null,
+    "over_line": null,
+    "over_odds": null,
+    "under_line": null,
+    "under_odds": null,
+    "num_markets": null,
+    "match_url": null,
+    "scraped_at": "2025-11-21T04:26:24.333280"
+  },
+  "head_to_head": [],
+  "team_stats": {},
+  "insights": [],
+  "scraped_at": "2025-11-21T04:26:24.397457"
+}

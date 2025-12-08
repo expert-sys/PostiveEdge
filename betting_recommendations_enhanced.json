@@ -1,0 +1,200 @@
+[
+  {
+    "game": "Minnesota Timberwolves @ New Orleans Pelicans",
+    "match_time": "TBD",
+    "bet_type": "player_prop",
+    "market": "Rebounds",
+    "selection": "Over 3.5",
+    "odds": 1.36,
+    "player_name": "Jaden McDaniels",
+    "player_team": "Unknown",
+    "opponent_team": "Unknown",
+    "stat_type": "rebounds",
+    "line": 3.5,
+    "sportsbet_insight": null,
+    "historical_hit_rate": 0.85,
+    "sample_size": 20,
+    "projected_value": 4.855376665851757,
+    "projected_probability": 0.782356991876276,
+    "model_confidence": 88.39239010612266,
+    "implied_probability": 0.7352941176470588,
+    "edge_percentage": 4.706287422921729,
+    "expected_value": 6.400550895173551,
+    "confidence_score": 69.4302421889043,
+    "recommendation_strength": "HIGH",
+    "databallr_stats": {
+      "avg_value": 4.75,
+      "trend": "stable",
+      "recent_avg": 5.2
+    },
+    "matchup_factors": null,
+    "advanced_context": {
+      "minutes_analysis": {
+        "season_avg": 31.8,
+        "recent_avg": 31.9,
+        "variance": 11.5,
+        "stable": false,
+        "trending": "up"
+      },
+      "rebounding_context": {
+        "recent_form": 5.2,
+        "consistency": 100.0,
+        "double_digit_games": 0
+      }
+    },
+    "enhanced_metrics": {
+      "quality_tier": "B",
+      "tier_emoji": "\u2713",
+      "effective_confidence": 69.4302421889043,
+      "adjusted_confidence": 69.4302421889043,
+      "sample_size_penalty": 0.0,
+      "correlation_penalty": 0.0,
+      "line_difficulty_penalty": 0.0,
+      "consistency_rank": "\ud83d\udc4d Medium Consistency",
+      "consistency_score": 0.75,
+      "ev_to_prob_ratio": 0.08181112921127637,
+      "fair_odds": 1.2781888707887237,
+      "odds_mispricing": 0.08181112921127642,
+      "projection_margin": 1.3553766658517574,
+      "final_score": 93.80991052848782,
+      "notes": [
+        "Projected +1.4 vs line"
+      ],
+      "warnings": []
+    }
+  },
+  {
+    "game": "Minnesota Timberwolves @ New Orleans Pelicans",
+    "match_time": "TBD",
+    "bet_type": "player_prop",
+    "market": "Assists",
+    "selection": "Over 1.5",
+    "odds": 1.39,
+    "player_name": "Jaden McDaniels",
+    "player_team": "Unknown",
+    "opponent_team": "Unknown",
+    "stat_type": "assists",
+    "line": 1.5,
+    "sportsbet_insight": null,
+    "historical_hit_rate": 0.75,
+    "sample_size": 20,
+    "projected_value": 2.5572601520514175,
+    "projected_probability": 0.7321968576351665,
+    "model_confidence": 81.8395446820855,
+    "implied_probability": 0.7194244604316548,
+    "edge_percentage": 1.2772397203511754,
+    "expected_value": 1.775363211288139,
+    "confidence_score": 56.477782985051135,
+    "recommendation_strength": "LOW",
+    "databallr_stats": {
+      "avg_value": 2.4,
+      "trend": "stable",
+      "recent_avg": 2.6
+    },
+    "matchup_factors": null,
+    "advanced_context": {
+      "minutes_analysis": {
+        "season_avg": 31.8,
+        "recent_avg": 31.9,
+        "variance": 11.5,
+        "stable": false,
+        "trending": "up"
+      },
+      "assist_context": {
+        "per_36_rate": 3.14,
+        "recent_form": 2.6,
+        "consistency": 100.0,
+        "high_assist_games": 0
+      }
+    },
+    "enhanced_metrics": {
+      "quality_tier": "C",
+      "tier_emoji": "~",
+      "effective_confidence": 56.477782985051135,
+      "adjusted_confidence": 56.477782985051135,
+      "sample_size_penalty": 0.0,
+      "correlation_penalty": 0.0,
+      "line_difficulty_penalty": 0.0,
+      "consistency_rank": "\ud83d\udc4d Medium Consistency",
+      "consistency_score": 0.75,
+      "ev_to_prob_ratio": 0.02424707498775901,
+      "fair_odds": 1.3657529250122409,
+      "odds_mispricing": 0.02424707498775902,
+      "projection_margin": 1.0572601520514175,
+      "final_score": 66.5834016594086,
+      "notes": [
+        "Projected +1.1 vs line"
+      ],
+      "warnings": [
+        "Low EV/Prob ratio (0.024 < 0.08)"
+      ]
+    }
+  },
+  {
+    "game": "Utah Jazz @ Brooklyn Nets",
+    "match_time": "TBD",
+    "bet_type": "player_prop",
+    "market": "Assists",
+    "selection": "Over 5.5",
+    "odds": 1.32,
+    "player_name": "Keyonte George",
+    "player_team": "Unknown",
+    "opponent_team": "Unknown",
+    "stat_type": "assists",
+    "line": 5.5,
+    "sportsbet_insight": null,
+    "historical_hit_rate": 0.85,
+    "sample_size": 20,
+    "projected_value": 6.494958630097389,
+    "projected_probability": 0.7661425945587854,
+    "model_confidence": 87.78355296631031,
+    "implied_probability": 0.7575757575757576,
+    "edge_percentage": 0.8566836983027848,
+    "expected_value": 1.1308224817596801,
+    "confidence_score": 67.92411231844653,
+    "recommendation_strength": "LOW",
+    "databallr_stats": {
+      "avg_value": 6.9,
+      "trend": "declining",
+      "recent_avg": 6.2
+    },
+    "matchup_factors": null,
+    "advanced_context": {
+      "minutes_analysis": {
+        "season_avg": 34.1,
+        "recent_avg": 33.7,
+        "variance": 19.9,
+        "stable": false,
+        "trending": "down"
+      },
+      "assist_context": {
+        "per_36_rate": 7.04,
+        "recent_form": 6.2,
+        "consistency": 80.0,
+        "high_assist_games": 9
+      }
+    },
+    "enhanced_metrics": {
+      "quality_tier": "C",
+      "tier_emoji": "~",
+      "effective_confidence": 67.92411231844653,
+      "adjusted_confidence": 67.92411231844653,
+      "sample_size_penalty": 0.0,
+      "correlation_penalty": 0.0,
+      "line_difficulty_penalty": 0.0,
+      "consistency_rank": "\ud83d\udc4d Medium Consistency",
+      "consistency_score": 0.75,
+      "ev_to_prob_ratio": 0.014759947949518596,
+      "fair_odds": 1.3052400520504814,
+      "odds_mispricing": 0.014759947949518626,
+      "projection_margin": 0.9949586300973889,
+      "final_score": 70.30847071374559,
+      "notes": [
+        "Projected +1.0 vs line"
+      ],
+      "warnings": [
+        "Low EV/Prob ratio (0.015 < 0.08)"
+      ]
+    }
+  }
+]

@@ -1,0 +1,3233 @@
+{
+  "timestamp": "2025-12-03T17:23:55.628578",
+  "source": "PlayerIDsV2.txt",
+  "total_players": 488,
+  "total_mappings": 1266,
+  "cache": {
+    "nikola jokic": 203999,
+    "shai gilgeous alexander": 1628983,
+    "lebron james": 2544,
+    "luka doncic": 1629029,
+    "stephen curry": 201939,
+    "kevin durant": 201142,
+    "giannis antetokounmpo": 203507,
+    "russell westbrook": 201566,
+    "demar derozan": 201942,
+    "chris paul": 101108,
+    "anthony davis": 203076,
+    "paul george": 202331,
+    "brook lopez": 201572,
+    "bradley beal": 203078,
+    "devin booker": 1626164,
+    "klay thompson": 202691,
+    "jrue holiday": 201950,
+    "mike conley": 201144,
+    "kyle lowry": 200768,
+    "jimmy butler": 202710,
+    "tobias harris": 202699,
+    "cj mccollum": 203468,
+    "kevin love": 201567,
+    "karl anthony towns": 1626157,
+    "kawhi leonard": 202695,
+    "al horford": 201143,
+    "andrew wiggins": 203952,
+    "jeff green": 201145,
+    "eric gordon": 201569,
+    "harrison barnes": 203084,
+    "zach lavine": 203897,
+    "julius randle": 203944,
+    "donovan mitchell": 1628378,
+    "khris middleton": 203114,
+    "joel embiid": 203954,
+    "jonas valanciunas": 202685,
+    "trae young": 1629027,
+    "jordan clarkson": 203903,
+    "jaylen brown": 1627759,
+    "dennis schroder": 203471,
+    "pascal siakam": 1627783,
+    "deaaron fox": 1628368,
+    "andre drummond": 203083,
+    "tim hardaway jr": 203501,
+    "nicolas batum": 201587,
+    "dangelo russell": 1626156,
+    "buddy hield": 1627741,
+    "rudy gobert": 203497,
+    "domantas sabonis": 1627734,
+    "kentavious caldwell pope": 203484,
+    "brandon ingram": 1627742,
+    "kristaps porzingis": 204001,
+    "jamal murray": 1627750,
+    "aaron gordon": 203932,
+    "jerami grant": 203924,
+    "anthony edwards": 1630162,
+    "deandre jordan": 201599,
+    "kyle kuzma": 1628398,
+    "jalen brunson": 1628973,
+    "myles turner": 1626167,
+    "bam adebayo": 1628389,
+    "kelly oubre jr": 1626162,
+    "lauri markkanen": 1628374,
+    "norman powell": 1626181,
+    "mikal bridges": 1628969,
+    "kelly olynyk": 203482,
+    "clint capela": 203991,
+    "collin sexton": 1629012,
+    "jaren jackson jr": 1628991,
+    "draymond green": 203110,
+    "john collins": 1628381,
+    "rj barrett": 1629628,
+    "jarrett allen": 1628386,
+    "caris levert": 1627747,
+    "alex sarr": 1642259,
+    "quentin grimes": 1629656,
+    "kyshawn george": 1642273,
+    "tyrese maxey": 1630178,
+    "bilal coulibaly": 1641731,
+    "jakob poeltl": 1627751,
+    "deni avdija": 1630166,
+    "immanuel quickley": 1630193,
+    "shaedon sharpe": 1631101,
+    "donovan clingan": 1642270,
+    "jeremiah fears": 1642847,
+    "donte divincenzo": 1628978,
+    "vince williams jr": 1631246,
+    "devin vassell": 1630170,
+    "jaylen wells": 1642377,
+    "zach edey": 1641744,
+    "derrick white": 1628401,
+    "anfernee simons": 1629014,
+    "josh hart": 1628404,
+    "ajay mitchell": 1642349,
+    "jalen williams": 1631114,
+    "jalen johnson": 1630552,
+    "johnson": 1630552,
+    "jalen": 1630552,
+    "onyeka okongwu": 1630168,
+    "onyeka": 1630168,
+    "okongwu": 1630168,
+    "young": 1629027,
+    "trae": 1629027,
+    "porzingis": 204001,
+    "kristaps": 204001,
+    "nickeil alexander-walker": 1629638,
+    "nickeil alexanderwalker": 1629638,
+    "nickeil alexander walker": 1629638,
+    "alexander-walker": 1629638,
+    "nickeil": 1629638,
+    "mouhamed gueye": 1631243,
+    "mouhamed": 1631243,
+    "gueye": 1631243,
+    "dyson daniels": 1630700,
+    "daniels": 1630700,
+    "dyson": 1630700,
+    "vit krejci": 1630249,
+    "krejci": 1630249,
+    "vit": 1630249,
+    "luke kennard": 1628379,
+    "luke": 1628379,
+    "kennard": 1628379,
+    "zaccharie risacher": 1642258,
+    "risacher": 1642258,
+    "zaccharie": 1642258,
+    "keaton wallace": 1630811,
+    "keaton": 1630811,
+    "wallace": 1630811,
+    "caleb houstan": 1631216,
+    "caleb": 1631216,
+    "houstan": 1631216,
+    "asa newell": 1642854,
+    "newell": 1642854,
+    "asa": 1642854,
+    "jacob toppin": 1631210,
+    "jacob": 1631210,
+    "toppin": 1631210,
+    "nfaly dante": 1642368,
+    "dante": 1642368,
+    "nfaly": 1642368,
+    "michael porter jr": 1629008,
+    "michael": 1629008,
+    "jr": 1629008,
+    "michael porter": 1629008,
+    "dayron sharpe": 1630549,
+    "sharpe": 1630549,
+    "dayron": 1630549,
+    "noah clowney": 1641730,
+    "clowney": 1641730,
+    "noah": 1641730,
+    "nic claxton": 1629651,
+    "claxton": 1629651,
+    "nic": 1629651,
+    "cam thomas": 1630560,
+    "cam": 1630560,
+    "thomas": 1630560,
+    "ziaire williams": 1630533,
+    "ziaire": 1630533,
+    "williams": 1630533,
+    "danny wolf": 1642874,
+    "danny": 1642874,
+    "wolf": 1642874,
+    "ej liddell": 1630604,
+    "ej": 1630604,
+    "liddell": 1630604,
+    "jalen wilson": 1630592,
+    "wilson": 1630592,
+    "drake powell": 1642962,
+    "powell": 1642962,
+    "drake": 1642962,
+    "tyrese martin": 1631213,
+    "tyrese": 1631213,
+    "martin": 1631213,
+    "terance mann": 1629611,
+    "mann": 1629611,
+    "terance": 1629611,
+    "egor demin": 1642856,
+    "demin": 1642856,
+    "egor": 1642856,
+    "nolan traore": 1642849,
+    "traore": 1642849,
+    "nolan": 1642849,
+    "ben saraf": 1642879,
+    "saraf": 1642879,
+    "ben": 1642879,
+    "tyson etienne": 1630623,
+    "tyson": 1630623,
+    "etienne": 1630623,
+    "brown": 1627759,
+    "jaylen": 1627759,
+    "derrick": 1628401,
+    "white": 1628401,
+    "payton pritchard": 1630202,
+    "payton": 1630202,
+    "pritchard": 1630202,
+    "josh minott": 1631169,
+    "minott": 1631169,
+    "josh": 1631169,
+    "jordan walsh": 1641775,
+    "jordan": 1641775,
+    "walsh": 1641775,
+    "neemias queta": 1629674,
+    "neemias": 1629674,
+    "queta": 1629674,
+    "sam hauser": 1630573,
+    "sam": 1630573,
+    "hauser": 1630573,
+    "chris boucher": 1628449,
+    "boucher": 1628449,
+    "chris": 1628449,
+    "luka garza": 1630568,
+    "garza": 1630568,
+    "luka": 1629029,
+    "xavier tillman": 1630214,
+    "tillman": 1630214,
+    "xavier": 1630214,
+    "ron harper jr": 1631199,
+    "ron": 1631199,
+    "ron harper": 1631199,
+    "baylor scheierman": 1631199,
+    "scheierman": 1631199,
+    "baylor": 1631199,
+    "anfernee": 1629014,
+    "simons": 1629014,
+    "hugo gonzalez": 1642864,
+    "hugo": 1642864,
+    "gonzalez": 1642864,
+    "amari williams": 1642873,
+    "amari": 1642873,
+    "moussa diabate": 1631217,
+    "diabate": 1631217,
+    "moussa": 1631217,
+    "lamelo ball": 1630163,
+    "lamelo": 1630163,
+    "ball": 1630163,
+    "mason plumlee": 203486,
+    "plumlee": 203486,
+    "mason": 203486,
+    "kon knueppel": 1642851,
+    "knueppel": 1642851,
+    "kon": 1642851,
+    "collin": 1629012,
+    "sexton": 1629012,
+    "miles bridges": 1628970,
+    "bridges": 1628970,
+    "miles": 1628970,
+    "antonio reeves": 1641810,
+    "reeves": 1641810,
+    "antonio": 1641810,
+    "ryan kalkbrenner": 1641750,
+    "ryan": 1641750,
+    "kalkbrenner": 1641750,
+    "brandon miller": 1641706,
+    "miller": 1641706,
+    "brandon": 1641706,
+    "sion james": 1642883,
+    "sion": 1642883,
+    "james": 1642883,
+    "pat connaughton": 1626192,
+    "connaughton": 1626192,
+    "pat": 1626192,
+    "drew peterson": 1641809,
+    "peterson": 1641809,
+    "drew": 1641809,
+    "tidjane salaun": 1642275,
+    "salaun": 1642275,
+    "tidjane": 1642275,
+    "kj simpson": 1642354,
+    "simpson": 1642354,
+    "kj": 1642354,
+    "liam mcneeley": 1642862,
+    "mcneeley": 1642862,
+    "liam": 1642862,
+    "tre mann": 1630544,
+    "tre": 1630544,
+    "jalen smith": 1630188,
+    "smith": 1630188,
+    "josh giddey": 1630581,
+    "giddey": 1630581,
+    "coby white": 1629632,
+    "coby": 1629632,
+    "jevon carter": 1628975,
+    "jevon": 1628975,
+    "carter": 1628975,
+    "kevin huerter": 1628989,
+    "kevin": 1628989,
+    "huerter": 1628989,
+    "julian phillips": 1641763,
+    "julian": 1641763,
+    "phillips": 1641763,
+    "tre jones": 1630200,
+    "jones": 1630200,
+    "isaac okoro": 1630171,
+    "isaac": 1630171,
+    "okoro": 1630171,
+    "ayo dosunmu": 1630245,
+    "dosunmu": 1630245,
+    "ayo": 1630245,
+    "matas buzelis": 1641824,
+    "buzelis": 1641824,
+    "matas": 1641824,
+    "dalen terry": 1631207,
+    "dalen": 1631207,
+    "terry": 1631207,
+    "emanuel miller": 1641801,
+    "emanuel": 1641801,
+    "patrick williams": 1630172,
+    "patrick": 1630172,
+    "nikola vucevic": 202696,
+    "vucevic": 202696,
+    "nikola": 202696,
+    "noa essengue": 1642855,
+    "essengue": 1642855,
+    "noa": 1642855,
+    "lachlan olbrich": 1642950,
+    "olbrich": 1642950,
+    "lachlan": 1642950,
+    "mitchell": 1628378,
+    "donovan": 1628378,
+    "evan mobley": 1630596,
+    "mobley": 1630596,
+    "evan": 1630596,
+    "allen": 1628386,
+    "jarrett": 1628386,
+    "darius garland": 1629636,
+    "garland": 1629636,
+    "darius": 1629636,
+    "jaylon tyson": 1642281,
+    "jaylon": 1642281,
+    "dean wade": 1629731,
+    "wade": 1629731,
+    "dean": 1629731,
+    "lonzo ball": 1628366,
+    "lonzo": 1628366,
+    "deandre hunter": 1629631,
+    "deandre": 1629631,
+    "hunter": 1629631,
+    "sam merrill": 1630241,
+    "merrill": 1630241,
+    "craig porter jr": 1641854,
+    "craig porter": 1641854,
+    "craig": 1641854,
+    "thomas bryant": 1628418,
+    "bryant": 1628418,
+    "naeqwan tomlin": 1641772,
+    "tomlin": 1641772,
+    "naeqwan": 1641772,
+    "chris livingston": 1641753,
+    "livingston": 1641753,
+    "larry nance jr": 1626204,
+    "larry": 1626204,
+    "larry nance": 1626204,
+    "luke travers": 1631247,
+    "travers": 1631247,
+    "tyrese proctor": 1642878,
+    "proctor": 1642878,
+    "anthony": 203076,
+    "davis": 203076,
+    "dwight powell": 203939,
+    "dwight": 203939,
+    "dereck lively ii": 1641726,
+    "ii": 1641726,
+    "dereck lively": 1641726,
+    "dereck": 1641726,
+    "daniel gafford": 1629655,
+    "gafford": 1629655,
+    "daniel": 1629655,
+    "pj washington": 1629023,
+    "pj": 1629023,
+    "washington": 1629023,
+    "brandon williams": 1630314,
+    "max christie": 1631108,
+    "max": 1631108,
+    "christie": 1631108,
+    "dangelo": 1626156,
+    "russell": 1626156,
+    "klay": 202691,
+    "thompson": 202691,
+    "naji marshall": 1630230,
+    "naji": 1630230,
+    "marshall": 1630230,
+    "cooper flagg": 1642843,
+    "cooper": 1642843,
+    "flagg": 1642843,
+    "jaden hardy": 1630702,
+    "hardy": 1630702,
+    "jaden": 1630702,
+    "caleb martin": 1628997,
+    "ryan nembhard": 1642948,
+    "nembhard": 1642948,
+    "moussa cisse": 1630619,
+    "cisse": 1630619,
+    "miles kelly": 1642939,
+    "kelly": 1642939,
+    "jokic": 203999,
+    "murray": 1627750,
+    "jamal": 1627750,
+    "gordon": 203932,
+    "aaron": 203932,
+    "christian braun": 1631128,
+    "braun": 1631128,
+    "christian": 1631128,
+    "cameron johnson": 1629661,
+    "cameron": 1629661,
+    "peyton watson": 1631212,
+    "peyton": 1631212,
+    "watson": 1631212,
+    "valanciunas": 202685,
+    "jonas": 202685,
+    "tim hardaway": 203501,
+    "tim": 203501,
+    "daron holmes": 1641747,
+    "daron": 1641747,
+    "holmes": 1641747,
+    "zeke nnaji": 1630192,
+    "zeke": 1630192,
+    "nnaji": 1630192,
+    "spencer jones": 1642461,
+    "spencer": 1642461,
+    "jalen pickett": 1629618,
+    "pickett": 1629618,
+    "curtis jones": 1642938,
+    "curtis": 1642938,
+    "bruce brown": 1628971,
+    "bruce": 1628971,
+    "hunter tyson": 1641816,
+    "julian strawther": 1631124,
+    "strawther": 1631124,
+    "paul reed": 1630194,
+    "paul": 1630194,
+    "reed": 1630194,
+    "cade cunningham": 1630595,
+    "cade": 1630595,
+    "cunningham": 1630595,
+    "jalen duren": 1631105,
+    "duren": 1631105,
+    "ausar thompson": 1641709,
+    "ausar": 1641709,
+    "javonte green": 1629750,
+    "green": 1629750,
+    "javonte": 1629750,
+    "harris": 202699,
+    "tobias": 202699,
+    "duncan robinson": 1629130,
+    "duncan": 1629130,
+    "robinson": 1629130,
+    "isaiah stewart": 1630191,
+    "isaiah": 1630191,
+    "stewart": 1630191,
+    "wendell moore jr": 1631111,
+    "wendell": 1631111,
+    "wendell moore": 1631111,
+    "levert": 1627747,
+    "caris": 1627747,
+    "tolu smith": 1642449,
+    "tolu": 1642449,
+    "jaden ivey": 1631093,
+    "ivey": 1631093,
+    "colby jones": 1641732,
+    "colby": 1641732,
+    "ron holland": 1641842,
+    "holland": 1641842,
+    "daniss jenkins": 1642450,
+    "daniss": 1642450,
+    "jenkins": 1642450,
+    "bobi klintman": 1641752,
+    "klintman": 1641752,
+    "bobi": 1641752,
+    "isaac jones": 1642403,
+    "chaz lanier": 1642404,
+    "lanier": 1642404,
+    "chaz": 1642404,
+    "stephen": 201939,
+    "curry": 201939,
+    "jimmy": 202710,
+    "butler": 202710,
+    "draymond": 203110,
+    "moses moody": 1630541,
+    "moody": 1630541,
+    "moses": 1630541,
+    "brandin podziemski": 1641764,
+    "podziemski": 1641764,
+    "brandin": 1641764,
+    "gary payton ii": 1627780,
+    "gary": 1627780,
+    "gary payton": 1627780,
+    "quinten post": 1642366,
+    "post": 1642366,
+    "quinten": 1642366,
+    "will richard": 1642954,
+    "will": 1642954,
+    "richard": 1642954,
+    "gui santos": 1630611,
+    "santos": 1630611,
+    "gui": 1630611,
+    "trayce jackson-davis": 1631218,
+    "jackson-davis": 1631218,
+    "trayce jackson davis": 1631218,
+    "trayce jacksondavis": 1631218,
+    "trayce": 1631218,
+    "jonathan kuminga": 1630228,
+    "kuminga": 1630228,
+    "jonathan": 1630228,
+    "hield": 1627741,
+    "buddy": 1627741,
+    "al": 201143,
+    "horford": 201143,
+    "pat spencer": 1630311,
+    "durant": 201142,
+    "tari eason": 1631106,
+    "tari": 1631106,
+    "eason": 1631106,
+    "alperen sengun": 1630578,
+    "sengun": 1630578,
+    "alperen": 1630578,
+    "steven adams": 203500,
+    "adams": 203500,
+    "steven": 203500,
+    "reed sheppard": 1642263,
+    "sheppard": 1642263,
+    "amen thompson": 1641708,
+    "amen": 1641708,
+    "josh okogie": 1629006,
+    "okogie": 1629006,
+    "jabari smith jr": 1631095,
+    "jabari smith": 1631095,
+    "jabari": 1631095,
+    "jaesean tate": 1630256,
+    "tate": 1630256,
+    "jaesean": 1630256,
+    "clint": 203991,
+    "capela": 203991,
+    "aaron holiday": 1628988,
+    "holiday": 1628988,
+    "jd davison": 1631120,
+    "jd": 1631120,
+    "davison": 1631120,
+    "isaiah crawford": 1642384,
+    "crawford": 1642384,
+    "jeff": 201145,
+    "siakam": 1627783,
+    "pascal": 1627783,
+    "aaron nesmith": 1630174,
+    "nesmith": 1630174,
+    "jay huff": 1630643,
+    "huff": 1630643,
+    "jay": 1630643,
+    "tony bradley": 1628396,
+    "bradley": 1628396,
+    "tony": 1628396,
+    "andrew nembhard": 1629614,
+    "andrew": 1629614,
+    "tj mcconnell": 204456,
+    "mcconnell": 204456,
+    "tj": 204456,
+    "cody martin": 1628998,
+    "cody": 1628998,
+    "isaiah jackson": 1630543,
+    "jackson": 1630543,
+    "quenton jackson": 1631245,
+    "quenton": 1631245,
+    "johnny furphy": 1642277,
+    "furphy": 1642277,
+    "johnny": 1642277,
+    "obi toppin": 1630167,
+    "obi": 1630167,
+    "garrison mathews": 1629726,
+    "garrison": 1629726,
+    "mathews": 1629726,
+    "monte morris": 1628420,
+    "morris": 1628420,
+    "monte": 1628420,
+    "mac mcclung": 1630644,
+    "mac": 1630644,
+    "mcclung": 1630644,
+    "jeremiah robinson-earl": 1630526,
+    "jeremiah robinson earl": 1630526,
+    "robinson-earl": 1630526,
+    "jeremiah robinsonearl": 1630526,
+    "jeremiah": 1630526,
+    "bennedict mathurin": 1631097,
+    "bennedict": 1631097,
+    "mathurin": 1631097,
+    "rayj dennis": 1642484,
+    "rayj": 1642484,
+    "dennis": 1642484,
+    "ben sheppard": 1641767,
+    "james wiseman": 1630164,
+    "wiseman": 1630164,
+    "jarace walker": 1641716,
+    "jarace": 1641716,
+    "walker": 1641716,
+    "ethan thompson": 1630679,
+    "ethan": 1630679,
+    "taelon peter": 1643007,
+    "peter": 1643007,
+    "taelon": 1643007,
+    "leonard": 202695,
+    "kawhi": 202695,
+    "james harden": 201935,
+    "harden": 201935,
+    "ivica zubac": 1627826,
+    "ivica": 1627826,
+    "zubac": 1627826,
+    "derrick jones jr": 1627884,
+    "derrick jones": 1627884,
+    "kris dunn": 1627739,
+    "dunn": 1627739,
+    "kris": 1627739,
+    "bogdan bogdanovic": 203992,
+    "bogdan": 203992,
+    "bogdanovic": 203992,
+    "jordan miller": 1641757,
+    "john": 1628381,
+    "collins": 1628381,
+    "lopez": 201572,
+    "brook": 201572,
+    "cam christie": 1642353,
+    "batum": 201587,
+    "nicolas": 201587,
+    "beal": 203078,
+    "kobe brown": 1641738,
+    "kobe": 1641738,
+    "yanic konan nguessan": 1642949,
+    "yanic": 1642949,
+    "nguessan": 1642949,
+    "kobe sanders": 1642920,
+    "sanders": 1642920,
+    "jahmyl telfort": 1643141,
+    "telfort": 1643141,
+    "jahmyl": 1643141,
+    "austin reaves": 1630559,
+    "austin": 1630559,
+    "reaves": 1630559,
+    "lebron": 2544,
+    "jarred vanderbilt": 1629020,
+    "vanderbilt": 1629020,
+    "jarred": 1629020,
+    "deandre ayton": 1629028,
+    "ayton": 1629028,
+    "marcus smart": 203935,
+    "smart": 203935,
+    "marcus": 203935,
+    "jaxson hayes": 1629637,
+    "jaxson": 1629637,
+    "hayes": 1629637,
+    "rui hachimura": 1629060,
+    "rui": 1629060,
+    "hachimura": 1629060,
+    "dalton knecht": 1642261,
+    "dalton": 1642261,
+    "knecht": 1642261,
+    "jake laravia": 1631222,
+    "laravia": 1631222,
+    "jake": 1631222,
+    "christian koloko": 1631132,
+    "koloko": 1631132,
+    "maxi kleber": 1628467,
+    "kleber": 1628467,
+    "maxi": 1628467,
+    "gabe vincent": 1629216,
+    "gabe": 1629216,
+    "vincent": 1629216,
+    "chris manon": 1643024,
+    "manon": 1643024,
+    "drew timme": 1631166,
+    "timme": 1631166,
+    "adou thiero": 1642876,
+    "thiero": 1642876,
+    "adou": 1642876,
+    "nick smith jr": 1641733,
+    "nick smith": 1641733,
+    "nick": 1641733,
+    "bronny james": 1642355,
+    "bronny": 1642355,
+    "jaren jackson": 1628991,
+    "jaren": 1628991,
+    "ja morant": 1629630,
+    "ja": 1629630,
+    "morant": 1629630,
+    "zach": 1641744,
+    "edey": 1641744,
+    "santi aldama": 1630583,
+    "santi": 1630583,
+    "aldama": 1630583,
+    "john konchar": 1629723,
+    "konchar": 1629723,
+    "kentavious caldwell-pope": 203484,
+    "kentavious caldwellpope": 203484,
+    "kentavious": 203484,
+    "caldwell-pope": 203484,
+    "vince": 1631246,
+    "vince williams": 1631246,
+    "cam spencer": 1642285,
+    "wells": 1642377,
+    "cedric coward": 1642907,
+    "coward": 1642907,
+    "cedric": 1642907,
+    "charles bassey": 1629646,
+    "bassey": 1629646,
+    "charles": 1629646,
+    "jahmai mashack": 1642942,
+    "mashack": 1642942,
+    "jahmai": 1642942,
+    "jock landale": 1629111,
+    "landale": 1629111,
+    "jock": 1629111,
+    "pj hall": 1641790,
+    "hall": 1641790,
+    "javon small": 1642914,
+    "small": 1642914,
+    "javon": 1642914,
+    "olivier-maxence prosper": 1641765,
+    "oliviermaxence prosper": 1641765,
+    "olivier-maxence": 1641765,
+    "prosper": 1641765,
+    "olivier maxence prosper": 1641765,
+    "gg jackson ii": 1641713,
+    "gg jackson": 1641713,
+    "gg": 1641713,
+    "bam": 1628389,
+    "adebayo": 1628389,
+    "tyler herro": 1629639,
+    "herro": 1629639,
+    "tyler": 1629639,
+    "norman": 1626181,
+    "davion mitchell": 1630558,
+    "davion": 1630558,
+    "dru smith": 1630696,
+    "dru": 1630696,
+    "jaime jaquez jr": 1631170,
+    "jaime": 1631170,
+    "jaime jaquez": 1631170,
+    "kelel ware": 1642276,
+    "ware": 1642276,
+    "kelel": 1642276,
+    "wiggins": 203952,
+    "simone fontecchio": 1631323,
+    "simone": 1631323,
+    "fontecchio": 1631323,
+    "pelle larsson": 1641796,
+    "larsson": 1641796,
+    "pelle": 1641796,
+    "nikola jovic": 1631107,
+    "jovic": 1631107,
+    "keshad johnson": 1642352,
+    "keshad": 1642352,
+    "myron gardner": 1642066,
+    "myron": 1642066,
+    "gardner": 1642066,
+    "jahmir young": 1642443,
+    "jahmir": 1642443,
+    "antetokounmpo": 203507,
+    "giannis": 203507,
+    "kevin porter jr": 1629645,
+    "kevin porter": 1629645,
+    "myles": 1626167,
+    "turner": 1626167,
+    "ryan rollins": 1631157,
+    "rollins": 1631157,
+    "aj green": 1631260,
+    "aj": 1631260,
+    "bobby portis": 1626171,
+    "portis": 1626171,
+    "bobby": 1626171,
+    "gary harris": 203914,
+    "gary trent jr": 1629018,
+    "gary trent": 1629018,
+    "taurean prince": 1627752,
+    "prince": 1627752,
+    "taurean": 1627752,
+    "pete nance": 1631250,
+    "pete": 1631250,
+    "nance": 1631250,
+    "cole anthony": 1630175,
+    "cole": 1630175,
+    "andre jackson jr": 1641748,
+    "andre": 1641748,
+    "andre jackson": 1641748,
+    "thanasis antetokounmpo": 203648,
+    "thanasis": 203648,
+    "mark sears": 1641813,
+    "sears": 1641813,
+    "mark": 1641813,
+    "jericho sims": 1630579,
+    "sims": 1630579,
+    "jericho": 1630579,
+    "amir coffey": 1629599,
+    "coffey": 1629599,
+    "amir": 1629599,
+    "kuzma": 1628398,
+    "kyle": 1628398,
+    "edwards": 1630162,
+    "rudy": 203497,
+    "gobert": 203497,
+    "jaden mcdaniels": 1630183,
+    "mcdaniels": 1630183,
+    "divincenzo": 1628978,
+    "donte": 1628978,
+    "randle": 203944,
+    "julius": 203944,
+    "naz reid": 1629675,
+    "naz": 1629675,
+    "reid": 1629675,
+    "conley": 201144,
+    "mike": 201144,
+    "bones hyland": 1630538,
+    "hyland": 1630538,
+    "bones": 1630538,
+    "jaylen clark": 1641740,
+    "clark": 1641740,
+    "leonard miller": 1631159,
+    "johnny juzang": 1630548,
+    "juzang": 1630548,
+    "terrence shannon jr": 1630545,
+    "terrence shannon": 1630545,
+    "terrence": 1630545,
+    "joan beringer": 1642866,
+    "joan": 1642866,
+    "beringer": 1642866,
+    "joe ingles": 204060,
+    "ingles": 204060,
+    "joe": 204060,
+    "rob dillingham": 1642265,
+    "dillingham": 1642265,
+    "rob": 1642265,
+    "zion williamson": 1629627,
+    "williamson": 1629627,
+    "zion": 1629627,
+    "herbert jones": 1630529,
+    "herbert": 1630529,
+    "kevon looney": 1626172,
+    "kevon": 1626172,
+    "looney": 1626172,
+    "jose alvarado": 1630631,
+    "alvarado": 1630631,
+    "jose": 1630631,
+    "derik queen": 1642852,
+    "derik": 1642852,
+    "queen": 1642852,
+    "trey murphy iii": 1630530,
+    "trey": 1630530,
+    "iii": 1630530,
+    "trey murphy": 1630530,
+    "fears": 1642847,
+    "saddiq bey": 1630180,
+    "saddiq": 1630180,
+    "bey": 1630180,
+    "karlo matkovic": 1631255,
+    "karlo": 1631255,
+    "matkovic": 1631255,
+    "jordan poole": 1629673,
+    "poole": 1629673,
+    "bryce mcgowens": 1631121,
+    "bryce": 1631121,
+    "mcgowens": 1631121,
+    "yves missi": 1642274,
+    "missi": 1642274,
+    "yves": 1642274,
+    "trey alexander": 1641725,
+    "alexander": 1641725,
+    "micah peavy": 1642877,
+    "micah": 1642877,
+    "peavy": 1642877,
+    "hunter dickinson": 1630621,
+    "dickinson": 1630621,
+    "jordan hawkins": 1641722,
+    "hawkins": 1641722,
+    "brunson": 1628973,
+    "og anunoby": 1628384,
+    "anunoby": 1628384,
+    "og": 1628384,
+    "karl-anthony towns": 1626157,
+    "karl-anthony": 1626157,
+    "karlanthony towns": 1626157,
+    "towns": 1626157,
+    "mitchell robinson": 1629011,
+    "hart": 1628404,
+    "miles mcbride": 1630540,
+    "mcbride": 1630540,
+    "mikal": 1628969,
+    "landry shamet": 1629013,
+    "landry": 1629013,
+    "shamet": 1629013,
+    "guerschon yabusele": 1627824,
+    "guerschon": 1627824,
+    "yabusele": 1627824,
+    "tyler kolek": 1642278,
+    "kolek": 1642278,
+    "tosan evbuomwan": 1641787,
+    "tosan": 1641787,
+    "evbuomwan": 1641787,
+    "mohamed diawara": 1642885,
+    "mohamed": 1642885,
+    "diawara": 1642885,
+    "clarkson": 203903,
+    "ariel hukporti": 1630574,
+    "ariel": 1630574,
+    "hukporti": 1630574,
+    "pacome dadiet": 1642359,
+    "pacome": 1642359,
+    "dadiet": 1642359,
+    "trey jemison": 1641998,
+    "jemison": 1641998,
+    "shai gilgeous-alexander": 1628983,
+    "shai": 1628983,
+    "shai gilgeousalexander": 1628983,
+    "gilgeous-alexander": 1628983,
+    "chet holmgren": 1631096,
+    "chet": 1631096,
+    "holmgren": 1631096,
+    "isaiah hartenstein": 1628392,
+    "hartenstein": 1628392,
+    "alex caruso": 1627936,
+    "caruso": 1627936,
+    "alex": 1627936,
+    "aaron wiggins": 1630598,
+    "kenrich williams": 1629026,
+    "kenrich": 1629026,
+    "luguentz dort": 1629652,
+    "luguentz": 1629652,
+    "dort": 1629652,
+    "isaiah joe": 1630198,
+    "cason wallace": 1641717,
+    "cason": 1641717,
+    "jaylin williams": 1631119,
+    "jaylin": 1631119,
+    "ajay": 1642349,
+    "branden carlson": 1642382,
+    "carlson": 1642382,
+    "branden": 1642382,
+    "ousmane dieng": 1631172,
+    "dieng": 1631172,
+    "ousmane": 1631172,
+    "brooks barnhizer": 1642964,
+    "brooks": 1642964,
+    "barnhizer": 1642964,
+    "chris youngblood": 1642959,
+    "youngblood": 1642959,
+    "jalen suggs": 1630591,
+    "suggs": 1630591,
+    "franz wagner": 1630532,
+    "wagner": 1630532,
+    "franz": 1630532,
+    "jonathan isaac": 1628371,
+    "goga bitadze": 1629048,
+    "goga": 1629048,
+    "bitadze": 1629048,
+    "wendell carter jr": 1628976,
+    "wendell carter": 1628976,
+    "desmond bane": 1630217,
+    "desmond": 1630217,
+    "bane": 1630217,
+    "anthony black": 1641710,
+    "black": 1641710,
+    "paolo banchero": 1631094,
+    "banchero": 1631094,
+    "paolo": 1631094,
+    "tristan da silva": 1641783,
+    "tristan": 1641783,
+    "silva": 1641783,
+    "jamal cain": 1631288,
+    "cain": 1631288,
+    "tyus jones": 1626145,
+    "tyus": 1626145,
+    "noah penda": 1642869,
+    "penda": 1642869,
+    "jett howard": 1641724,
+    "jett": 1641724,
+    "howard": 1641724,
+    "jase richardson": 1642859,
+    "jase": 1642859,
+    "richardson": 1642859,
+    "orlando robinson": 1631115,
+    "orlando": 1631115,
+    "embiid": 203954,
+    "joel": 203954,
+    "george": 202331,
+    "maxey": 1630178,
+    "adem bona": 1641737,
+    "adem": 1641737,
+    "bona": 1641737,
+    "kelly oubre": 1626162,
+    "quentin": 1629656,
+    "grimes": 1629656,
+    "drummond": 203083,
+    "dominick barlow": 1631230,
+    "barlow": 1631230,
+    "dominick": 1631230,
+    "trendon watford": 1630570,
+    "watford": 1630570,
+    "trendon": 1630570,
+    "eric": 201569,
+    "hunter sallis": 1642282,
+    "sallis": 1642282,
+    "vj edgecombe": 1642845,
+    "edgecombe": 1642845,
+    "vj": 1642845,
+    "jabari walker": 1631133,
+    "jared mccain": 1642272,
+    "jared": 1642272,
+    "mccain": 1642272,
+    "lowry": 200768,
+    "justin edwards": 1642348,
+    "justin": 1642348,
+    "johni broome": 1641780,
+    "johni": 1641780,
+    "broome": 1641780,
+    "devin": 1626164,
+    "booker": 1626164,
+    "collin gillespie": 1631221,
+    "gillespie": 1631221,
+    "grayson allen": 1628960,
+    "grayson": 1628960,
+    "jalen green": 1630224,
+    "oso ighodaro": 1642345,
+    "oso": 1642345,
+    "ighodaro": 1642345,
+    "mark williams": 1631109,
+    "dillon brooks": 1628415,
+    "dillon": 1628415,
+    "royce oneale": 1626220,
+    "oneale": 1626220,
+    "royce": 1626220,
+    "jordan goodwin": 1630692,
+    "goodwin": 1630692,
+    "ryan dunn": 1642346,
+    "jamaree bouyea": 1631123,
+    "bouyea": 1631123,
+    "jamaree": 1631123,
+    "isaiah livers": 1630587,
+    "livers": 1630587,
+    "nigel hayes-davis": 1628502,
+    "nigel hayes davis": 1628502,
+    "hayes-davis": 1628502,
+    "nigel": 1628502,
+    "nigel hayesdavis": 1628502,
+    "nick richards": 1630208,
+    "richards": 1630208,
+    "khaman maluach": 1642863,
+    "maluach": 1642863,
+    "khaman": 1642863,
+    "koby brea": 1642886,
+    "brea": 1642886,
+    "koby": 1642886,
+    "rasheer fleming": 1642853,
+    "fleming": 1642853,
+    "rasheer": 1642853,
+    "avdija": 1630166,
+    "deni": 1630166,
+    "robert williams": 1629057,
+    "robert": 1629057,
+    "matisse thybulle": 1629680,
+    "thybulle": 1629680,
+    "matisse": 1629680,
+    "clingan": 1642270,
+    "toumani camara": 1641739,
+    "camara": 1641739,
+    "toumani": 1641739,
+    "shaedon": 1631101,
+    "jrue": 201950,
+    "kris murray": 1631200,
+    "duop reath": 1641871,
+    "reath": 1641871,
+    "duop": 1641871,
+    "blake wesley": 1631104,
+    "wesley": 1631104,
+    "blake": 1631104,
+    "sidy cissoko": 1631321,
+    "cissoko": 1631321,
+    "sidy": 1631321,
+    "yang hansen": 1642905,
+    "yang": 1642905,
+    "hansen": 1642905,
+    "javonte cooke": 1631451,
+    "cooke": 1631451,
+    "grant": 203924,
+    "jerami": 203924,
+    "rayan rupert": 1641712,
+    "rayan": 1641712,
+    "rupert": 1641712,
+    "caleb love": 1631126,
+    "love": 1631126,
+    "keon ellis": 1631165,
+    "ellis": 1631165,
+    "keon": 1631165,
+    "keegan murray": 1631099,
+    "keegan": 1631099,
+    "domantas": 1627734,
+    "sabonis": 1627734,
+    "malik monk": 1628370,
+    "malik": 1628370,
+    "monk": 1628370,
+    "precious achiuwa": 1630173,
+    "precious": 1630173,
+    "achiuwa": 1630173,
+    "lavine": 203897,
+    "demar": 201942,
+    "derozan": 201942,
+    "devin carter": 1642269,
+    "drew eubanks": 1629234,
+    "eubanks": 1629234,
+    "westbrook": 201566,
+    "doug mcdermott": 203926,
+    "doug": 203926,
+    "mcdermott": 203926,
+    "dario saric": 203967,
+    "saric": 203967,
+    "dario": 203967,
+    "daeqwon plowden": 1631342,
+    "daeqwon": 1631342,
+    "plowden": 1631342,
+    "maxime raynaud": 1642875,
+    "maxime": 1642875,
+    "raynaud": 1642875,
+    "nique clifford": 1642363,
+    "clifford": 1642363,
+    "nique": 1642363,
+    "schroder": 203471,
+    "dylan cardwell": 1642928,
+    "cardwell": 1642928,
+    "dylan": 1642928,
+    "victor wembanyama": 1641705,
+    "wembanyama": 1641705,
+    "victor": 1641705,
+    "luke kornet": 1628436,
+    "kornet": 1628436,
+    "jordan mclaughlin": 1629162,
+    "mclaughlin": 1629162,
+    "deaaron": 1628368,
+    "fox": 1628368,
+    "julian champagnie": 1630577,
+    "champagnie": 1630577,
+    "stephon castle": 1642264,
+    "stephon": 1642264,
+    "castle": 1642264,
+    "olynyk": 203482,
+    "harrison": 203084,
+    "barnes": 203084,
+    "vassell": 1630170,
+    "keldon johnson": 1629640,
+    "keldon": 1629640,
+    "riley minix": 1642434,
+    "minix": 1642434,
+    "riley": 1642434,
+    "dylan harper": 1642844,
+    "harper": 1642844,
+    "jeremy sochan": 1631110,
+    "jeremy": 1631110,
+    "sochan": 1631110,
+    "lindy waters iii": 1630322,
+    "lindy": 1630322,
+    "lindy waters": 1630322,
+    "harrison ingram": 1631127,
+    "ingram": 1631127,
+    "david jones": 1642357,
+    "david": 1642357,
+    "carter bryant": 1642868,
+    "bismack biyombo": 202687,
+    "biyombo": 202687,
+    "bismack": 202687,
+    "jakob": 1627751,
+    "poeltl": 1627751,
+    "scottie barnes": 1630567,
+    "scottie": 1630567,
+    "quickley": 1630193,
+    "immanuel": 1630193,
+    "sandro mamukelashvili": 1630572,
+    "mamukelashvili": 1630572,
+    "sandro": 1630572,
+    "jamal shead": 1642347,
+    "shead": 1642347,
+    "jakobe walter": 1642266,
+    "jakobe": 1642266,
+    "walter": 1642266,
+    "barrett": 1629628,
+    "rj": 1629628,
+    "gradey dick": 1641711,
+    "dick": 1641711,
+    "gradey": 1641711,
+    "collin murray-boyles": 1642867,
+    "collin murrayboyles": 1642867,
+    "murray-boyles": 1642867,
+    "collin murray boyles": 1642867,
+    "jonathan mogbo": 1642367,
+    "mogbo": 1642367,
+    "jamison battle": 1642419,
+    "battle": 1642419,
+    "jamison": 1642419,
+    "ochai agbaji": 1630534,
+    "ochai": 1630534,
+    "agbaji": 1630534,
+    "chucky hepburn": 1642935,
+    "hepburn": 1642935,
+    "chucky": 1642935,
+    "garrett temple": 202066,
+    "temple": 202066,
+    "garrett": 202066,
+    "lauri": 1628374,
+    "markkanen": 1628374,
+    "walker kessler": 1631117,
+    "kessler": 1631117,
+    "jusuf nurkic": 203994,
+    "nurkic": 203994,
+    "jusuf": 203994,
+    "kyle filipowski": 1642271,
+    "filipowski": 1642271,
+    "ace bailey": 1642846,
+    "bailey": 1642846,
+    "ace": 1642846,
+    "brice sensabaugh": 1641729,
+    "sensabaugh": 1641729,
+    "brice": 1641729,
+    "kyle anderson": 203937,
+    "anderson": 203937,
+    "taylor hendricks": 1641707,
+    "taylor": 1641707,
+    "hendricks": 1641707,
+    "svi mykhailiuk": 1629004,
+    "mykhailiuk": 1629004,
+    "svi": 1629004,
+    "elijah harkless": 1641989,
+    "elijah": 1641989,
+    "harkless": 1641989,
+    "isaiah collier": 1642268,
+    "collier": 1642268,
+    "walter clayton": 1642383,
+    "clayton": 1642383,
+    "keyonte george": 1641718,
+    "keyonte": 1641718,
+    "cody williams": 1642262,
+    "justin champagnie": 1630551,
+    "cj": 203468,
+    "mccollum": 203468,
+    "tristan vukcevic": 1641774,
+    "vukcevic": 1641774,
+    "middleton": 203114,
+    "khris": 203114,
+    "marvin bagley iii": 1628963,
+    "marvin": 1628963,
+    "marvin bagley": 1628963,
+    "corey kispert": 1630557,
+    "kispert": 1630557,
+    "corey": 1630557,
+    "cam whitmore": 1641715,
+    "whitmore": 1641715,
+    "sarr": 1642259,
+    "kyshawn": 1642273,
+    "bilal": 1641731,
+    "coulibaly": 1641731,
+    "malaki branham": 1631103,
+    "malaki": 1631103,
+    "branham": 1631103,
+    "anthony gill": 1630264,
+    "gill": 1630264,
+    "jamir watkins": 1642364,
+    "watkins": 1642364,
+    "jamir": 1642364,
+    "tre johnson": 1642848,
+    "sharife cooper": 1630536,
+    "sharife": 1630536,
+    "will riley": 1642860,
+    "aj johnson": 1642358,
+    "bub carrington": 1642267,
+    "carrington": 1642267,
+    "bub": 1642267
+  },
+  "display_names": {
+    "1630552": "Jalen Johnson",
+    "1630168": "Onyeka Okongwu",
+    "1629027": "Trae Young",
+    "204001": "Kristaps Porzingis",
+    "1629638": "Nickeil Alexander-Walker",
+    "1631243": "Mouhamed Gueye",
+    "1630700": "Dyson Daniels",
+    "1630249": "Vit Krejci",
+    "1628379": "Luke Kennard",
+    "1642258": "Zaccharie Risacher",
+    "1630811": "Keaton Wallace",
+    "1631216": "Caleb Houstan",
+    "1642854": "Asa Newell",
+    "1631210": "Jacob Toppin",
+    "1642368": "N'Faly Dante",
+    "1629008": "Michael Porter Jr.",
+    "1630549": "Day'Ron Sharpe",
+    "1641730": "Noah Clowney",
+    "1629651": "Nic Claxton",
+    "1630560": "Cam Thomas",
+    "1630533": "Ziaire Williams",
+    "1642874": "Danny Wolf",
+    "1630604": "E.J. Liddell",
+    "1630592": "Jalen Wilson",
+    "1642962": "Drake Powell",
+    "1631213": "Tyrese Martin",
+    "1629611": "Terance Mann",
+    "1642856": "Egor Demin",
+    "1642849": "Nolan Traoré",
+    "1642879": "Ben Saraf",
+    "1630623": "Tyson Etienne",
+    "1627759": "Jaylen Brown",
+    "1628401": "Derrick White",
+    "1630202": "Payton Pritchard",
+    "1631169": "Josh Minott",
+    "1641775": "Jordan Walsh",
+    "1629674": "Neemias Queta",
+    "1630573": "Sam Hauser",
+    "1628449": "Chris Boucher",
+    "1630568": "Luka Garza",
+    "1630214": "Xavier Tillman",
+    "1631199": "Baylor Scheierman",
+    "1629014": "Anfernee Simons",
+    "1642864": "Hugo González",
+    "1642873": "Amari Williams",
+    "1631217": "Moussa Diabaté",
+    "1630163": "LaMelo Ball",
+    "203486": "Mason Plumlee",
+    "1642851": "Kon Knueppel",
+    "1629012": "Collin Sexton",
+    "1628970": "Miles Bridges",
+    "1641810": "Antonio Reeves",
+    "1641750": "Ryan Kalkbrenner",
+    "1641706": "Brandon Miller",
+    "1642883": "Sion James",
+    "1626192": "Pat Connaughton",
+    "1641809": "Drew Peterson",
+    "1642275": "Tidjane Salaün",
+    "1642354": "KJ Simpson",
+    "1642862": "Liam McNeeley",
+    "1630544": "Tre Mann",
+    "1630188": "Jalen Smith",
+    "1630581": "Josh Giddey",
+    "1629632": "Coby White",
+    "1628975": "Jevon Carter",
+    "1628989": "Kevin Huerter",
+    "1641763": "Julian Phillips",
+    "1630200": "Tre Jones",
+    "1630171": "Isaac Okoro",
+    "1630245": "Ayo Dosunmu",
+    "1641824": "Matas Buzelis",
+    "1631207": "Dalen Terry",
+    "1641801": "Emanuel Miller",
+    "1630172": "Patrick Williams",
+    "202696": "Nikola Vučević",
+    "1642855": "Noa Essengue",
+    "1642950": "Lachlan Olbrich",
+    "1628378": "Donovan Mitchell",
+    "1630596": "Evan Mobley",
+    "1628386": "Jarrett Allen",
+    "1629636": "Darius Garland",
+    "1642281": "Jaylon Tyson",
+    "1629731": "Dean Wade",
+    "1628366": "Lonzo Ball",
+    "1629631": "De'Andre Hunter",
+    "1630241": "Sam Merrill",
+    "1641854": "Craig Porter Jr.",
+    "1628418": "Thomas Bryant",
+    "1641772": "Nae'Qwan Tomlin",
+    "1641753": "Chris Livingston",
+    "1626204": "Larry Nance Jr.",
+    "1631247": "Luke Travers",
+    "1642878": "Tyrese Proctor",
+    "203076": "Anthony Davis",
+    "203939": "Dwight Powell",
+    "1641726": "Dereck Lively II",
+    "1629655": "Daniel Gafford",
+    "1629023": "P.J. Washington",
+    "1630314": "Brandon Williams",
+    "1631108": "Max Christie",
+    "1626156": "D'Angelo Russell",
+    "202691": "Klay Thompson",
+    "1630230": "Naji Marshall",
+    "1642843": "Cooper Flagg",
+    "1630702": "Jaden Hardy",
+    "1628997": "Caleb Martin",
+    "1642948": "Ryan Nembhard",
+    "1630619": "Moussa Cissé",
+    "1642939": "Miles Kelly",
+    "203999": "Nikola Jokić",
+    "1627750": "Jamal Murray",
+    "203932": "Aaron Gordon",
+    "1631128": "Christian Braun",
+    "1629661": "Cameron Johnson",
+    "1631212": "Peyton Watson",
+    "202685": "Jonas Valančiūnas",
+    "203501": "Tim Hardaway Jr.",
+    "1641747": "DaRon Holmes",
+    "1630192": "Zeke Nnaji",
+    "1642461": "Spencer Jones",
+    "1629618": "Jalen Pickett",
+    "1642938": "Curtis Jones",
+    "1628971": "Bruce Brown",
+    "1641816": "Hunter Tyson",
+    "1631124": "Julian Strawther",
+    "1630194": "Paul Reed",
+    "1630595": "Cade Cunningham",
+    "1631105": "Jalen Duren",
+    "1641709": "Ausar Thompson",
+    "1629750": "Javonte Green",
+    "202699": "Tobias Harris",
+    "1629130": "Duncan Robinson",
+    "1630191": "Isaiah Stewart",
+    "1631111": "Wendell Moore Jr.",
+    "1627747": "Caris LeVert",
+    "1642449": "Tolu Smith",
+    "1631093": "Jaden Ivey",
+    "1641732": "Colby Jones",
+    "1641842": "Ron Holland",
+    "1642450": "Daniss Jenkins",
+    "1641752": "Bobi Klintman",
+    "1642403": "Isaac Jones",
+    "1642404": "Chaz Lanier",
+    "201939": "Stephen Curry",
+    "202710": "Jimmy Butler",
+    "203110": "Draymond Green",
+    "1630541": "Moses Moody",
+    "1641764": "Brandin Podziemski",
+    "1627780": "Gary Payton II",
+    "1642366": "Quinten Post",
+    "1642954": "Will Richard",
+    "1630611": "Gui Santos",
+    "1631218": "Trayce Jackson-Davis",
+    "1630228": "Jonathan Kuminga",
+    "1627741": "Buddy Hield",
+    "201143": "Al Horford",
+    "1630311": "Pat Spencer",
+    "201142": "Kevin Durant",
+    "1631106": "Tari Eason",
+    "1630578": "Alperen Şengün",
+    "203500": "Steven Adams",
+    "1642263": "Reed Sheppard",
+    "1641708": "Amen Thompson",
+    "1629006": "Josh Okogie",
+    "1631095": "Jabari Smith Jr.",
+    "1630256": "Jae'Sean Tate",
+    "203991": "Clint Capela",
+    "1628988": "Aaron Holiday",
+    "1631120": "JD Davison",
+    "1642384": "Isaiah Crawford",
+    "201145": "Jeff Green",
+    "1627783": "Pascal Siakam",
+    "1630174": "Aaron Nesmith",
+    "1630643": "Jay Huff",
+    "1628396": "Tony Bradley",
+    "1629614": "Andrew Nembhard",
+    "204456": "T.J. McConnell",
+    "1628998": "Cody Martin",
+    "1630543": "Isaiah Jackson",
+    "1631245": "Quenton Jackson",
+    "1642277": "Johnny Furphy",
+    "1630167": "Obi Toppin",
+    "1629726": "Garrison Mathews",
+    "1628420": "Monte Morris",
+    "1630644": "Mac McClung",
+    "1630526": "Jeremiah Robinson-Earl",
+    "1631097": "Bennedict Mathurin",
+    "1642484": "RayJ Dennis",
+    "1641767": "Ben Sheppard",
+    "1630164": "James Wiseman",
+    "1641716": "Jarace Walker",
+    "1630679": "Ethan Thompson",
+    "1643007": "Taelon Peter",
+    "202695": "Kawhi Leonard",
+    "201935": "James Harden",
+    "1627826": "Ivica Zubac",
+    "1627884": "Derrick Jones Jr.",
+    "1627739": "Kris Dunn",
+    "203992": "Bogdan Bogdanović",
+    "1641757": "Jordan Miller",
+    "1628381": "John Collins",
+    "201572": "Brook Lopez",
+    "1642353": "Cam Christie",
+    "201587": "Nicolas Batum",
+    "203078": "Bradley Beal",
+    "101108": "Chris Paul",
+    "1641738": "Kobe Brown",
+    "1642949": "Yanic Konan N'Guessan",
+    "1642920": "Kobe Sanders",
+    "1643141": "Jahmyl Telfort",
+    "1629029": "Luka",
+    "1630559": "Austin Reaves",
+    "2544": "LeBron James",
+    "1629020": "Jarred Vanderbilt",
+    "1629028": "Deandre Ayton",
+    "203935": "Marcus Smart",
+    "1629637": "Jaxson Hayes",
+    "1629060": "Rui Hachimura",
+    "1642261": "Dalton Knecht",
+    "1631222": "Jake LaRavia",
+    "1631132": "Christian Koloko",
+    "1628467": "Maxi Kleber",
+    "1629216": "Gabe Vincent",
+    "1643024": "Chris Mañon",
+    "1631166": "Drew Timme",
+    "1642876": "Adou Thiero",
+    "1641733": "Nick Smith Jr.",
+    "1642355": "Bronny James",
+    "1628991": "Jaren Jackson Jr.",
+    "1629630": "Ja Morant",
+    "1641744": "Zach Edey",
+    "1630583": "Santi Aldama",
+    "1629723": "John Konchar",
+    "203484": "Kentavious Caldwell-Pope",
+    "1631246": "Vince Williams Jr.",
+    "1642285": "Cam Spencer",
+    "1642377": "Jaylen Wells",
+    "1642907": "Cedric Coward",
+    "1629646": "Charles Bassey",
+    "1642942": "Jahmai Mashack",
+    "1629111": "Jock Landale",
+    "1641790": "PJ Hall",
+    "1642914": "Javon Small",
+    "1641765": "Olivier-Maxence Prosper",
+    "1641713": "GG Jackson II",
+    "1628389": "Bam Adebayo",
+    "1629639": "Tyler Herro",
+    "1626181": "Norman Powell",
+    "1630558": "Davion Mitchell",
+    "1630696": "Dru Smith",
+    "1631170": "Jaime Jaquez Jr.",
+    "1642276": "Kel'el Ware",
+    "203952": "Andrew Wiggins",
+    "1631323": "Simone Fontecchio",
+    "1641796": "Pelle Larsson",
+    "1631107": "Nikola Jović",
+    "1642352": "Keshad Johnson",
+    "1642066": "Myron Gardner",
+    "1642443": "Jahmir Young",
+    "203507": "Giannis Antetokounmpo",
+    "1629645": "Kevin Porter Jr.",
+    "1626167": "Myles Turner",
+    "1631157": "Ryan Rollins",
+    "1631260": "A.J. Green",
+    "1626171": "Bobby Portis",
+    "203914": "Gary Harris",
+    "1629018": "Gary Trent Jr.",
+    "1627752": "Taurean Prince",
+    "1631250": "Pete Nance",
+    "1630175": "Cole Anthony",
+    "1641748": "Andre Jackson Jr.",
+    "203648": "Thanasis Antetokounmpo",
+    "1641813": "Mark Sears",
+    "1630579": "Jericho Sims",
+    "1629599": "Amir Coffey",
+    "1628398": "Kyle Kuzma",
+    "1630162": "Anthony Edwards",
+    "203497": "Rudy Gobert",
+    "1630183": "Jaden McDaniels",
+    "1628978": "Donte DiVincenzo",
+    "203944": "Julius Randle",
+    "1629675": "Naz Reid",
+    "201144": "Mike Conley",
+    "1630538": "Bones Hyland",
+    "1641740": "Jaylen Clark",
+    "1631159": "Leonard Miller",
+    "1630548": "Johnny Juzang",
+    "1630545": "Terrence Shannon Jr.",
+    "1642866": "Joan Beringer",
+    "204060": "Joe Ingles",
+    "1642265": "Rob Dillingham",
+    "1629627": "Zion Williamson",
+    "1630529": "Herbert Jones",
+    "1626172": "Kevon Looney",
+    "1630631": "Jose Alvarado",
+    "1642852": "Derik Queen",
+    "1630530": "Trey Murphy III",
+    "1642847": "Jeremiah Fears",
+    "1630180": "Saddiq Bey",
+    "1631255": "Karlo Matković",
+    "1629673": "Jordan Poole",
+    "1631121": "Bryce McGowens",
+    "1642274": "Yves Missi",
+    "201599": "DeAndre Jordan",
+    "1641725": "Trey Alexander",
+    "1642877": "Micah Peavy",
+    "1630621": "Hunter Dickinson",
+    "1641722": "Jordan Hawkins",
+    "1628973": "Jalen Brunson",
+    "1628384": "OG Anunoby",
+    "1626157": "Karl-Anthony Towns",
+    "1629011": "Mitchell Robinson",
+    "1628404": "Josh Hart",
+    "1630540": "Miles McBride",
+    "1628969": "Mikal Bridges",
+    "1629013": "Landry Shamet",
+    "1627824": "Guerschon Yabusele",
+    "1642278": "Tyler Kolek",
+    "1641787": "Tosan Evbuomwan",
+    "1642885": "Mohamed Diawara",
+    "203903": "Jordan Clarkson",
+    "1630574": "Ariel Hukporti",
+    "1642359": "Pacome Dadiet",
+    "1641998": "Trey Jemison",
+    "1628983": "Shai Gilgeous-Alexander",
+    "1631096": "Chet Holmgren",
+    "1628392": "Isaiah Hartenstein",
+    "1631114": "Jalen Williams",
+    "1627936": "Alex Caruso",
+    "1630598": "Aaron Wiggins",
+    "1629026": "Kenrich Williams",
+    "1629652": "Luguentz Dort",
+    "1630198": "Isaiah Joe",
+    "1641717": "Cason Wallace",
+    "1631119": "Jaylin Williams",
+    "1642349": "Ajay Mitchell",
+    "1642382": "Branden Carlson",
+    "1631172": "Ousmane Dieng",
+    "1642964": "Brooks Barnhizer",
+    "1642959": "Chris Youngblood",
+    "1630591": "Jalen Suggs",
+    "1630532": "Franz Wagner",
+    "1628371": "Jonathan Isaac",
+    "1629048": "Goga Bitadze",
+    "1628976": "Wendell Carter Jr.",
+    "1630217": "Desmond Bane",
+    "1641710": "Anthony Black",
+    "1631094": "Paolo Banchero",
+    "1641783": "Tristan Da Silva",
+    "1631288": "Jamal Cain",
+    "1626145": "Tyus Jones",
+    "1642869": "Noah Penda",
+    "1641724": "Jett Howard",
+    "1642859": "Jase Richardson",
+    "1631115": "Orlando Robinson",
+    "203954": "Joel Embiid",
+    "202331": "Paul George",
+    "1630178": "Tyrese Maxey",
+    "1641737": "Adem Bona",
+    "1626162": "Kelly Oubre Jr.",
+    "1629656": "Quentin Grimes",
+    "203083": "Andre Drummond",
+    "1631230": "Dominick Barlow",
+    "1630570": "Trendon Watford",
+    "201569": "Eric Gordon",
+    "1642282": "Hunter Sallis",
+    "1642845": "VJ Edgecombe",
+    "1631133": "Jabari Walker",
+    "1642272": "Jared McCain",
+    "200768": "Kyle Lowry",
+    "1642348": "Justin Edwards",
+    "1641780": "Johni Broome",
+    "1626164": "Devin Booker",
+    "1631221": "Collin Gillespie",
+    "1628960": "Grayson Allen",
+    "1630224": "Jalen Green",
+    "1642345": "Oso Ighodaro",
+    "1631109": "Mark Williams",
+    "1628415": "Dillon Brooks",
+    "1626220": "Royce O'Neale",
+    "1630692": "Jordan Goodwin",
+    "1642346": "Ryan Dunn",
+    "1631123": "Jamaree Bouyea",
+    "1630587": "Isaiah Livers",
+    "1628502": "Nigel Hayes-Davis",
+    "1630208": "Nick Richards",
+    "1642863": "Khaman Maluach",
+    "1642886": "Koby Brea",
+    "1642853": "Rasheer Fleming",
+    "1630166": "Deni Avdija",
+    "1629057": "Robert Williams",
+    "1629680": "Matisse Thybulle",
+    "1642270": "Donovan Clingan",
+    "1641739": "Toumani Camara",
+    "1631101": "Shaedon Sharpe",
+    "201950": "Jrue Holiday",
+    "1631200": "Kris Murray",
+    "1641871": "Duop Reath",
+    "1631104": "Blake Wesley",
+    "1631321": "Sidy Cissoko",
+    "1642905": "Yang Hansen",
+    "1631451": "Javonte Cooke",
+    "203924": "Jerami Grant",
+    "1641712": "Rayan Rupert",
+    "1631126": "Caleb Love",
+    "1631165": "Keon Ellis",
+    "1631099": "Keegan Murray",
+    "1627734": "Domantas Sabonis",
+    "1628370": "Malik Monk",
+    "1630173": "Precious Achiuwa",
+    "203897": "Zach LaVine",
+    "201942": "DeMar DeRozan",
+    "1642269": "Devin Carter",
+    "1629234": "Drew Eubanks",
+    "201566": "Russell Westbrook",
+    "203926": "Doug McDermott",
+    "203967": "Dario Šarić",
+    "1631342": "Daeqwon Plowden",
+    "1642875": "Maxime Raynaud",
+    "1642363": "Nique Clifford",
+    "203471": "Dennis Schröder",
+    "1642928": "Dylan Cardwell",
+    "1641705": "Victor Wembanyama",
+    "1628436": "Luke Kornet",
+    "1629162": "Jordan McLaughlin",
+    "1628368": "De'Aaron Fox",
+    "1630577": "Julian Champagnie",
+    "1642264": "Stephon Castle",
+    "203482": "Kelly Olynyk",
+    "203084": "Harrison Barnes",
+    "1630170": "Devin Vassell",
+    "1629640": "Keldon Johnson",
+    "1642434": "Riley Minix",
+    "1642844": "Dylan Harper",
+    "1631110": "Jeremy Sochan",
+    "1630322": "Lindy Waters III",
+    "1631127": "Harrison Ingram",
+    "1642357": "David Jones",
+    "1642868": "Carter Bryant",
+    "202687": "Bismack Biyombo",
+    "1627751": "Jakob Poeltl",
+    "1630567": "Scottie Barnes",
+    "1630193": "Immanuel Quickley",
+    "1630572": "Sandro Mamukelashvili",
+    "1627742": "Brandon Ingram",
+    "1642347": "Jamal Shead",
+    "1642266": "Ja'Kobe Walter",
+    "1629628": "RJ Barrett",
+    "1641711": "Gradey Dick",
+    "1642867": "Collin Murray-Boyles",
+    "1642367": "Jonathan Mogbo",
+    "1642419": "Jamison Battle",
+    "1630534": "Ochai Agbaji",
+    "1642935": "Chucky Hepburn",
+    "202066": "Garrett Temple",
+    "1628374": "Lauri Markkanen",
+    "1631117": "Walker Kessler",
+    "203994": "Jusuf Nurkić",
+    "1642271": "Kyle Filipowski",
+    "1642846": "Ace Bailey",
+    "1641729": "Brice Sensabaugh",
+    "203937": "Kyle Anderson",
+    "1641707": "Taylor Hendricks",
+    "1629004": "Svi Mykhailiuk",
+    "1641989": "Elijah Harkless",
+    "201567": "Kevin Love",
+    "1642268": "Isaiah Collier",
+    "1642383": "Walter Clayton",
+    "1641718": "Keyonte George",
+    "1642262": "Cody Williams",
+    "1630551": "Justin Champagnie",
+    "203468": "C.J. McCollum",
+    "1641774": "Tristan Vukčević",
+    "203114": "Khris Middleton",
+    "1628963": "Marvin Bagley III",
+    "1630557": "Corey Kispert",
+    "1641715": "Cam Whitmore",
+    "1642259": "Alex Sarr",
+    "1642273": "Kyshawn George",
+    "1641731": "Bilal Coulibaly",
+    "1631103": "Malaki Branham",
+    "1630264": "Anthony Gill",
+    "1642364": "Jamir Watkins",
+    "1642848": "Tre Johnson",
+    "1630536": "Sharife Cooper",
+    "1642860": "Will Riley",
+    "1642358": "AJ Johnson",
+    "1642267": "Bub Carrington"
+  },
+  "teams": {
+    "1630552": [
+      "Atlanta Hawks"
+    ],
+    "1630168": [
+      "Atlanta Hawks"
+    ],
+    "1629027": [
+      "Atlanta Hawks"
+    ],
+    "204001": [
+      "Atlanta Hawks"
+    ],
+    "1629638": [
+      "Atlanta Hawks"
+    ],
+    "1631243": [
+      "Atlanta Hawks"
+    ],
+    "1630700": [
+      "Atlanta Hawks"
+    ],
+    "1630249": [
+      "Atlanta Hawks"
+    ],
+    "1628379": [
+      "Atlanta Hawks"
+    ],
+    "1642258": [
+      "Atlanta Hawks"
+    ],
+    "1630811": [
+      "Atlanta Hawks"
+    ],
+    "1631216": [
+      "Atlanta Hawks"
+    ],
+    "1642854": [
+      "Atlanta Hawks"
+    ],
+    "1631210": [
+      "Atlanta Hawks"
+    ],
+    "1642368": [
+      "Atlanta Hawks"
+    ],
+    "1629008": [
+      "Brooklyn Nets"
+    ],
+    "1630549": [
+      "Brooklyn Nets"
+    ],
+    "1641730": [
+      "Brooklyn Nets"
+    ],
+    "1629651": [
+      "Brooklyn Nets"
+    ],
+    "1630560": [
+      "Brooklyn Nets"
+    ],
+    "1630533": [
+      "Brooklyn Nets"
+    ],
+    "1642874": [
+      "Brooklyn Nets"
+    ],
+    "1630604": [
+      "Brooklyn Nets"
+    ],
+    "1630592": [
+      "Brooklyn Nets"
+    ],
+    "1642962": [
+      "Brooklyn Nets"
+    ],
+    "1631213": [
+      "Brooklyn Nets"
+    ],
+    "1629611": [
+      "Brooklyn Nets"
+    ],
+    "1642856": [
+      "Brooklyn Nets"
+    ],
+    "1642849": [
+      "Brooklyn Nets"
+    ],
+    "1642879": [
+      "Brooklyn Nets"
+    ],
+    "1630623": [
+      "Brooklyn Nets"
+    ],
+    "1627759": [
+      "Boston Celtics"
+    ],
+    "1628401": [
+      "Boston Celtics"
+    ],
+    "1630202": [
+      "Boston Celtics"
+    ],
+    "1631169": [
+      "Boston Celtics"
+    ],
+    "1641775": [
+      "Boston Celtics"
+    ],
+    "1629674": [
+      "Boston Celtics"
+    ],
+    "1630573": [
+      "Boston Celtics"
+    ],
+    "1628449": [
+      "Boston Celtics"
+    ],
+    "1630568": [
+      "Boston Celtics"
+    ],
+    "1630214": [
+      "Boston Celtics"
+    ],
+    "1631199": [
+      "Boston Celtics",
+      "Boston Celtics"
+    ],
+    "1629014": [
+      "Boston Celtics"
+    ],
+    "1642864": [
+      "Boston Celtics"
+    ],
+    "1642873": [
+      "Boston Celtics"
+    ],
+    "1631217": [
+      "Charlotte Hornets"
+    ],
+    "1630163": [
+      "Charlotte Hornets"
+    ],
+    "203486": [
+      "Charlotte Hornets"
+    ],
+    "1642851": [
+      "Charlotte Hornets"
+    ],
+    "1629012": [
+      "Charlotte Hornets"
+    ],
+    "1628970": [
+      "Charlotte Hornets"
+    ],
+    "1641810": [
+      "Charlotte Hornets"
+    ],
+    "1641750": [
+      "Charlotte Hornets"
+    ],
+    "1641706": [
+      "Charlotte Hornets"
+    ],
+    "1642883": [
+      "Charlotte Hornets"
+    ],
+    "1626192": [
+      "Charlotte Hornets"
+    ],
+    "1641809": [
+      "Charlotte Hornets"
+    ],
+    "1642275": [
+      "Charlotte Hornets"
+    ],
+    "1642354": [
+      "Charlotte Hornets"
+    ],
+    "1642862": [
+      "Charlotte Hornets"
+    ],
+    "1630544": [
+      "Charlotte Hornets"
+    ],
+    "1630188": [
+      "Chicago Bulls"
+    ],
+    "1630581": [
+      "Chicago Bulls"
+    ],
+    "1629632": [
+      "Chicago Bulls"
+    ],
+    "1628975": [
+      "Chicago Bulls"
+    ],
+    "1628989": [
+      "Chicago Bulls"
+    ],
+    "1641763": [
+      "Chicago Bulls"
+    ],
+    "1630200": [
+      "Chicago Bulls"
+    ],
+    "1630171": [
+      "Chicago Bulls"
+    ],
+    "1630245": [
+      "Chicago Bulls"
+    ],
+    "1641824": [
+      "Chicago Bulls"
+    ],
+    "1631207": [
+      "Chicago Bulls"
+    ],
+    "1641801": [
+      "Chicago Bulls"
+    ],
+    "1630172": [
+      "Chicago Bulls"
+    ],
+    "202696": [
+      "Chicago Bulls"
+    ],
+    "1642855": [
+      "Chicago Bulls"
+    ],
+    "1642950": [
+      "Chicago Bulls"
+    ],
+    "1628378": [
+      "Cleveland Cavaliers"
+    ],
+    "1630596": [
+      "Cleveland Cavaliers"
+    ],
+    "1628386": [
+      "Cleveland Cavaliers"
+    ],
+    "1629636": [
+      "Cleveland Cavaliers"
+    ],
+    "1642281": [
+      "Cleveland Cavaliers"
+    ],
+    "1629731": [
+      "Cleveland Cavaliers"
+    ],
+    "1628366": [
+      "Cleveland Cavaliers"
+    ],
+    "1629631": [
+      "Cleveland Cavaliers"
+    ],
+    "1630241": [
+      "Cleveland Cavaliers"
+    ],
+    "1641854": [
+      "Cleveland Cavaliers"
+    ],
+    "1628418": [
+      "Cleveland Cavaliers"
+    ],
+    "1641772": [
+      "Cleveland Cavaliers"
+    ],
+    "1641753": [
+      "Cleveland Cavaliers"
+    ],
+    "1626204": [
+      "Cleveland Cavaliers"
+    ],
+    "1631247": [
+      "Cleveland Cavaliers"
+    ],
+    "1642878": [
+      "Cleveland Cavaliers"
+    ],
+    "203076": [
+      "Dallas Mavericks"
+    ],
+    "203939": [
+      "Dallas Mavericks"
+    ],
+    "1641726": [
+      "Dallas Mavericks"
+    ],
+    "1629655": [
+      "Dallas Mavericks"
+    ],
+    "1629023": [
+      "Dallas Mavericks"
+    ],
+    "1630314": [
+      "Dallas Mavericks"
+    ],
+    "1631108": [
+      "Dallas Mavericks"
+    ],
+    "1626156": [
+      "Dallas Mavericks"
+    ],
+    "202691": [
+      "Dallas Mavericks"
+    ],
+    "1630230": [
+      "Dallas Mavericks"
+    ],
+    "1642843": [
+      "Dallas Mavericks"
+    ],
+    "1630702": [
+      "Dallas Mavericks"
+    ],
+    "1628997": [
+      "Dallas Mavericks"
+    ],
+    "1642948": [
+      "Dallas Mavericks"
+    ],
+    "1630619": [
+      "Dallas Mavericks"
+    ],
+    "1642939": [
+      "Dallas Mavericks"
+    ],
+    "203999": [
+      "Denver Nuggets"
+    ],
+    "1627750": [
+      "Denver Nuggets"
+    ],
+    "203932": [
+      "Denver Nuggets"
+    ],
+    "1631128": [
+      "Denver Nuggets"
+    ],
+    "1629661": [
+      "Denver Nuggets"
+    ],
+    "1631212": [
+      "Denver Nuggets"
+    ],
+    "202685": [
+      "Denver Nuggets"
+    ],
+    "203501": [
+      "Denver Nuggets"
+    ],
+    "1641747": [
+      "Denver Nuggets"
+    ],
+    "1630192": [
+      "Denver Nuggets"
+    ],
+    "1642461": [
+      "Denver Nuggets"
+    ],
+    "1629618": [
+      "Denver Nuggets"
+    ],
+    "1642938": [
+      "Denver Nuggets"
+    ],
+    "1628971": [
+      "Denver Nuggets"
+    ],
+    "1641816": [
+      "Denver Nuggets"
+    ],
+    "1631124": [
+      "Denver Nuggets"
+    ],
+    "1630194": [
+      "Detroit Pistons"
+    ],
+    "1630595": [
+      "Detroit Pistons"
+    ],
+    "1631105": [
+      "Detroit Pistons"
+    ],
+    "1641709": [
+      "Detroit Pistons"
+    ],
+    "1629750": [
+      "Detroit Pistons"
+    ],
+    "202699": [
+      "Detroit Pistons"
+    ],
+    "1629130": [
+      "Detroit Pistons"
+    ],
+    "1630191": [
+      "Detroit Pistons"
+    ],
+    "1631111": [
+      "Detroit Pistons"
+    ],
+    "1627747": [
+      "Detroit Pistons"
+    ],
+    "1642449": [
+      "Detroit Pistons"
+    ],
+    "1631093": [
+      "Detroit Pistons"
+    ],
+    "1641732": [
+      "Detroit Pistons"
+    ],
+    "1641842": [
+      "Detroit Pistons"
+    ],
+    "1642450": [
+      "Detroit Pistons"
+    ],
+    "1641752": [
+      "Detroit Pistons"
+    ],
+    "1642403": [
+      "Detroit Pistons",
+      "Sacramento Kings"
+    ],
+    "1642404": [
+      "Detroit Pistons"
+    ],
+    "201939": [
+      "Golden State Warriors"
+    ],
+    "202710": [
+      "Golden State Warriors"
+    ],
+    "203110": [
+      "Golden State Warriors"
+    ],
+    "1630541": [
+      "Golden State Warriors"
+    ],
+    "1641764": [
+      "Golden State Warriors"
+    ],
+    "1627780": [
+      "Golden State Warriors"
+    ],
+    "1642366": [
+      "Golden State Warriors"
+    ],
+    "1642954": [
+      "Golden State Warriors"
+    ],
+    "1630611": [
+      "Golden State Warriors"
+    ],
+    "1631218": [
+      "Golden State Warriors"
+    ],
+    "1630228": [
+      "Golden State Warriors"
+    ],
+    "1627741": [
+      "Golden State Warriors"
+    ],
+    "201143": [
+      "Golden State Warriors"
+    ],
+    "1630311": [
+      "Golden State Warriors"
+    ],
+    "201142": [
+      "Houston Rockets"
+    ],
+    "1631106": [
+      "Houston Rockets"
+    ],
+    "1630578": [
+      "Houston Rockets"
+    ],
+    "203500": [
+      "Houston Rockets"
+    ],
+    "1642263": [
+      "Houston Rockets"
+    ],
+    "1641708": [
+      "Houston Rockets"
+    ],
+    "1629006": [
+      "Houston Rockets"
+    ],
+    "1631095": [
+      "Houston Rockets"
+    ],
+    "1630256": [
+      "Houston Rockets"
+    ],
+    "203991": [
+      "Houston Rockets"
+    ],
+    "1628988": [
+      "Houston Rockets"
+    ],
+    "1631120": [
+      "Houston Rockets"
+    ],
+    "1642384": [
+      "Houston Rockets"
+    ],
+    "201145": [
+      "Houston Rockets"
+    ],
+    "1627783": [
+      "Indiana Pacers"
+    ],
+    "1630174": [
+      "Indiana Pacers"
+    ],
+    "1630643": [
+      "Indiana Pacers"
+    ],
+    "1628396": [
+      "Indiana Pacers"
+    ],
+    "1629614": [
+      "Indiana Pacers"
+    ],
+    "204456": [
+      "Indiana Pacers"
+    ],
+    "1628998": [
+      "Indiana Pacers"
+    ],
+    "1630543": [
+      "Indiana Pacers"
+    ],
+    "1631245": [
+      "Indiana Pacers"
+    ],
+    "1642277": [
+      "Indiana Pacers"
+    ],
+    "1630167": [
+      "Indiana Pacers"
+    ],
+    "1629726": [
+      "Indiana Pacers"
+    ],
+    "1628420": [
+      "Indiana Pacers"
+    ],
+    "1630644": [
+      "Indiana Pacers"
+    ],
+    "1630526": [
+      "Indiana Pacers"
+    ],
+    "1631097": [
+      "Indiana Pacers"
+    ],
+    "1642484": [
+      "Indiana Pacers"
+    ],
+    "1641767": [
+      "Indiana Pacers"
+    ],
+    "1630164": [
+      "Indiana Pacers"
+    ],
+    "1641716": [
+      "Indiana Pacers"
+    ],
+    "1630679": [
+      "Indiana Pacers"
+    ],
+    "1643007": [
+      "Indiana Pacers"
+    ],
+    "202695": [
+      "Los Angeles Clippers"
+    ],
+    "201935": [
+      "Los Angeles Clippers"
+    ],
+    "1627826": [
+      "Los Angeles Clippers"
+    ],
+    "1627884": [
+      "Los Angeles Clippers"
+    ],
+    "1627739": [
+      "Los Angeles Clippers"
+    ],
+    "203992": [
+      "Los Angeles Clippers"
+    ],
+    "1641757": [
+      "Los Angeles Clippers"
+    ],
+    "1628381": [
+      "Los Angeles Clippers"
+    ],
+    "201572": [
+      "Los Angeles Clippers"
+    ],
+    "1642353": [
+      "Los Angeles Clippers"
+    ],
+    "201587": [
+      "Los Angeles Clippers"
+    ],
+    "203078": [
+      "Los Angeles Clippers"
+    ],
+    "101108": [
+      "Los Angeles Clippers"
+    ],
+    "1641738": [
+      "Los Angeles Clippers"
+    ],
+    "1642949": [
+      "Los Angeles Clippers"
+    ],
+    "1642920": [
+      "Los Angeles Clippers"
+    ],
+    "1643141": [
+      "Los Angeles Clippers"
+    ],
+    "1629029": [
+      "Los Angeles Lakers"
+    ],
+    "1630559": [
+      "Los Angeles Lakers"
+    ],
+    "2544": [
+      "Los Angeles Lakers"
+    ],
+    "1629020": [
+      "Los Angeles Lakers"
+    ],
+    "1629028": [
+      "Los Angeles Lakers"
+    ],
+    "203935": [
+      "Los Angeles Lakers"
+    ],
+    "1629637": [
+      "Los Angeles Lakers"
+    ],
+    "1629060": [
+      "Los Angeles Lakers"
+    ],
+    "1642261": [
+      "Los Angeles Lakers"
+    ],
+    "1631222": [
+      "Los Angeles Lakers"
+    ],
+    "1631132": [
+      "Los Angeles Lakers"
+    ],
+    "1628467": [
+      "Los Angeles Lakers"
+    ],
+    "1629216": [
+      "Los Angeles Lakers"
+    ],
+    "1643024": [
+      "Los Angeles Lakers"
+    ],
+    "1631166": [
+      "Los Angeles Lakers"
+    ],
+    "1642876": [
+      "Los Angeles Lakers"
+    ],
+    "1641733": [
+      "Los Angeles Lakers"
+    ],
+    "1642355": [
+      "Los Angeles Lakers"
+    ],
+    "1628991": [
+      "Memphis Grizzlies"
+    ],
+    "1629630": [
+      "Memphis Grizzlies"
+    ],
+    "1641744": [
+      "Memphis Grizzlies"
+    ],
+    "1630583": [
+      "Memphis Grizzlies"
+    ],
+    "1629723": [
+      "Memphis Grizzlies"
+    ],
+    "203484": [
+      "Memphis Grizzlies"
+    ],
+    "1631246": [
+      "Memphis Grizzlies"
+    ],
+    "1642285": [
+      "Memphis Grizzlies"
+    ],
+    "1642377": [
+      "Memphis Grizzlies"
+    ],
+    "1642907": [
+      "Memphis Grizzlies"
+    ],
+    "1629646": [
+      "Memphis Grizzlies"
+    ],
+    "1642942": [
+      "Memphis Grizzlies"
+    ],
+    "1629111": [
+      "Memphis Grizzlies"
+    ],
+    "1641790": [
+      "Memphis Grizzlies"
+    ],
+    "1642914": [
+      "Memphis Grizzlies"
+    ],
+    "1641765": [
+      "Memphis Grizzlies"
+    ],
+    "1641713": [
+      "Memphis Grizzlies"
+    ],
+    "1628389": [
+      "Miami Heat"
+    ],
+    "1629639": [
+      "Miami Heat"
+    ],
+    "1626181": [
+      "Miami Heat"
+    ],
+    "1630558": [
+      "Miami Heat"
+    ],
+    "1630696": [
+      "Miami Heat"
+    ],
+    "1631170": [
+      "Miami Heat"
+    ],
+    "1642276": [
+      "Miami Heat"
+    ],
+    "203952": [
+      "Miami Heat"
+    ],
+    "1631323": [
+      "Miami Heat"
+    ],
+    "1641796": [
+      "Miami Heat"
+    ],
+    "1631107": [
+      "Miami Heat"
+    ],
+    "1642352": [
+      "Miami Heat"
+    ],
+    "1642066": [
+      "Miami Heat"
+    ],
+    "1642443": [
+      "Miami Heat"
+    ],
+    "203507": [
+      "Milwaukee Bucks"
+    ],
+    "1629645": [
+      "Milwaukee Bucks"
+    ],
+    "1626167": [
+      "Milwaukee Bucks"
+    ],
+    "1631157": [
+      "Milwaukee Bucks"
+    ],
+    "1631260": [
+      "Milwaukee Bucks"
+    ],
+    "1626171": [
+      "Milwaukee Bucks"
+    ],
+    "203914": [
+      "Milwaukee Bucks"
+    ],
+    "1629018": [
+      "Milwaukee Bucks"
+    ],
+    "1627752": [
+      "Milwaukee Bucks"
+    ],
+    "1631250": [
+      "Milwaukee Bucks"
+    ],
+    "1630175": [
+      "Milwaukee Bucks"
+    ],
+    "1641748": [
+      "Milwaukee Bucks"
+    ],
+    "203648": [
+      "Milwaukee Bucks"
+    ],
+    "1641813": [
+      "Milwaukee Bucks"
+    ],
+    "1630579": [
+      "Milwaukee Bucks"
+    ],
+    "1629599": [
+      "Milwaukee Bucks"
+    ],
+    "1628398": [
+      "Milwaukee Bucks"
+    ],
+    "1630162": [
+      "Minnesota Timberwolves"
+    ],
+    "203497": [
+      "Minnesota Timberwolves"
+    ],
+    "1630183": [
+      "Minnesota Timberwolves"
+    ],
+    "1628978": [
+      "Minnesota Timberwolves"
+    ],
+    "203944": [
+      "Minnesota Timberwolves"
+    ],
+    "1629675": [
+      "Minnesota Timberwolves"
+    ],
+    "201144": [
+      "Minnesota Timberwolves"
+    ],
+    "1630538": [
+      "Minnesota Timberwolves"
+    ],
+    "1641740": [
+      "Minnesota Timberwolves"
+    ],
+    "1631159": [
+      "Minnesota Timberwolves"
+    ],
+    "1630548": [
+      "Minnesota Timberwolves"
+    ],
+    "1630545": [
+      "Minnesota Timberwolves"
+    ],
+    "1642866": [
+      "Minnesota Timberwolves"
+    ],
+    "204060": [
+      "Minnesota Timberwolves"
+    ],
+    "1642265": [
+      "Minnesota Timberwolves"
+    ],
+    "1629627": [
+      "New Orleans Pelicans"
+    ],
+    "1630529": [
+      "New Orleans Pelicans"
+    ],
+    "1626172": [
+      "New Orleans Pelicans"
+    ],
+    "1630631": [
+      "New Orleans Pelicans"
+    ],
+    "1642852": [
+      "New Orleans Pelicans"
+    ],
+    "1630530": [
+      "New Orleans Pelicans"
+    ],
+    "1642847": [
+      "New Orleans Pelicans"
+    ],
+    "1630180": [
+      "New Orleans Pelicans"
+    ],
+    "1631255": [
+      "New Orleans Pelicans"
+    ],
+    "1629673": [
+      "New Orleans Pelicans"
+    ],
+    "1631121": [
+      "New Orleans Pelicans"
+    ],
+    "1642274": [
+      "New Orleans Pelicans"
+    ],
+    "201599": [
+      "New Orleans Pelicans"
+    ],
+    "1641725": [
+      "New Orleans Pelicans"
+    ],
+    "1642877": [
+      "New Orleans Pelicans"
+    ],
+    "1630621": [
+      "New Orleans Pelicans"
+    ],
+    "1641722": [
+      "New Orleans Pelicans"
+    ],
+    "1628973": [
+      "New York Knicks"
+    ],
+    "1628384": [
+      "New York Knicks"
+    ],
+    "1626157": [
+      "New York Knicks"
+    ],
+    "1629011": [
+      "New York Knicks"
+    ],
+    "1628404": [
+      "New York Knicks"
+    ],
+    "1630540": [
+      "New York Knicks"
+    ],
+    "1628969": [
+      "New York Knicks"
+    ],
+    "1629013": [
+      "New York Knicks"
+    ],
+    "1627824": [
+      "New York Knicks"
+    ],
+    "1642278": [
+      "New York Knicks"
+    ],
+    "1641787": [
+      "New York Knicks"
+    ],
+    "1642885": [
+      "New York Knicks"
+    ],
+    "203903": [
+      "New York Knicks"
+    ],
+    "1630574": [
+      "New York Knicks"
+    ],
+    "1642359": [
+      "New York Knicks"
+    ],
+    "1641998": [
+      "New York Knicks"
+    ],
+    "1628983": [
+      "Oklahoma City Thunder"
+    ],
+    "1631096": [
+      "Oklahoma City Thunder"
+    ],
+    "1628392": [
+      "Oklahoma City Thunder"
+    ],
+    "1631114": [
+      "Oklahoma City Thunder"
+    ],
+    "1627936": [
+      "Oklahoma City Thunder"
+    ],
+    "1630598": [
+      "Oklahoma City Thunder"
+    ],
+    "1629026": [
+      "Oklahoma City Thunder"
+    ],
+    "1629652": [
+      "Oklahoma City Thunder"
+    ],
+    "1630198": [
+      "Oklahoma City Thunder"
+    ],
+    "1641717": [
+      "Oklahoma City Thunder"
+    ],
+    "1631119": [
+      "Oklahoma City Thunder"
+    ],
+    "1642349": [
+      "Oklahoma City Thunder"
+    ],
+    "1642382": [
+      "Oklahoma City Thunder"
+    ],
+    "1631172": [
+      "Oklahoma City Thunder"
+    ],
+    "1642964": [
+      "Oklahoma City Thunder"
+    ],
+    "1642959": [
+      "Oklahoma City Thunder"
+    ],
+    "1630591": [
+      "Orlando Magic"
+    ],
+    "1630532": [
+      "Orlando Magic"
+    ],
+    "1628371": [
+      "Orlando Magic"
+    ],
+    "1629048": [
+      "Orlando Magic"
+    ],
+    "1628976": [
+      "Orlando Magic"
+    ],
+    "1630217": [
+      "Orlando Magic"
+    ],
+    "1641710": [
+      "Orlando Magic"
+    ],
+    "1631094": [
+      "Orlando Magic"
+    ],
+    "1641783": [
+      "Orlando Magic"
+    ],
+    "1631288": [
+      "Orlando Magic"
+    ],
+    "1626145": [
+      "Orlando Magic"
+    ],
+    "1642869": [
+      "Orlando Magic"
+    ],
+    "1641724": [
+      "Orlando Magic"
+    ],
+    "1642859": [
+      "Orlando Magic"
+    ],
+    "1631115": [
+      "Orlando Magic"
+    ],
+    "203954": [
+      "Philadelphia 76ers"
+    ],
+    "202331": [
+      "Philadelphia 76ers"
+    ],
+    "1630178": [
+      "Philadelphia 76ers"
+    ],
+    "1641737": [
+      "Philadelphia 76ers"
+    ],
+    "1626162": [
+      "Philadelphia 76ers"
+    ],
+    "1629656": [
+      "Philadelphia 76ers"
+    ],
+    "203083": [
+      "Philadelphia 76ers"
+    ],
+    "1631230": [
+      "Philadelphia 76ers"
+    ],
+    "1630570": [
+      "Philadelphia 76ers"
+    ],
+    "201569": [
+      "Philadelphia 76ers"
+    ],
+    "1642282": [
+      "Philadelphia 76ers"
+    ],
+    "1642845": [
+      "Philadelphia 76ers"
+    ],
+    "1631133": [
+      "Philadelphia 76ers"
+    ],
+    "1642272": [
+      "Philadelphia 76ers"
+    ],
+    "200768": [
+      "Philadelphia 76ers"
+    ],
+    "1642348": [
+      "Philadelphia 76ers"
+    ],
+    "1641780": [
+      "Philadelphia 76ers"
+    ],
+    "1626164": [
+      "Phoenix Suns"
+    ],
+    "1631221": [
+      "Phoenix Suns"
+    ],
+    "1628960": [
+      "Phoenix Suns"
+    ],
+    "1630224": [
+      "Phoenix Suns"
+    ],
+    "1642345": [
+      "Phoenix Suns"
+    ],
+    "1631109": [
+      "Phoenix Suns"
+    ],
+    "1628415": [
+      "Phoenix Suns"
+    ],
+    "1626220": [
+      "Phoenix Suns"
+    ],
+    "1630692": [
+      "Phoenix Suns"
+    ],
+    "1642346": [
+      "Phoenix Suns"
+    ],
+    "1631123": [
+      "Phoenix Suns"
+    ],
+    "1630587": [
+      "Phoenix Suns"
+    ],
+    "1628502": [
+      "Phoenix Suns"
+    ],
+    "1630208": [
+      "Phoenix Suns"
+    ],
+    "1642863": [
+      "Phoenix Suns"
+    ],
+    "1642886": [
+      "Phoenix Suns"
+    ],
+    "1642853": [
+      "Phoenix Suns"
+    ],
+    "1630166": [
+      "Portland Trail Blazers"
+    ],
+    "1629057": [
+      "Portland Trail Blazers"
+    ],
+    "1629680": [
+      "Portland Trail Blazers"
+    ],
+    "1642270": [
+      "Portland Trail Blazers"
+    ],
+    "1641739": [
+      "Portland Trail Blazers"
+    ],
+    "1631101": [
+      "Portland Trail Blazers"
+    ],
+    "201950": [
+      "Portland Trail Blazers"
+    ],
+    "1631200": [
+      "Portland Trail Blazers"
+    ],
+    "1641871": [
+      "Portland Trail Blazers"
+    ],
+    "1631104": [
+      "Portland Trail Blazers"
+    ],
+    "1631321": [
+      "Portland Trail Blazers"
+    ],
+    "1642905": [
+      "Portland Trail Blazers"
+    ],
+    "1631451": [
+      "Portland Trail Blazers"
+    ],
+    "203924": [
+      "Portland Trail Blazers"
+    ],
+    "1641712": [
+      "Portland Trail Blazers"
+    ],
+    "1631126": [
+      "Portland Trail Blazers"
+    ],
+    "1631165": [
+      "Sacramento Kings"
+    ],
+    "1631099": [
+      "Sacramento Kings"
+    ],
+    "1627734": [
+      "Sacramento Kings"
+    ],
+    "1628370": [
+      "Sacramento Kings"
+    ],
+    "1630173": [
+      "Sacramento Kings"
+    ],
+    "203897": [
+      "Sacramento Kings"
+    ],
+    "201942": [
+      "Sacramento Kings"
+    ],
+    "1642269": [
+      "Sacramento Kings"
+    ],
+    "1629234": [
+      "Sacramento Kings"
+    ],
+    "201566": [
+      "Sacramento Kings"
+    ],
+    "203926": [
+      "Sacramento Kings"
+    ],
+    "203967": [
+      "Sacramento Kings"
+    ],
+    "1631342": [
+      "Sacramento Kings"
+    ],
+    "1642875": [
+      "Sacramento Kings"
+    ],
+    "1642363": [
+      "Sacramento Kings"
+    ],
+    "203471": [
+      "Sacramento Kings"
+    ],
+    "1642928": [
+      "Sacramento Kings"
+    ],
+    "1641705": [
+      "San Antonio Spurs"
+    ],
+    "1628436": [
+      "San Antonio Spurs"
+    ],
+    "1629162": [
+      "San Antonio Spurs"
+    ],
+    "1628368": [
+      "San Antonio Spurs"
+    ],
+    "1630577": [
+      "San Antonio Spurs"
+    ],
+    "1642264": [
+      "San Antonio Spurs"
+    ],
+    "203482": [
+      "San Antonio Spurs"
+    ],
+    "203084": [
+      "San Antonio Spurs"
+    ],
+    "1630170": [
+      "San Antonio Spurs"
+    ],
+    "1629640": [
+      "San Antonio Spurs"
+    ],
+    "1642434": [
+      "San Antonio Spurs"
+    ],
+    "1642844": [
+      "San Antonio Spurs"
+    ],
+    "1631110": [
+      "San Antonio Spurs"
+    ],
+    "1630322": [
+      "San Antonio Spurs"
+    ],
+    "1631127": [
+      "San Antonio Spurs"
+    ],
+    "1642357": [
+      "San Antonio Spurs"
+    ],
+    "1642868": [
+      "San Antonio Spurs"
+    ],
+    "202687": [
+      "San Antonio Spurs"
+    ],
+    "1627751": [
+      "Toronto Raptors"
+    ],
+    "1630567": [
+      "Toronto Raptors"
+    ],
+    "1630193": [
+      "Toronto Raptors"
+    ],
+    "1630572": [
+      "Toronto Raptors"
+    ],
+    "1627742": [
+      "Toronto Raptors"
+    ],
+    "1642347": [
+      "Toronto Raptors"
+    ],
+    "1642266": [
+      "Toronto Raptors"
+    ],
+    "1629628": [
+      "Toronto Raptors"
+    ],
+    "1641711": [
+      "Toronto Raptors"
+    ],
+    "1642867": [
+      "Toronto Raptors"
+    ],
+    "1642367": [
+      "Toronto Raptors"
+    ],
+    "1642419": [
+      "Toronto Raptors"
+    ],
+    "1630534": [
+      "Toronto Raptors"
+    ],
+    "1642935": [
+      "Toronto Raptors"
+    ],
+    "202066": [
+      "Toronto Raptors"
+    ],
+    "1628374": [
+      "Utah Jazz"
+    ],
+    "1631117": [
+      "Utah Jazz"
+    ],
+    "203994": [
+      "Utah Jazz"
+    ],
+    "1642271": [
+      "Utah Jazz"
+    ],
+    "1642846": [
+      "Utah Jazz"
+    ],
+    "1641729": [
+      "Utah Jazz"
+    ],
+    "203937": [
+      "Utah Jazz"
+    ],
+    "1641707": [
+      "Utah Jazz"
+    ],
+    "1629004": [
+      "Utah Jazz"
+    ],
+    "1641989": [
+      "Utah Jazz"
+    ],
+    "201567": [
+      "Utah Jazz"
+    ],
+    "1642268": [
+      "Utah Jazz"
+    ],
+    "1642383": [
+      "Utah Jazz"
+    ],
+    "1641718": [
+      "Utah Jazz"
+    ],
+    "1642262": [
+      "Utah Jazz"
+    ],
+    "1630551": [
+      "Washington Wizards"
+    ],
+    "203468": [
+      "Washington Wizards"
+    ],
+    "1641774": [
+      "Washington Wizards"
+    ],
+    "203114": [
+      "Washington Wizards"
+    ],
+    "1628963": [
+      "Washington Wizards"
+    ],
+    "1630557": [
+      "Washington Wizards"
+    ],
+    "1641715": [
+      "Washington Wizards"
+    ],
+    "1642259": [
+      "Washington Wizards"
+    ],
+    "1642273": [
+      "Washington Wizards"
+    ],
+    "1641731": [
+      "Washington Wizards"
+    ],
+    "1631103": [
+      "Washington Wizards"
+    ],
+    "1630264": [
+      "Washington Wizards"
+    ],
+    "1642364": [
+      "Washington Wizards"
+    ],
+    "1642848": [
+      "Washington Wizards"
+    ],
+    "1630536": [
+      "Washington Wizards"
+    ],
+    "1642860": [
+      "Washington Wizards"
+    ],
+    "1642358": [
+      "Washington Wizards"
+    ],
+    "1642267": [
+      "Washington Wizards"
+    ]
+  },
+  "description": "Comprehensive NBA player cache for prop projections. Includes normalized names, variants, and team mappings."
+}

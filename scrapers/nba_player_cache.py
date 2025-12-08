@@ -1,14 +1,15 @@
 """
-NBA Player ID Cache
-===================
-Manages a local cache of NBA player IDs to avoid repeated API calls.
+Player ID Cache (Databallr Source)
+==================================
+Manages a local cache of NBA player IDs from Databallr comprehensive cache.
 
 Features:
-- Downloads full player list once per day
+- Loads from databallr_player_cache.json (comprehensive cache)
 - Normalizes player names for consistent matching
 - Supports fuzzy matching with Levenshtein distance
 - Manual override table for edge cases
 - Fast local lookups (no API calls needed)
+- Uses Databallr and Sportsbet as data sources only
 """
 
 import sys
@@ -16,7 +17,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import json
-import requests
 import re
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple
@@ -35,12 +35,10 @@ def _get_cache_dir():
     return cache_dir
 
 CACHE_DIR = _get_cache_dir()
-PLAYER_CACHE_FILE = CACHE_DIR / "nba_player_cache.json"
+# Use databallr comprehensive cache as primary source
+DATABALLR_CACHE_FILE = CACHE_DIR / "databallr_player_cache.json"
+PLAYER_CACHE_FILE = DATABALLR_CACHE_FILE  # Alias for compatibility
 MANUAL_OVERRIDES_FILE = CACHE_DIR / "nba_player_overrides.json"
-
-# NBA API endpoint
-NBA_STATS_API = "https://stats.nba.com/stats"
-CACHE_EXPIRY_HOURS = 24  # Refresh cache once per day
 
 
 def normalize_player_name(name: str) -> str:
@@ -60,10 +58,11 @@ def normalize_player_name(name: str) -> str:
     # Lowercase
     normalized = name.lower()
     
-    # Remove common suffixes
-    suffixes = ['jr.', 'jr', 'sr.', 'sr', 'ii', 'iii', 'iv', 'v']
+    # Remove common suffixes (process longer ones first to avoid partial matches)
+    # e.g., "iii" must be processed before "ii" to avoid "murphy iii" -> "murphy i"
+    suffixes = ['jr.', 'jr', 'sr.', 'sr', 'iii', 'ii', 'iv', 'v']
     for suffix in suffixes:
-        # Remove with comma and without
+        # Remove with comma and without, ensure word boundary at end
         normalized = re.sub(rf',?\s*{re.escape(suffix)}\b', '', normalized, flags=re.IGNORECASE)
     
     # Remove punctuation
@@ -80,101 +79,65 @@ def normalize_player_name(name: str) -> str:
 
 def build_player_cache() -> Dict[str, int]:
     """
-    Download full NBA player list and build cache
+    DEPRECATED: This function is no longer used.
+    Player cache is loaded from databallr_player_cache.json instead.
     
     Returns:
-        Dictionary mapping normalized names to player IDs
+        Empty dict (function kept for compatibility)
     """
-    logger.info("Building NBA player ID cache...")
-    
-    try:
-        url = f"{NBA_STATS_API}/commonallplayers"
-        params = {
-            "LeagueID": "00",
-            "Season": "2024-25",
-            "IsOnlyCurrentSeason": "1"  # Only current season players
-        }
-        
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "https://www.nba.com/",
-            "Accept": "application/json"
-        }
-        
-        response = requests.get(url, params=params, headers=headers, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-        
-        players = data.get("resultSets", [{}])[0].get("rowSet", [])
-        
-        cache = {}
-        
-        for player in players:
-            if len(player) < 3:
-                continue
-            
-            player_id = player[0]
-            first_name = player[1] if len(player) > 1 else ""
-            last_name = player[2] if len(player) > 2 else ""
-            
-            if not first_name or not last_name:
-                continue
-            
-            # Create multiple normalized variations
-            full_name = f"{first_name} {last_name}"
-            last_first = f"{last_name}, {first_name}"
-            last_only = last_name
-            
-            # Normalize each variation
-            variations = [
-                normalize_player_name(full_name),
-                normalize_player_name(last_first),
-                normalize_player_name(last_only),
-                # Also add with underscore
-                normalize_player_name(full_name).replace(' ', '_'),
-            ]
-            
-            # Add all variations to cache
-            for variation in variations:
-                if variation and variation not in cache:
-                    cache[variation] = player_id
-        
-        logger.info(f"Built cache with {len(cache)} name variations for {len(players)} players")
-        return cache
-        
-    except Exception as e:
-        logger.error(f"Error building player cache: {e}")
-        return {}
+    logger.warning("build_player_cache() is deprecated - using databallr cache instead")
+    return {}
 
 
 def load_player_cache() -> Tuple[Dict[str, int], bool]:
     """
-    Load player cache from file
+    Load player cache from databallr_player_cache.json
     
     Returns:
-        (cache_dict, needs_refresh) where needs_refresh is True if cache is expired
+        (cache_dict, needs_refresh) where needs_refresh is always False (no auto-refresh)
     """
-    if not PLAYER_CACHE_FILE.exists():
-        return {}, True
+    # Try databallr cache first (primary source)
+    if DATABALLR_CACHE_FILE.exists():
+        try:
+            with open(DATABALLR_CACHE_FILE, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+            
+            # Extract name_to_id mapping from databallr cache structure
+            # Databallr cache has: {'cache': {name: id}, 'display_names': {}, 'teams': {}, ...}
+            name_to_id = cache_data.get('cache', {})
+            
+            if name_to_id:
+                logger.info(f"Loaded player cache from databallr ({len(name_to_id)} entries)")
+                return name_to_id, False  # Never needs refresh (no API)
+            else:
+                logger.warning(f"Databallr cache file exists but 'cache' key is empty")
+                return {}, False
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing databallr cache JSON: {e}")
+            return {}, False
+        except UnicodeDecodeError as e:
+            logger.error(f"Error reading databallr cache (encoding issue): {e}")
+            return {}, False
+        except Exception as e:
+            logger.warning(f"Error loading databallr cache: {e}")
+            return {}, False
     
-    try:
-        with open(PLAYER_CACHE_FILE, 'r') as f:
-            cache_data = json.load(f)
-        
-        # Check if cache is expired
-        cache_time = datetime.fromisoformat(cache_data.get('timestamp', '2000-01-01'))
-        age = datetime.now() - cache_time
-        
-        if age > timedelta(hours=CACHE_EXPIRY_HOURS):
-            logger.info(f"Player cache expired (age: {age})")
-            return cache_data.get('cache', {}), True
-        
-        logger.info(f"Loaded player cache ({len(cache_data.get('cache', {}))} entries)")
-        return cache_data.get('cache', {}), False
-        
-    except Exception as e:
-        logger.warning(f"Error loading player cache: {e}")
-        return {}, True
+    # Fallback to old nba_player_cache.json if databallr doesn't exist
+    old_cache_file = CACHE_DIR / "nba_player_cache.json"
+    if old_cache_file.exists():
+        try:
+            with open(old_cache_file, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+            name_to_id = cache_data.get('cache', {})
+            if name_to_id:
+                logger.info(f"Loaded player cache from legacy nba cache ({len(name_to_id)} entries)")
+                return name_to_id, False
+        except Exception as e:
+            logger.warning(f"Error loading legacy cache: {e}")
+    
+    logger.warning("No player cache file found. Please run build_comprehensive_player_cache.py")
+    return {}, False
 
 
 def save_player_cache(cache: Dict[str, int]):
@@ -272,7 +235,7 @@ def find_player_id_fuzzy(cache: Dict[str, int], normalized_name: str, threshold:
 
 
 class PlayerIDCache:
-    """Manages NBA player ID cache with automatic refresh"""
+    """Manages player ID cache from Databallr comprehensive cache (no API calls)"""
 
     def __init__(self):
         self.cache: Dict[str, int] = {}
@@ -289,27 +252,18 @@ class PlayerIDCache:
         self._load_cache()
     
     def _load_cache(self):
-        """Load cache and overrides"""
+        """Load cache from databallr_player_cache.json (no auto-refresh)"""
         # Load manual overrides first
         self.overrides = load_manual_overrides()
         
-        # Load cache
-        cache, needs_refresh = load_player_cache()
+        # Load cache from databallr (no refresh needed - it's a static file)
+        cache, _ = load_player_cache()
         self.cache = cache
         
-        # Refresh if needed
-        if needs_refresh or not self.cache:
-            print("\n[INIT] Building NBA player ID cache (one-time setup)...")
-            logger.info("Refreshing player cache...")
-            new_cache = build_player_cache()
-            if new_cache:
-                self.cache = new_cache
-                save_player_cache(new_cache)
-                print(f"[OK] Player cache built: {len(new_cache)} name variations")
-            else:
-                print("[WARNING] Could not build player cache - will use fallback methods")
+        if self.cache:
+            logger.info(f"Loaded player cache ({len(self.cache)} entries) from databallr")
         else:
-            logger.debug(f"Using cached player data ({len(self.cache)} entries)")
+            logger.warning("No player cache loaded. Please run build_comprehensive_player_cache.py to create cache.")
     
     def get_player_id(self, player_name: str) -> Optional[int]:
         """
