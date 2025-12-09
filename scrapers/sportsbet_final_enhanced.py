@@ -21,6 +21,12 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 import logging
+import sys
+
+# Add parent directory to path for utils import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.retry_utils import retry_scraper_call
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger("sportsbet_final_enhanced")
@@ -1916,11 +1922,15 @@ def extract_team_stats_from_page(page, away_team: str, home_team: str) -> Option
         return None
 
 
+@retry_scraper_call(max_attempts=3, min_wait=2.0, max_wait=10.0)
 def scrape_match_complete(url: str, headless: bool = True) -> Optional[CompleteMatchData]:
     """
     Scrape complete match data including:
     - Betting markets
     - Match insights from Stats & Insights tab
+    
+    This function has retry logic - it will automatically retry up to 3 times
+    with exponential backoff if scraping fails.
     """
 
     logger.info(f"Scraping complete match data: {url}")
@@ -2473,8 +2483,14 @@ def scrape_match_complete(url: str, headless: bool = True) -> Optional[CompleteM
             browser.close()
 
 
+@retry_scraper_call(max_attempts=3, min_wait=2.0, max_wait=10.0)
 def scrape_nba_overview(headless: bool = True) -> List[Dict]:
-    """Scrape NBA overview to get all games"""
+    """
+    Scrape NBA overview to get all games.
+    
+    This function has retry logic - it will automatically retry up to 3 times
+    with exponential backoff if scraping fails.
+    """
 
     url = "https://www.sportsbet.com.au/betting/basketball-us/nba"
     logger.info(f"Scraping NBA overview: {url}")

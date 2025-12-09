@@ -5,6 +5,7 @@
 playwright>=1.40.0
 beautifulsoup4>=4.12.0
 requests>=2.31.0
+tenacity>=8.2.0  # For retry logic with exponential backoff
 
 # Data Processing
 numpy>=1.24.0
@@ -12,3 +13,6 @@ pandas>=2.0.0
 
 # Optional: Enhanced Analysis
 scipy>=1.11.0  # For statistical distributions
+
+# Configuration Management
+python-dotenv>=1.0.0  # For environment variable management

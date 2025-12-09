@@ -82,19 +82,20 @@ python view_enhanced_bets.py --show-all --no-filters
 
 ### Quality Tiers
 
-| Tier | Emoji | Meaning | Action |
-|------|-------|---------|--------|
-| S | 💎 | Elite Value | Max units |
-| A | ⭐ | High Quality | Standard units |
-| B | ✓ | Playable | Reduced units |
-| C | ~ | Marginal | Minimal units |
-| D | ❌ | Avoid | Skip |
+| Tier | Emoji | Meaning | Action | Requirements |
+|------|-------|---------|--------|--------------|
+| S | 💎 | Elite Value | Max units | EV≥20%, Edge≥12%, Prob≥68% |
+| A | ⭐ | High Quality | Standard units | EV≥10%, Edge≥8%, **Prob≥75%** |
+| B | ✓ | Playable | Reduced units | EV≥5%, Edge≥4% |
+| C | ⛔ | **Do Not Bet** | **Skip entirely** | Fails quality checks |
+| D | ❌ | Avoid | Skip | Negative EV or Prob<50% |
 
-### All 10 Enhancements Applied
+### All 15 Enhancements Applied (V2)
 
+#### Core Enhancements (V1)
 ✅ **Tier Classification** - Every bet rated S/A/B/C/D
 ✅ **Sample Size Penalty** - Small samples get confidence reduction
-✅ **Correlation Detection** - Same team/game penalties
+✅ **Correlation Detection** - Same team/game penalties (now scaled!)
 ✅ **Line Difficulty** - High lines (30+) penalized
 ✅ **Market Efficiency** - Sharp markets filtered
 ✅ **Consistency Rank** - Player volatility rating
@@ -102,6 +103,13 @@ python view_enhanced_bets.py --show-all --no-filters
 ✅ **Fair Odds** - Shows true value vs bookmaker
 ✅ **Projection Margin** - Expected beat over line
 ✅ **Auto-Sorting** - Best bets first
+
+#### NEW Enhancements (V2)
+🆕 **Scaled Correlation Penalty** - Strong projections (>4 margin) get lower penalties
+🆕 **A-Tier Probability Gate** - Must have ≥75% win probability
+🆕 **Minutes Stability Score** - Volatility >20% → -5 confidence
+🆕 **Line Shading Detection** - Flags potentially shaded books lines
+🆕 **C-Tier = Do Not Bet** - Strict quality filters, clear stop signal
 
 ---
 

@@ -19,6 +19,7 @@ Usage:
 import sys
 import json
 import logging
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
@@ -31,574 +32,60 @@ if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('nba_betting_system.log', encoding='utf-8')
-    ]
+# Import configuration
+from config import Config
+
+# Setup logging with rotation to prevent large log files
+from utils.logging_config import setup_logger
+from utils.error_handling import safe_call, handle_import_error, log_and_continue
+
+logger = setup_logger(
+    "nba_betting_system",
+    log_file=Config.LOG_FILE,
+    level=getattr(logging, Config.LOG_LEVEL.upper(), logging.INFO),
+    max_bytes=Config.LOG_MAX_BYTES,
+    backup_count=Config.LOG_BACKUP_COUNT
 )
-logger = logging.getLogger("nba_betting_system")
 
 
 # ============================================================================
 # DATA STRUCTURES
 # ============================================================================
 
-@dataclass
-class BettingRecommendation:
-    """Final betting recommendation with all analysis"""
-    # Game context
-    game: str
-    match_time: str
-    
-    # Bet details
-    bet_type: str  # 'team_total', 'team_spread', 'team_moneyline', 'player_prop'
-    market: str
-    selection: str
-    odds: float
-    
-    # Player-specific (if player prop)
-    player_name: Optional[str] = None
-    player_team: Optional[str] = None  # NEW: Player's team
-    opponent_team: Optional[str] = None  # NEW: Opponent team
-    stat_type: Optional[str] = None
-    line: Optional[float] = None
-    
-    # Analysis
-    sportsbet_insight: Optional[str] = None
-    historical_hit_rate: float = 0.0
-    sample_size: int = 0
-    
-    # Projections
-    projected_value: Optional[float] = None
-    projected_probability: float = 0.0
-    model_confidence: float = 0.0
-    
-    # Value metrics
-    implied_probability: float = 0.0
-    edge_percentage: float = 0.0
-    expected_value: float = 0.0
-    
-    # Final score
-    confidence_score: float = 0.0
-    recommendation_strength: str = "MEDIUM"  # LOW, MEDIUM, HIGH, VERY_HIGH
-    
-    # Supporting data
-    databallr_stats: Optional[Dict] = None
-    matchup_factors: Optional[Dict] = None
-    advanced_context: Optional[Dict] = None  # NEW: Advanced contextual factors
-    
-    def to_dict(self) -> Dict:
-        return asdict(self)
+# Import data models from models module
+from models import BettingRecommendation
+
+# Import collectors and engines from nba_betting module
+from nba_betting.collectors import SportsbetCollector, DataBallrValidator
+from nba_betting.engines import ValueProjector
 
 
 # ============================================================================
-# STEP 1: SCRAPE SPORTSBET
+# DATA COLLECTORS, VALIDATORS, AND PROJECTION ENGINES
 # ============================================================================
-
-class SportsbetCollector:
-    """Collects NBA betting data from Sportsbet"""
-    
-    def __init__(self, headless: bool = True):
-        self.headless = headless
-        
-    def collect_games(self, max_games: int = None) -> List[Dict]:
-        """
-        Scrape NBA games with odds, insights, and player props
-        
-        Returns:
-            List of game dicts with:
-            - game_info: {home_team, away_team, match_time, url}
-            - team_markets: List of team betting markets
-            - insights: List of Sportsbet insights/trends
-            - player_props: List of player prop markets
-            - team_recent_results: Recent game results for both teams
-        """
-        logger.info("=" * 80)
-        logger.info("STEP 1: SCRAPING SPORTSBET NBA DATA")
-        logger.info("=" * 80)
-        
-        try:
-            from scrapers.sportsbet_final_enhanced import scrape_nba_overview, scrape_match_complete
-        except ImportError:
-            logger.error("Sportsbet scraper not found. Install dependencies.")
-            return []
-        
-        # Get all NBA games
-        logger.info("Fetching NBA games from Sportsbet...")
-        games = scrape_nba_overview(headless=self.headless)
-        
-        if not games:
-            logger.error("No games found on Sportsbet")
-            return []
-        
-        # Limit games if specified
-        if max_games:
-            games = games[:max_games]
-        
-        logger.info(f"Found {len(games)} games to analyze")
-        
-        # Collect detailed data for each game
-        game_data = []
-        for i, game in enumerate(games, 1):
-            logger.info(f"\n[{i}/{len(games)}] Collecting: {game['away_team']} @ {game['home_team']}")
-            
-            try:
-                # Scrape complete match data
-                match_data = scrape_match_complete(game['url'], headless=self.headless)
-                
-                if not match_data:
-                    logger.warning("  Failed to scrape match data")
-                    continue
-                
-                # Extract components
-                all_markets = getattr(match_data, 'all_markets', []) or []
-                insights = getattr(match_data, 'match_insights', []) or []
-                match_stats = getattr(match_data, 'match_stats', None)
-                
-                # Extract team recent results from insights (if available)
-                team_results = self._extract_team_results_from_insights(insights, game['home_team'], game['away_team'])
-                
-                logger.info(f"  ✓ {len(all_markets)} markets, {len(insights)} insights")
-                if team_results:
-                    logger.info(f"  ✓ Found recent results for team markets")
-                
-                game_data.append({
-                    'game_info': game,
-                    'team_markets': all_markets,
-                    'insights': insights,
-                    'match_stats': match_stats,
-                    'team_recent_results': team_results
-                })
-                
-            except Exception as e:
-                logger.error(f"  Error: {e}")
-                continue
-        
-        logger.info(f"\n✓ Collected data for {len(game_data)} games")
-        return game_data
-    
-    def _extract_team_results_from_insights(self, insights: List, home_team: str, away_team: str) -> Optional[Dict]:
-        """
-        Extract recent game results from insights data.
-        
-        Looks for insights showing "2025/26 Season Results" with scores.
-        
-        Returns:
-            Dict with 'home_results' and 'away_results' lists of (score_for, score_against, result) tuples
-        """
-        import re
-        
-        results = {
-            'home_team': home_team,
-            'away_team': away_team,
-            'home_results': [],
-            'away_results': []
-        }
-        
-        # Look through insights for season results
-        for insight in insights:
-            fact = str(getattr(insight, 'fact', ''))
-            result = str(getattr(insight, 'result', ''))
-            market = str(getattr(insight, 'market', ''))
-            
-            # Check if this is a season results insight
-            combined = (fact + ' ' + result + ' ' + market).lower()
-            
-            if 'season results' in combined or 'last 5' in combined or 'recent games' in combined:
-                # Try to extract scores in format "123-120" or "W 123-120"
-                score_pattern = r'(\d{2,3})-(\d{2,3})'
-                scores = re.findall(score_pattern, fact + ' ' + result)
-                
-                # Try to determine which team this is for
-                team_name = None
-                if home_team.lower() in combined:
-                    team_name = 'home'
-                elif away_team.lower() in combined:
-                    team_name = 'away'
-                
-                if scores and team_name:
-                    # Parse results
-                    for score_for, score_against in scores[:10]:  # Max 10 games
-                        score_for = int(score_for)
-                        score_against = int(score_against)
-                        result_char = "W" if score_for > score_against else "L"
-                        
-                        if team_name == 'home':
-                            results['home_results'].append((score_for, score_against, result_char))
-                        else:
-                            results['away_results'].append((score_for, score_against, result_char))
-        
-        # Return None if no results found
-        if not results['home_results'] and not results['away_results']:
-            return None
-        
-        return results
-    
-    def _extract_player_props(self, markets: List) -> List:
-        """Extract player prop markets from all markets"""
-        props = []
-        
-        for market in markets:
-            # Check if this is a player prop
-            selection_text = str(getattr(market, 'selection_text', ''))
-            market_category = str(getattr(market, 'market_category', '')).lower()
-            
-            # Player props have player names and stat keywords
-            has_stat_keyword = any(keyword in selection_text.lower() for keyword in 
-                                  ['points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', '3-point'])
-            
-            # Check if it looks like a player name (starts with capital letter, has space)
-            import re
-            has_player_name = bool(re.match(r'^[A-Z][a-z]+\s+[A-Z]', selection_text))
-            
-            if has_stat_keyword and has_player_name:
-                props.append(market)
-        
-        logger.debug(f"  Extracted {len(props)} player props from {len(markets)} markets")
-        return props
+# NOTE: All class definitions have been moved to modular structure:
+#   - SportsbetCollector -> nba_betting.collectors
+#   - DataBallrValidator -> nba_betting.collectors
+#   - ValueProjector -> nba_betting.engines
+# They are imported at the top for use in the pipeline.
 
 
-# ============================================================================
-# STEP 2: VALIDATE WITH DATABALLR
-# ============================================================================
-
-class DataBallrValidator:
-    """Validates betting insights with DataBallr player/team stats"""
-    
-    def __init__(self, headless: bool = True):
-        self.headless = headless
-        self._init_databallr()
-    
-    def _init_databallr(self):
-        """Initialize DataBallr scraper"""
-        try:
-            from scrapers.databallr_scraper import get_player_game_log
-            self.get_player_stats = get_player_game_log
-            logger.info("✓ DataBallr scraper initialized")
-        except ImportError:
-            logger.error("DataBallr scraper not found")
-            self.get_player_stats = None
-    
-    def validate_player_prop(self, player_name: str, stat_type: str, line: float, last_n_games: int = 20) -> Optional[Dict]:
-        """
-        Fetch player stats from DataBallr and calculate hit rate
-        
-        Returns:
-            Dict with:
-            - game_log: List of recent games
-            - hit_rate: % of games over the line
-            - avg_value: Average stat value
-            - sample_size: Number of games
-            - trend: Recent trend (improving/declining)
-        """
-        if not self.get_player_stats:
-            return None
-        
-        logger.debug(f"  Validating {player_name} {stat_type} {line}+ with DataBallr...")
-        
-        try:
-            # Fetch game log
-            game_log = self.get_player_stats(
-                player_name=player_name,
-                last_n_games=last_n_games,
-                headless=self.headless,
-                use_cache=True
-            )
-            
-            if not game_log or len(game_log) < 5:
-                logger.debug(f"    Insufficient data (n={len(game_log) if game_log else 0})")
-                return None
-            
-            # Extract stat values
-            stat_values = []
-            for game in game_log:
-                if game.minutes >= 10:  # Only count games with significant minutes
-                    value = getattr(game, stat_type, None)
-                    if value is not None:
-                        stat_values.append(value)
-            
-            if len(stat_values) < 5:
-                return None
-            
-            # Calculate metrics
-            over_count = sum(1 for v in stat_values if v > line)
-            hit_rate = over_count / len(stat_values)
-            avg_value = sum(stat_values) / len(stat_values)
-            
-            # Calculate trend (last 5 vs previous 5)
-            recent_avg = sum(stat_values[:5]) / 5 if len(stat_values) >= 5 else avg_value
-            previous_avg = sum(stat_values[5:10]) / 5 if len(stat_values) >= 10 else avg_value
-            trend = "improving" if recent_avg > previous_avg * 1.1 else "declining" if recent_avg < previous_avg * 0.9 else "stable"
-            
-            return {
-                'game_log': game_log,
-                'hit_rate': hit_rate,
-                'avg_value': avg_value,
-                'sample_size': len(stat_values),
-                'trend': trend,
-                'recent_avg': recent_avg,
-                'season_avg': avg_value
-            }
-            
-        except Exception as e:
-            logger.debug(f"    Error validating: {e}")
-            return None
-
-
-# ============================================================================
-# STEP 3: PROJECT VALUE BETS
-# ============================================================================
-
-class ValueProjector:
-    """Projects betting value using statistical models"""
-    
-    def __init__(self):
-        self._init_models()
-    
-    def _init_models(self):
-        """Initialize projection models"""
-        try:
-            from scrapers.player_projection_model import PlayerProjectionModel
-            self.player_model = PlayerProjectionModel()
-            logger.info("✓ Player projection model initialized")
-        except ImportError:
-            logger.warning("Player projection model not available")
-            self.player_model = None
-        
-        # Initialize V2 confidence engine
-        try:
-            from confidence_engine_v2 import ConfidenceEngineV2
-            self.confidence_engine = ConfidenceEngineV2()
-            logger.info("✓ Confidence Engine V2 initialized")
-        except ImportError:
-            logger.warning("Confidence Engine V2 not available")
-            self.confidence_engine = None
-        
-        # Initialize matchup engine
-        try:
-            from matchup_engine import MatchupEngine
-            self.matchup_engine = MatchupEngine()
-            logger.info("✓ Matchup Engine initialized")
-        except ImportError:
-            logger.warning("Matchup Engine not available")
-            self.matchup_engine = None
-    
-    def project_player_prop(
-        self,
-        player_name: str,
-        stat_type: str,
-        line: float,
-        odds: float,
-        databallr_stats: Dict,
-        match_stats: Optional[Dict] = None
-    ) -> Optional[BettingRecommendation]:
-        """
-        Project value for a player prop using model + historical data
-        
-        Combines:
-        - Statistical projection model (70% weight)
-        - Historical hit rate from DataBallr (30% weight)
-        """
-        if not self.player_model or not databallr_stats:
-            return None
-        
-        try:
-            game_log = databallr_stats['game_log']
-            historical_hit_rate = databallr_stats['hit_rate']
-            
-            # Get model projection
-            projection = self.player_model.project_stat(
-                player_name=player_name,
-                stat_type=stat_type,
-                game_log=game_log,
-                prop_line=line,
-                team_stats=match_stats,
-                min_games=5
-            )
-            
-            if not projection:
-                return None
-            
-            # Combine model (70%) + historical (30%)
-            model_prob = projection.probability_over_line
-            final_prob = 0.7 * model_prob + 0.3 * historical_hit_rate
-            
-            # Calculate value metrics
-            implied_prob = 1.0 / odds
-            edge = final_prob - implied_prob
-            ev = (final_prob * (odds - 1)) - (1 - final_prob)
-            
-            # Use V2 confidence engine if available
-            if self.confidence_engine:
-                # Extract volatility data
-                stat_mean = databallr_stats['avg_value']
-                stat_std_dev = projection.std_dev if projection.std_dev else stat_mean * 0.25
-                
-                # Check minutes stability
-                minutes_stable = True
-                role_change_detected = False
-                if projection.minutes_projection:
-                    minutes_stable = projection.minutes_projection.volatility < 8.0
-                if projection.role_change:
-                    role_change_detected = projection.role_change.detected
-                
-                # Get enhanced matchup factors from matchup engine
-                matchup_factors = None
-                if self.matchup_engine and match_stats:
-                    # Determine teams
-                    away_team = match_stats.away_team_stats.team_name if hasattr(match_stats, 'away_team_stats') else "Unknown"
-                    home_team = match_stats.home_team_stats.team_name if hasattr(match_stats, 'home_team_stats') else "Unknown"
-                    
-                    # Try to determine which team player is on
-                    # This is a simplified approach - in production, track this properly
-                    player_team = away_team  # Default assumption
-                    opponent_team = home_team
-                    
-                    try:
-                        from matchup_engine import get_matchup_factors_for_confidence
-                        matchup_factors = get_matchup_factors_for_confidence(
-                            player_name=player_name,
-                            stat_type=stat_type,
-                            opponent_team=opponent_team,
-                            player_team=player_team,
-                            game_log=game_log
-                        )
-                        logger.debug(f"  Matchup factors: {matchup_factors}")
-                    except Exception as e:
-                        logger.debug(f"  Could not get matchup factors: {e}")
-                        # Fallback to projection matchup adjustments
-                        if projection.matchup_adjustments:
-                            matchup_factors = {
-                                'pace_multiplier': projection.matchup_adjustments.pace_multiplier,
-                                'defense_adjustment': projection.matchup_adjustments.defense_adjustment
-                            }
-                elif projection.matchup_adjustments:
-                    # Fallback to projection matchup adjustments
-                    matchup_factors = {
-                        'pace_multiplier': projection.matchup_adjustments.pace_multiplier,
-                        'defense_adjustment': projection.matchup_adjustments.defense_adjustment
-                    }
-                
-                # Calculate V2 confidence
-                confidence_result = self.confidence_engine.calculate_confidence(
-                    sample_size=databallr_stats['sample_size'],
-                    historical_hit_rate=historical_hit_rate,
-                    projected_probability=final_prob,
-                    stat_mean=stat_mean,
-                    stat_std_dev=stat_std_dev,
-                    minutes_stable=minutes_stable,
-                    role_change_detected=role_change_detected,
-                    matchup_factors=matchup_factors,
-                    injury_context=None
-                )
-                
-                confidence = confidence_result.final_confidence
-                final_prob = confidence_result.adjusted_probability
-                
-                # Recalculate edge and EV with adjusted probability
-                edge = final_prob - implied_prob
-                ev = (final_prob * (odds - 1)) - (1 - final_prob)
-            else:
-                # Fallback to old confidence calculation
-                confidence = self._calculate_confidence(
-                    model_confidence=projection.confidence_score,
-                    sample_size=databallr_stats['sample_size'],
-                    edge_pct=edge * 100
-                )
-            
-            # Determine recommendation strength
-            strength = self._get_recommendation_strength(confidence, ev * 100)
-            
-            # Only return if positive EV and sufficient confidence
-            # V2 engine uses more realistic thresholds
-            min_confidence = 55 if self.confidence_engine else 60
-            if ev > 0 and confidence >= min_confidence:
-                return BettingRecommendation(
-                    game=f"{player_name}'s game",
-                    match_time="TBD",
-                    bet_type="player_prop",
-                    market=f"{stat_type.replace('_', ' ').title()}",
-                    selection=f"Over {line}",
-                    odds=odds,
-                    player_name=player_name,
-                    stat_type=stat_type,
-                    line=line,
-                    historical_hit_rate=historical_hit_rate,
-                    sample_size=databallr_stats['sample_size'],
-                    projected_value=projection.expected_value,
-                    projected_probability=final_prob,
-                    model_confidence=projection.confidence_score,
-                    implied_probability=implied_prob,
-                    edge_percentage=edge * 100,
-                    expected_value=ev * 100,
-                    confidence_score=confidence,
-                    recommendation_strength=strength,
-                    databallr_stats={
-                        'avg_value': databallr_stats['avg_value'],
-                        'trend': databallr_stats['trend'],
-                        'recent_avg': databallr_stats['recent_avg']
-                    }
-                )
-            
-            return None
-            
-        except Exception as e:
-            logger.debug(f"  Error projecting {player_name}: {e}")
-            return None
-    
-    def _calculate_confidence(self, model_confidence: float, sample_size: int, edge_pct: float) -> float:
-        """Calculate final confidence score"""
-        import math
-        
-        # Base from model
-        confidence = model_confidence
-        
-        # Boost for sample size
-        if sample_size >= 15:
-            confidence += 5
-        elif sample_size >= 10:
-            confidence += 3
-        
-        # Boost for edge
-        if edge_pct > 5:
-            confidence += 5
-        elif edge_pct > 3:
-            confidence += 3
-        
-        return min(95, confidence)
-    
-    def _get_recommendation_strength(self, confidence: float, ev_pct: float) -> str:
-        """Determine recommendation strength (updated for V2 realistic confidence)"""
-        # V2 confidence is more conservative, so adjust thresholds
-        if confidence >= 75 and ev_pct >= 8:
-            return "VERY_HIGH"
-        elif confidence >= 65 and ev_pct >= 5:
-            return "HIGH"
-        elif confidence >= 55 and ev_pct >= 3:
-            return "MEDIUM"
-        else:
-            return "LOW"
-
-
-# ============================================================================
-# MAIN PIPELINE
-# ============================================================================
 
 class NBAbettingPipeline:
     """Complete NBA betting analysis pipeline"""
     
-    def __init__(self, headless: bool = True, min_confidence: float = 55.0, analyze_team_markets: bool = True):
-        self.headless = headless
-        self.min_confidence = min_confidence
+    def __init__(self, headless: bool = None, min_confidence: float = None, analyze_team_markets: bool = True):
+        # Use config defaults if not provided
+        self.headless = headless if headless is not None else Config.HEADLESS_MODE
+        self.min_confidence = min_confidence if min_confidence is not None else Config.MIN_CONFIDENCE
         self.analyze_team_markets = analyze_team_markets
         
         self.sportsbet = SportsbetCollector(headless=headless)
         self.databallr = DataBallrValidator(headless=headless)
         self.projector = ValueProjector()
+        
+        # Get matchup engine from projector if available
+        self.matchup_engine = getattr(self.projector, 'matchup_engine', None)
         
         # Initialize team betting engine
         if self.analyze_team_markets:
@@ -653,31 +140,64 @@ class NBAbettingPipeline:
             
             logger.info(f"  Found {len(player_prop_insights)} player prop insights out of {len(insights)} total insights")
             
+            parsed_count = 0
+            failed_parse_count = 0
+            no_data_count = 0
+            rejected_count = 0
+            accepted_count = 0
+            
             for insight in player_prop_insights:
                 try:
                     # Extract prop details from insight
                     prop_details = self._parse_prop_from_insight(insight)
                     if not prop_details:
+                        failed_parse_count += 1
                         logger.debug(f"    ✗ Failed to parse insight")
                         continue
                     
-                    player_name = prop_details['player']
-                    stat_type = prop_details['stat']
-                    line = prop_details['line']
-                    odds = prop_details.get('odds', 1.90)  # Default odds if not in insight
+                    parsed_count += 1
                     
-                    logger.debug(f"    → Processing: {player_name} {stat_type} Over {line}")
+                    try:
+                        player_name = prop_details['player']
+                        stat_type = prop_details['stat']
+                        line = prop_details['line']
+                        odds = prop_details.get('odds', 1.90)  # Default odds if not in insight
+                    except KeyError as e:
+                        logger.warning(f"    ✗ Missing key in prop_details: {e}, keys: {prop_details.keys()}")
+                        continue
                     
-                    # Validate with DataBallr
+                    # Clean up player name (remove any trailing "To Record", "To Score", or just "To")
+                    try:
+                        # Remove " To Record", " To Score", or just " To" at the end
+                        player_name = re.sub(r'\s+To\s+(?:Record|Score).*$', '', player_name, flags=re.IGNORECASE).strip()
+                        player_name = re.sub(r'\s+To$', '', player_name, flags=re.IGNORECASE).strip()
+                    except Exception as e:
+                        logger.warning(f"    ✗ Error cleaning player name '{player_name}': {e}")
+                        continue
+                    
+                    # Normalize player name to match DataBallr cache format
+                    # DataBallr normalizes: lowercase, remove periods, remove double spaces, trim
+                    try:
+                        normalized_player_name = self._normalize_player_name_for_databallr(player_name)
+                    except Exception as e:
+                        logger.warning(f"    ✗ Error normalizing player name '{player_name}': {e}")
+                        continue
+                    
+                    logger.info(f"    → Processing: {player_name} ({normalized_player_name}) {stat_type} Over {line} @ {odds}")
+                    
+                    # Validate with DataBallr (use normalized name)
                     databallr_stats = self.databallr.validate_player_prop(
-                        player_name=player_name,
+                        player_name=normalized_player_name,
                         stat_type=stat_type,
                         line=line
                     )
                     
                     if not databallr_stats:
-                        logger.debug(f"    ✗ {player_name} - No DataBallr data")
+                        no_data_count += 1
+                        logger.debug(f"    ✗ {player_name} - No DataBallr data available")
                         continue
+                    
+                    logger.info(f"    ✓ DataBallr data found: {databallr_stats.get('sample_size', 0)} games, {databallr_stats.get('hit_rate', 0):.1%} hit rate")
                     
                     # Project value
                     recommendation = self.projector.project_player_prop(
@@ -688,6 +208,18 @@ class NBAbettingPipeline:
                         databallr_stats=databallr_stats,
                         match_stats=game_data.get('match_stats')
                     )
+                    
+                    if not recommendation:
+                        rejected_count += 1
+                        logger.debug(f"    ✗ {player_name} - Projection returned None (likely EV <= -2% or confidence < {self.min_confidence}%)")
+                        continue
+                    
+                    if recommendation.confidence_score < self.min_confidence:
+                        rejected_count += 1
+                        logger.debug(f"    ✗ {player_name} - Confidence {recommendation.confidence_score:.0f}% below threshold {self.min_confidence}%")
+                        continue
+                    
+                    accepted_count += 1
                     
                     if recommendation and recommendation.confidence_score >= self.min_confidence:
                         # Add game context
@@ -744,8 +276,13 @@ class NBAbettingPipeline:
                         logger.info(f"    ✓ {player_name} ({player_team}) {stat_type} Over {line} @ {odds} - Confidence: {recommendation.confidence_score:.0f}%")
                     
                 except Exception as e:
-                    logger.debug(f"    Error processing prop: {e}")
+                    import traceback
+                    logger.warning(f"    ✗ Error processing prop: {e}")
+                    logger.debug(f"    Full traceback: {traceback.format_exc()}")
                     continue
+            
+            # Summary of processing
+            logger.info(f"  Processing summary: {parsed_count} parsed, {failed_parse_count} failed parse, {no_data_count} no data, {rejected_count} rejected, {accepted_count} accepted")
             
             # Analyze team markets (moneyline, totals, spreads)
             if self.team_engine and game_data.get('team_recent_results'):
@@ -763,13 +300,14 @@ class NBAbettingPipeline:
         # Sort by projected probability (highest first)
         all_recommendations.sort(key=lambda x: x.projected_probability, reverse=True)
         
-        # Apply correlation filter (max 2 bets per game)
-        filtered_recommendations = self._apply_correlation_filter(all_recommendations)
+        # Apply correlation filter (max 3 bets per game - relaxed for more options)
+        filtered_recommendations = self._apply_correlation_filter(all_recommendations, max_per_game=3)
         
-        # Take top 5
-        final_recommendations = filtered_recommendations[:5]
+        # Don't limit to top 5 - let all pass through to enhanced filtering
+        # Enhanced filtering will apply quality tiers and final selection
+        final_recommendations = filtered_recommendations
         
-        logger.info(f"\n✓ Found {len(final_recommendations)} high-probability bets (sorted by projected %)")
+        logger.info(f"\n✓ Found {len(final_recommendations)} bets passing initial filters (will be filtered by enhanced system)")
         
         return final_recommendations
     
@@ -870,12 +408,8 @@ class NBAbettingPipeline:
         market = str(getattr(insight, 'market', ''))
         odds = getattr(insight, 'odds', None)
         
-        # Debug logging
-        logger.debug(f"    Parsing insight:")
-        logger.debug(f"      Market: {market}")
-        logger.debug(f"      Fact: {fact[:80]}...")
-        logger.debug(f"      Result: {result}")
-        logger.debug(f"      Odds: {odds}")
+        # Debug logging (reduced verbosity)
+        logger.debug(f"    Parsing insight: Market={market}, Result={result}, Odds={odds}")
         
         # METHOD 1: Parse "Over/Under (+X.X) - Player Name Stat Type" format
         # Example: "Over (+3.5) - Anthony Edwards Made Threes"
@@ -897,12 +431,16 @@ class NBAbettingPipeline:
                 line = float(line_match.group(2))
                 
                 # Extract player name (everything before stat keywords)
-                stat_keywords_pattern = r'\b(Made|Points?|Rebounds?|Assists?|Steals?|Blocks?|Threes?|3-Point|Field Goals)\b'
+                # Handle "Made Threes" as a special case (two words)
+                stat_keywords_pattern = r'\b(Made\s+Threes?|Points?|Rebounds?|Assists?|Steals?|Blocks?|Threes?|3-Point|Field\s+Goals)\b'
                 stat_match = re.search(stat_keywords_pattern, player_stat_part, re.IGNORECASE)
                 
                 if stat_match:
                     player_name = player_stat_part[:stat_match.start()].strip()
                     stat_description = player_stat_part[stat_match.start():].strip().lower()
+                    # Normalize "Made Threes" to just "threes" for stat type mapping
+                    if 'made threes' in stat_description:
+                        stat_description = 'threes'
         
         if player_name and stat_description and line is not None:
             
@@ -922,7 +460,7 @@ class NBAbettingPipeline:
                 stat_type = 'three_pt_made'
             
             if stat_type:
-                logger.debug(f"    ✓ Parsed (Method 1): {player_name} {stat_type} {over_under.title()} {line} @ {odds if odds else 1.90}")
+                logger.info(f"    ✓ Parsed (Method 1): {player_name} {stat_type} {over_under.title()} {line} @ {odds if odds else 1.90}")
                 return {
                     'player': player_name,
                     'stat': stat_type,
@@ -931,53 +469,148 @@ class NBAbettingPipeline:
                     'direction': over_under
                 }
         
-        # METHOD 2: Extract from result/fact (fallback for other formats)
-        # Extract player name from result or market (handle various formats)
-        player_match = re.search(r'([A-Z][a-zA-Z\'-]+(?:\s+[A-Z][a-zA-Z\'-]+){1,2})', result)
-        if not player_match:
-            player_match = re.search(r'([A-Z][a-zA-Z\'-]+(?:\s+[A-Z][a-zA-Z\'-]+){1,2})', market)
-        if not player_match:
-            player_match = re.search(r'([A-Z][a-zA-Z\'-]+(?:\s+[A-Z][a-zA-Z\'-]+){1,2})', fact)
+        # METHOD 2: Handle "Player Name Made Threes" or "Player Name To Record X+ Stat" formats
+        # Try to extract player name from market first (most reliable)
+        # Pattern: "First Last" or "T.J. Last" or "First 'Nickname' Last"
+        player_name_patterns = [
+            r'^([A-Z][a-zA-Z\'-]+(?:\.[A-Z]\.)?(?:\s+[A-Z][a-zA-Z\'-]+){1,2})',  # Start of market
+            r'([A-Z][a-zA-Z\'-]+(?:\.[A-Z]\.)?(?:\s+[A-Z][a-zA-Z\'-]+){1,2})\s+(?:Made|To Record|To Score)',  # Before "Made/To Record"
+        ]
         
-        if not player_match:
-            logger.debug(f"    ✗ No player name found")
+        player_name = None
+        for pattern in player_name_patterns:
+            player_match = re.search(pattern, market)
+            if player_match:
+                player_name = player_match.group(1).strip()
+                # Clean up common suffixes
+                player_name = re.sub(r'\s+To\s+Record$', '', player_name, flags=re.IGNORECASE)
+                break
+        
+        # Fallback to result or fact if not found in market
+        if not player_name:
+            player_match = re.search(r'([A-Z][a-zA-Z\'-]+(?:\.[A-Z]\.)?(?:\s+[A-Z][a-zA-Z\'-]+){1,2})', result)
+            if player_match:
+                player_name = player_match.group(1).strip()
+            else:
+                player_match = re.search(r'([A-Z][a-zA-Z\'-]+(?:\.[A-Z]\.)?(?:\s+[A-Z][a-zA-Z\'-]+){1,2})', fact)
+                if player_match:
+                    player_name = player_match.group(1).strip()
+        
+        if not player_name:
+            logger.info(f"    ✗ No player name found in result/market/fact")
             return None
         
-        player_name = player_match.group(1).strip()
-        
         # Extract stat type and line from fact or market
-        stat_patterns = {
-            'points': r'(?:over\s+)?(\d+\.?\d*)\+?\s*points?',
-            'rebounds': r'(?:over\s+)?(\d+\.?\d*)\+?\s*rebounds?',
-            'assists': r'(?:over\s+)?(\d+\.?\d*)\+?\s*assists?',
-            'steals': r'(?:over\s+)?(\d+\.?\d*)\+?\s*steals?',
-            'blocks': r'(?:over\s+)?(\d+\.?\d*)\+?\s*blocks?',
-            'three_pt_made': r'(?:over\s+)?(\d+\.?\d*)\+?\s*(?:three|3-point|threes|three-pointer)',
-        }
+        # First, check market for "To Record X+" or "To Score X+" format
+        market_lower = market.lower()
+        stat_type = None
+        line = None
         
-        search_text = (fact + ' ' + market + ' ' + result).lower()
-        for stat, pattern in stat_patterns.items():
-            match = re.search(pattern, search_text)
-            if match:
-                line = float(match.group(1))
-                
-                # If line is a whole number with "+", it means "X or more", so use X-0.5 as the line
-                # If line already has decimal (e.g., 5.5), use as-is
-                if '.' not in match.group(1) and '+' in search_text:
+        # Check for "To Record X+ Stat" or "To Score X+ Points" format in market
+        record_match = re.search(r'to\s+(?:record|score)\s+(\d+)\+?\s*(points|rebounds|assists|steals|blocks|threes?)', market_lower)
+        if record_match:
+            line = float(record_match.group(1))
+            stat_word = record_match.group(2)
+            # Map to stat type
+            if 'point' in stat_word:
+                stat_type = 'points'
+            elif 'rebound' in stat_word:
+                stat_type = 'rebounds'
+            elif 'assist' in stat_word:
+                stat_type = 'assists'
+            elif 'steal' in stat_word:
+                stat_type = 'steals'
+            elif 'block' in stat_word:
+                stat_type = 'blocks'
+            elif 'three' in stat_word:
+                stat_type = 'three_pt_made'
+            
+            # If line is whole number with "+", use X-0.5
+            if '+' in market_lower or 'or more' in market_lower:
+                line = line - 0.5
+        
+        # If not found in market, check for "Made Threes" format and extract from fact
+        if not stat_type and 'made threes' in market_lower:
+            stat_type = 'three_pt_made'
+            # Extract line from fact: "has made two three-pointers" or "three or more"
+            three_match = re.search(r'(?:made|has made)\s+(\d+)\s*(?:or more\s+)?(?:three|3-point)', fact.lower())
+            if three_match:
+                line = float(three_match.group(1))
+                if 'or more' in fact.lower():
                     line = line - 0.5
-                
-                logger.debug(f"    ✓ Parsed (Method 2): {player_name} {stat} Over {line} @ {odds if odds else 1.90}")
-                
-                return {
-                    'player': player_name,
-                    'stat': stat,
-                    'line': line,
-                    'odds': odds if odds else 1.90,
-                    'direction': 'over'
-                }
         
-        logger.debug(f"    ✗ No stat pattern matched")
+        # Fallback: Extract from fact/market using standard patterns
+        if not stat_type or line is None:
+            stat_patterns = {
+                'points': r'(?:over\s+)?(\d+\.?\d*)\+?\s*points?',
+                'rebounds': r'(?:over\s+)?(\d+\.?\d*)\+?\s*rebounds?',
+                'assists': r'(?:over\s+)?(\d+\.?\d*)\+?\s*assists?',
+                'steals': r'(?:over\s+)?(\d+\.?\d*)\+?\s*steals?',
+                'blocks': r'(?:over\s+)?(\d+\.?\d*)\+?\s*blocks?',
+                'three_pt_made': r'(?:over\s+)?(\d+\.?\d*)\+?\s*(?:three|3-point|threes|three-pointer)',
+            }
+            
+            search_text = (fact + ' ' + market + ' ' + result).lower()
+            for stat, pattern in stat_patterns.items():
+                match = re.search(pattern, search_text)
+                if match:
+                    line = float(match.group(1))
+                    stat_type = stat
+                    
+                    # If line is a whole number with "+", it means "X or more", so use X-0.5 as the line
+                    # If line already has decimal (e.g., 5.5), use as-is
+                    if '.' not in match.group(1) and ('+' in search_text or 'or more' in search_text):
+                        line = line - 0.5
+                    break
+        
+        if stat_type and line is not None:
+            logger.info(f"    ✓ Parsed (Method 2): {player_name} {stat_type} Over {line} @ {odds if odds else 1.90}")
+            
+            return {
+                'player': player_name,
+                'stat': stat_type,
+                'line': line,
+                'odds': odds if odds else 1.90,
+                'direction': 'over'
+            }
+        
+        logger.info(f"    ✗ No stat pattern matched in fact/market/result")
         return None
+    
+    def _normalize_player_name_for_databallr(self, player_name: str) -> str:
+        """
+        Normalize player name to match DataBallr cache format.
+        
+        DataBallr cache uses: lowercase, remove periods, remove double spaces, trim
+        This matches the normalization in scrapers/databallr_scraper.py:_get_player_id()
+        
+        Examples:
+        - "T.J. McConnell" -> "tj mcconnell"
+        - "De'Aaron Fox" -> "de'aaron fox" (apostrophe kept for cache lookup)
+        - "LeBron James" -> "lebron james"
+        - "McConnell To Record" -> "mcconnell to record" (should be cleaned before this)
+        """
+        if not player_name:
+            return ""
+        
+        # Lowercase
+        normalized = player_name.lower()
+        
+        # Remove ALL punctuation (including periods, apostrophes, etc.)
+        # This matches the cache normalization: re.sub(r'[^\w\s]', '', normalized)
+        # DataBallr cache removes all punctuation, so "De'Aaron Fox" -> "deaaron fox"
+        normalized = re.sub(r'[^\w\s]', '', normalized)
+        
+        # Replace multiple spaces with single space
+        normalized = re.sub(r'\s+', ' ', normalized)
+        
+        # Remove common suffixes that might be in the name
+        normalized = re.sub(r'\s+(jr|sr|iii|ii|iv|v)\b', '', normalized, flags=re.IGNORECASE)
+        
+        # Trim whitespace
+        normalized = normalized.strip()
+        
+        return normalized
     
     def _determine_player_team(self, player_name: str, away_team: str, home_team: str, databallr_stats: Dict) -> tuple:
         """
@@ -1283,7 +916,7 @@ class NBAbettingPipeline:
             }
         )
     
-    def _apply_correlation_filter(self, recommendations: List[BettingRecommendation], max_per_game: int = 2) -> List[BettingRecommendation]:
+    def _apply_correlation_filter(self, recommendations: List[BettingRecommendation], max_per_game: int = 3) -> List[BettingRecommendation]:
         """Limit bets per game to avoid correlation"""
         game_counts = {}
         filtered = []
@@ -1306,7 +939,7 @@ class NBAbettingPipeline:
 def main():
     parser = argparse.ArgumentParser(description="NBA Betting System - Complete Analysis Pipeline")
     parser.add_argument('--games', type=int, default=None, help="Number of games to analyze (default: all)")
-    parser.add_argument('--min-confidence', type=float, default=55.0, help="Minimum confidence threshold (default: 55, V2 uses realistic scoring)")
+    parser.add_argument('--min-confidence', type=float, default=40.0, help="Minimum confidence threshold (default: 40, relaxed to let more bets through to enhanced filtering)")
     parser.add_argument('--headless', action='store_true', default=True, help="Run browser in headless mode")
     parser.add_argument('--output', type=str, default='betting_recommendations.json', help="Output file")
     parser.add_argument('--team-markets', action='store_true', default=True, help="Analyze team markets (moneyline, totals, spreads)")

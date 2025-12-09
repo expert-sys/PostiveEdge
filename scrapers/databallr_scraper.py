@@ -14,10 +14,16 @@ import logging
 import re
 import time
 import json
+import sys
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Tuple
 from pathlib import Path
 from datetime import datetime
+
+# Add parent directory to path for utils import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.retry_utils import retry_scraper_call
 
 # Import GameLogEntry for data structure compatibility only
 try:
@@ -487,6 +493,7 @@ def map_to_game_log_entry(raw_game: Dict, player_name: str) -> GameLogEntry:
     )
 
 
+@retry_scraper_call(max_attempts=3, min_wait=2.0, max_wait=10.0)
 def get_player_game_log(
     player_name: str,
     season: str = "2024-25",
@@ -495,7 +502,12 @@ def get_player_game_log(
     use_cache: bool = True,
     headless: bool = True
 ) -> List[GameLogEntry]:
-    """Get player game log from databallr.com."""
+    """
+    Get player game log from databallr.com.
+    
+    This function has retry logic - it will automatically retry up to 3 times
+    with exponential backoff if scraping fails.
+    """
     if last_n_games is None:
         last_n_games = 20
     logger.info(f"[Databallr] Fetching {last_n_games} games for {player_name}")

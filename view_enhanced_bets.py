@@ -26,7 +26,7 @@ from bet_enhancement_system import BetEnhancementSystem, QualityTier
 def main():
     parser = argparse.ArgumentParser(description="View all enhanced betting recommendations")
     parser.add_argument('--input', type=str, default='betting_recommendations.json',
-                       help="Input recommendations file")
+                       help="Input recommendations file (default: base file - will be enhanced)")
     parser.add_argument('--show-all', action='store_true',
                        help="Show all bets including D-Tier")
     parser.add_argument('--no-filters', action='store_true',
@@ -38,6 +38,7 @@ def main():
 
     # Load recommendations
     input_path = Path(args.input)
+    
     if not input_path.exists():
         print(f"❌ Error: File not found: {args.input}")
         print(f"\nAvailable files:")
@@ -48,7 +49,7 @@ def main():
     print("=" * 100)
     print("ENHANCED BET VIEWER - ALL TIERS")
     print("=" * 100)
-    print(f"\nInput: {args.input}")
+    print(f"\nInput: {input_path.name}")
     print(f"Show D-Tier: {'Yes' if args.show_all else 'No'}")
     print(f"Filters: {'Disabled' if args.no_filters else 'Enabled'}")
     print()
@@ -67,9 +68,21 @@ def main():
     print(f"✓ Loaded {len(recommendations)} recommendations")
     print()
 
-    # Enhance
+    # Enhance - if file already has enhanced_metrics, extract original_rec
     enhancer = BetEnhancementSystem()
-    enhanced_bets = enhancer.enhance_recommendations(recommendations)
+    
+    # Check if this is already an enhanced file (has enhanced_metrics)
+    if recommendations and isinstance(recommendations[0], dict) and 'enhanced_metrics' in recommendations[0]:
+        # Already enhanced file - extract original recommendations (remove enhanced_metrics wrapper)
+        base_recommendations = []
+        for rec in recommendations:
+            # Extract original recommendation (everything except enhanced_metrics)
+            original = {k: v for k, v in rec.items() if k != 'enhanced_metrics'}
+            base_recommendations.append(original)
+        enhanced_bets = enhancer.enhance_recommendations(base_recommendations)
+    else:
+        # Base file, enhance normally
+        enhanced_bets = enhancer.enhance_recommendations(recommendations)
 
     print(f"✓ Enhanced {len(enhanced_bets)} bets")
     print()

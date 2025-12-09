@@ -21,7 +21,28 @@ if (Test-Path "venv\Scripts\Activate.ps1") {
     Write-Host "Warning: Virtual environment not found. Using system Python..." -ForegroundColor Yellow
 }
 
+# Install/upgrade dependencies (including new ones from refactoring)
+Write-Host ""
+Write-Host "Installing/updating dependencies..." -ForegroundColor Cyan
+pip install -q --upgrade pip
+pip install -q -r requirements.txt
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Warning: Some dependencies may have failed to install." -ForegroundColor Yellow
+}
+
+# Ensure Python can find all modules (for refactored structure)
+$env:PYTHONPATH = "$PWD;$env:PYTHONPATH"
+
+# Verify module structure
+Write-Host ""
+Write-Host "Verifying module structure..." -ForegroundColor Cyan
+python -c "from nba_betting.collectors import SportsbetCollector, DataBallrValidator; from nba_betting.engines import ValueProjector; from models import BettingRecommendation; print('✓ All modules found')" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Warning: Some modules may not be found. Continuing anyway..." -ForegroundColor Yellow
+}
+
 # Run the comprehensive launcher
+Write-Host ""
 python launcher_comprehensive.py --auto
 
 Write-Host ""

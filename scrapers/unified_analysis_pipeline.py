@@ -41,6 +41,10 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import time
 
+# Import new recommendation display system
+from utils.convert_recommendations import convert_dict_to_recommendation
+from utils.display_recommendations import display_recommendations
+
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger("unified_pipeline")
 
@@ -2018,10 +2022,38 @@ def main():
         print("  - All bets below confidence threshold (50+)")
         print("  - Insufficient data quality")
 
-    # Step 4: Display results
+    # Step 4: Display results using new BettingRecommendation display system
     try:
         if final_bets:
-            print_unified_report(final_bets)
+            # Convert dictionaries to BettingRecommendation objects
+            recommendations = []
+            for bet in final_bets:
+                if not bet or not isinstance(bet, dict):
+                    continue
+                
+                # Try to get game info from the bet or use default
+                game_info = bet.get('game_info')
+                if not game_info:
+                    # Try to extract from game string
+                    game_str = bet.get('game', '')
+                    if game_str and ' @ ' in game_str:
+                        parts = game_str.split(' @ ')
+                        if len(parts) == 2:
+                            game_info = {
+                                'away_team': parts[0].strip(),
+                                'home_team': parts[1].strip(),
+                                'match_time': bet.get('match_time', 'TBD')
+                            }
+                
+                rec = convert_dict_to_recommendation(bet, game_info)
+                if rec:
+                    recommendations.append(rec)
+            
+            # Display using new system (use print for compatibility with unified pipeline)
+            if recommendations:
+                display_recommendations(recommendations, max_display=len(recommendations), use_print=True)
+            else:
+                print("\n[INFO] No valid recommendations to display")
         else:
             print("\n[INFO] No bets to display")
     except Exception as e:

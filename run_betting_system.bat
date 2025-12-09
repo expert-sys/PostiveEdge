@@ -31,10 +31,15 @@ if not exist "venv\" (
 REM Activate virtual environment
 call venv\Scripts\activate.bat
 
-REM Install/upgrade dependencies
+REM Install/upgrade dependencies (including new ones from refactoring)
 echo Installing dependencies...
 pip install -q --upgrade pip
-pip install -q playwright beautifulsoup4 requests
+pip install -q -r requirements.txt
+if errorlevel 1 (
+    echo Warning: Some dependencies may have failed to install.
+    echo Continuing with basic dependencies...
+    pip install -q playwright beautifulsoup4 requests
+)
 
 REM Install Playwright browsers (first time only)
 if not exist "venv\Lib\site-packages\playwright\driver\" (
@@ -46,6 +51,8 @@ REM Run the betting system
 echo.
 echo Starting NBA Betting System...
 echo.
+echo Ensuring Python can find all modules...
+set PYTHONPATH=%CD%;%PYTHONPATH%
 python nba_betting_system.py %*
 
 REM Keep window open if error
