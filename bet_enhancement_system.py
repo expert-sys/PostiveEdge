@@ -66,6 +66,7 @@ class EnhancedBet:
     implied_probability: float = 0.0
     edge_percentage: float = 0.0
     expected_value: float = 0.0
+    adjusted_ev: float = 0.0 # EV scaled by confidence
 
     # Enhanced Metrics
     quality_tier: QualityTier = QualityTier.D
@@ -208,18 +209,34 @@ class BetEnhancementSystem:
     def _create_enhanced_bet(self, rec: Dict) -> EnhancedBet:
         """Create enhanced bet from recommendation dict"""
         # Extract core data
-        player_name = rec.get('player_name')
-        market = rec.get('market', '')
-        selection = rec.get('selection', '')
+        # Handle Unified Analysis keys (player vs player_name, etc.)
+        player_name = rec.get('player_name') or rec.get('player')
+        
+        # Smart market string generation
+        raw_market = rec.get('market')
+        stat = rec.get('stat', '')
+        prediction = rec.get('prediction', '')
+        line_val = str(rec.get('line', ''))
+        
+        if raw_market:
+            market = raw_market
+        else:
+            # Avoid dupes like "Points Over 25.0 OVER"
+            if prediction.upper() in stat.upper():
+                market = f"{stat} {line_val}"
+            else:
+                market = f"{stat} {prediction} {line_val}"
+
+        selection = rec.get('selection') or rec.get('prediction', '')
         line = rec.get('line')
         odds = rec.get('odds', 0.0)
 
         # Extract metrics
-        proj_prob = rec.get('projected_probability', 0.0)
+        proj_prob = rec.get('projected_probability') or rec.get('final_prob') or rec.get('projected_prob') or 0.0
         impl_prob = rec.get('implied_probability', 0.0)
-        edge = rec.get('edge_percentage', 0.0)
-        ev = rec.get('expected_value', 0.0)
-        confidence = rec.get('confidence_score', 0.0)
+        edge = rec.get('edge_percentage') or rec.get('edge', 0.0)
+        ev = rec.get('expected_value') or rec.get('ev_per_100', 0.0)
+        confidence = rec.get('confidence_score') or rec.get('confidence', 0.0)
 
         # Create base enhanced bet
         bet = EnhancedBet(
@@ -241,6 +258,7 @@ class BetEnhancementSystem:
         )
 
         # Apply enhancements
+        self._calculate_adjusted_ev(bet) # User Request: 1. Adjust EV
         self._classify_quality_tier(bet, confidence)
         self._calculate_sample_size_penalty(bet, confidence)
         self._calculate_line_difficulty_penalty(bet)
@@ -257,91 +275,66 @@ class BetEnhancementSystem:
 
         return bet
 
+    def _calculate_adjusted_ev(self, bet: EnhancedBet):
+        """
+        Calculate Adjusted EV = EV * (Confidence / 100)
+        """
+        bet.adjusted_ev = bet.expected_value * (bet.projected_probability) # Use probability as verification proxy?
+        # User requested: Adjusted EV = EV * (Confidence / 100)
+        # Note: 'confidence' is typically 0-100 or 0-1. Let's use the confidence score.
+        confidence = bet.original_rec.get('confidence_score') or bet.original_rec.get('confidence', 0.0)
+        bet.adjusted_ev = bet.expected_value * (confidence / 100.0)
+
+
     def _classify_quality_tier(self, bet: EnhancedBet, confidence: float):
         """
         ✅ 1. Classify bet into quality tier (S/A/B/C/D)
 
-        Tiers:
-        - S-Tier: EV ≥ +20 AND Edge ≥ +12% AND Prob ≥ 68%
-        - A-Tier: EV ≥ +10 AND Edge ≥ +8% AND Prob ≥ 75%
-        - B-Tier: EV ≥ +5 AND Edge ≥ +4%
-        - C-Tier (Do Not Bet): Any of:
-            * Edge < 5%
-            * Confidence < 60%
-            * Mispricing < 0.10
-            * Sample < 5
-            * Correlation > 2 props same game (checked later)
-        - D-Tier: EV < 0 OR Prob < 50%
+        Tiers (User Adjusted):
+        - S-Tier: Confidence ≥ 85% OR Edge ≥ 20%
+        - A-Tier: Confidence ≥ 70%
+        - B-Tier: Confidence 60-70%
+        - C-Tier: Confidence < 60% OR Correlation Issues
+        - D-Tier: Negative EV or <50% Prob
         """
         ev = bet.expected_value
         edge = bet.edge_percentage
         prob = bet.projected_probability
 
         # D-Tier (Avoid) - negative value
-        if ev < 0 or prob < 0.50:
+        if ev <= 0 or prob < 0.50:
             bet.quality_tier = QualityTier.D
             bet.tier_emoji = "❌"
             return
 
         # S-Tier (Elite)
-        if ev >= 20.0 and edge >= 12.0 and prob >= 0.68:
+        # 85%+ Confidence OR Massive Edge (20%+)
+        if confidence >= 85.0 or edge >= 20.0:
             bet.quality_tier = QualityTier.S
             bet.tier_emoji = "💎"
-            bet.notes.append("ELITE VALUE: All metrics exceed premium thresholds")
+            bet.notes.append("ELITE VALUE: Top Tier Metrics")
             return
 
-        # A-Tier (High Quality) - MUST have ≥75% projection probability
-        if ev >= 10.0 and edge >= 8.0 and prob >= 0.75:
+        # A-Tier (High Quality)
+        # 70%+ Confidence
+        if confidence >= 70.0:
             bet.quality_tier = QualityTier.A
             bet.tier_emoji = "⭐"
             return
 
-        # B-Tier (Playable) - Further relaxed criteria to allow more bets through
-        # Original: EV >= 5.0 AND Edge >= 4.0
-        # Relaxed: EV >= 1.0 AND Edge >= 1.5 (or any positive EV with Edge >= 2.0)
-        if (ev >= 1.0 and edge >= 1.5) or (ev > 0 and edge >= 2.0):
+        # B-Tier (Playable)
+        # 60-70% Confidence
+        if confidence >= 60.0:
             bet.quality_tier = QualityTier.B
             bet.tier_emoji = "✓"
             return
 
-        # C-Tier (Do Not Bet) - fails quality checks
-        # These have positive EV but fail one or more critical thresholds
-        # Relaxed thresholds to allow more bets through
-        c_tier_reasons = []
-
-        if edge < 3.0:  # Relaxed from 5.0 to 3.0
-            c_tier_reasons.append(f"Low edge ({edge:.1f}% < 3%)")
-
-        if confidence < 55.0:  # Relaxed from 60.0 to 55.0
-            c_tier_reasons.append(f"Low confidence ({confidence:.0f}% < 55%)")
-
-        # Mispricing will be calculated later, but we can check if odds are available
-        if bet.odds > 0:
-            fair_odds_estimate = 1.0 / prob if prob > 0 else 0
-            mispricing_estimate = bet.odds - fair_odds_estimate
-            if mispricing_estimate < 0.10:
-                c_tier_reasons.append(f"Low mispricing ({mispricing_estimate:.2f} < 0.10)")
-
-        if bet.sample_size < 5:
-            c_tier_reasons.append(f"Small sample (n={bet.sample_size} < 5)")
-
-        # If any C-tier criteria met, mark as C-tier
-        if c_tier_reasons:
-            bet.quality_tier = QualityTier.C
-            bet.tier_emoji = "⛔"
-            bet.warnings.append(f"DO NOT BET - Quality issues: {'; '.join(c_tier_reasons)}")
-            return
-
-        # If positive EV but didn't meet B-tier, also mark as C-tier
-        if ev >= 1.0:
-            bet.quality_tier = QualityTier.C
-            bet.tier_emoji = "⛔"
-            bet.warnings.append("DO NOT BET - Marginal value, fails tier criteria")
-            return
-
-        # Default to D-Tier
-        bet.quality_tier = QualityTier.D
-        bet.tier_emoji = "❌"
+        # C-Tier (Marginal)
+        # Positive EV but low confidence (<60%)
+        # Note: Excessive correlation will also downgrade to this tier later
+        bet.quality_tier = QualityTier.C
+        bet.tier_emoji = "⛔"
+        bet.warnings.append(f"Low confidence ({confidence:.0f}% < 60%)")
 
     def _calculate_sample_size_penalty(self, bet: EnhancedBet, confidence: float):
         """
@@ -421,7 +414,7 @@ class BetEnhancementSystem:
             bet.conflict_score = abs(max_penalty)
 
             if conflicts:
-                bet.warnings.append(f"Correlation detected: {conflicts[0]}")
+                bet.warnings.append("Warning: Correlation (same game/team)")
 
     def _check_excessive_correlation(self, bets: List[EnhancedBet]):
         """
@@ -452,7 +445,7 @@ class BetEnhancementSystem:
                     if bet.quality_tier in [QualityTier.S, QualityTier.A, QualityTier.B]:
                         bet.quality_tier = QualityTier.C
                         bet.tier_emoji = "⛔"
-                        bet.warnings.append(f"DO NOT BET - Excessive correlation: >2 props in {game}")
+                        bet.warnings.append("Warning: Correlation (same game - limit exceeded)")
 
     def _get_scaled_correlation_penalty(self, bet1: EnhancedBet, bet2: EnhancedBet) -> float:
         """
@@ -837,62 +830,28 @@ class BetEnhancementSystem:
 
     def _predict_line_movement(self, bet: EnhancedBet):
         """
-        ✅ NEW: Predict expected line movement
+        ✅ NEW: Predict movement based on Tier Quality (User Request)
 
-        Logic:
-        - If projection > fair > book → Line likely moves to OVER (bet now!)
-        - If projection < fair < book → Line likely moves to UNDER (wait)
-        - Otherwise → Stable
-
-        Adds urgency flags:
-        - BET_NOW: Line will move against you
-        - MONITOR: Watch for movement
-        - WAIT: Line may improve
+        States:
+        - BUY NOW: S-Tier or A-Tier (High Value)
+        - MONITOR: B-Tier
+        - WAIT: C-Tier (Marginal)
+        - FADE: D-Tier (Avoid)
         """
-        proj_prob = bet.projected_probability
-        fair_odds = bet.fair_odds
-        book_odds = bet.odds
+        tier = bet.quality_tier
 
-        # Convert odds to implied probabilities for comparison
-        fair_prob = 1.0 / fair_odds if fair_odds > 0 else 0
-        book_prob = bet.implied_probability
-
-        # Determine if it's an over or under bet
-        is_over = "over" in bet.selection.lower()
-
-        if is_over:
-            # For OVER bets: higher probability = more likely to hit
-            if proj_prob > fair_prob > book_prob:
-                # Our projection is better than fair, fair is better than book
-                # Line will likely move UP (worse for us)
-                bet.expected_line_movement = "OVER (Line moving up)"
-                bet.line_movement_urgency = "BET_NOW"
-                bet.notes.append("🔥 BET NOW: Line likely to move against you")
-            elif proj_prob > book_prob and abs(proj_prob - book_prob) > 0.05:
-                # Significant edge
-                bet.expected_line_movement = "OVER (Moderate)"
-                bet.line_movement_urgency = "MONITOR"
-                bet.notes.append("📊 MONITOR: Line may tighten")
-            elif proj_prob < book_prob:
-                # Book favors over more than we do
-                bet.expected_line_movement = "STABLE/DOWN"
-                bet.line_movement_urgency = "WAIT"
-                bet.warnings.append("⏳ WAIT: Line may improve (book overvaluing)")
-            else:
-                bet.expected_line_movement = "STABLE"
-                bet.line_movement_urgency = "NORMAL"
+        if tier in [QualityTier.S, QualityTier.A]:
+            bet.line_movement_urgency = "BUY NOW"
+            bet.expected_line_movement = "Line likely to worsen"
+        elif tier == QualityTier.B:
+            bet.line_movement_urgency = "MONITOR"
+            bet.expected_line_movement = "Neutral"
+        elif tier == QualityTier.C:
+            bet.line_movement_urgency = "WAIT"
+            bet.expected_line_movement = "Line likely to improve"
         else:
-            # For UNDER bets: logic is reversed
-            if proj_prob > fair_prob > book_prob:
-                bet.expected_line_movement = "UNDER (Line moving down)"
-                bet.line_movement_urgency = "BET_NOW"
-                bet.notes.append("🔥 BET NOW: Line likely to move in our favor")
-            elif proj_prob > book_prob:
-                bet.expected_line_movement = "UNDER (Moderate)"
-                bet.line_movement_urgency = "MONITOR"
-            else:
-                bet.expected_line_movement = "STABLE"
-                bet.line_movement_urgency = "NORMAL"
+            bet.line_movement_urgency = "FADE"
+            bet.expected_line_movement = "Line inflated"
 
     def _detect_sharp_public(self, bet: EnhancedBet):
         """
@@ -1106,13 +1065,16 @@ class BetEnhancementSystem:
         team_info = ""
         if bet.player_team and bet.player_team != "Unknown":
             team_info = f" ({bet.player_team})"
-        print(f"{index}. {bet.tier_emoji} {bet.player_name or 'TEAM'}{team_info} - {bet.market} {bet.selection}")
+        
+        # Market already contains selection info from our fix, avoiding duplication
+        print(f"{index}. {bet.tier_emoji} {bet.player_name or 'TEAM'}{team_info} - {bet.market}")
 
         # Signal 1: Odds & Mispricing (Market Inefficiency)
         print(f"   Odds {bet.odds:.2f} → Fair {bet.fair_odds:.2f} (Mispricing {bet.odds_mispricing:+.2f})")
 
-        # Signal 2: EV + Edge + Projected Probability
-        print(f"   Edge {bet.edge_percentage:+.1f}% | EV {bet.expected_value:+.1f}% | Projected {bet.projected_probability:.1%}")
+        # Signal 2: EV + Edge + Projected Probability (User Requested: EV scaled by confidence)
+        # Show Adjusted EV as primary "Val" metric? Or Just "Adj. EV"
+        print(f"   Edge {bet.edge_percentage:+.1f}% | Adj. EV {bet.adjusted_ev:+.1f}% | Projected {bet.projected_probability:.1%}")
 
         # Signal 3: Confidence (already includes all adjustments)
         print(f"   Confidence: {bet.adjusted_confidence:.0f}%")
@@ -1128,13 +1090,18 @@ class BetEnhancementSystem:
             print(f"   Warning: {primary_warning}")
 
     def _get_movement_label(self, bet: EnhancedBet) -> str:
-        """Get clean movement label (NOW • WAIT • MONITOR • STABLE)"""
-        if bet.line_movement_urgency == "BET_NOW":
-            return "NOW (line moving against you)"
-        elif bet.line_movement_urgency == "WAIT":
-            return "WAIT (line may improve)"
-        elif bet.line_movement_urgency == "MONITOR":
-            return "MONITOR (likely to tighten)"
+        """Get clean movement label (BUY NOW • WAIT • MONITOR • FADE)"""
+        # Uses the urgency we set in _predict_line_movement based on Tiers
+        urgency = bet.line_movement_urgency
+        
+        if urgency == "BUY NOW":
+            return "BUY NOW (High value)"
+        elif urgency == "WAIT":
+            return "WAIT (Line likely to improve)"
+        elif urgency == "MONITOR":
+            return "MONITOR (Neutral)"
+        elif urgency == "FADE":
+            return "FADE (Don't touch)"
         else:
             return "STABLE"
 

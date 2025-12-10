@@ -36,15 +36,37 @@ def main():
 
     args = parser.parse_args()
 
-    # Load recommendations
-    input_path = Path(args.input)
+    # Handle "latest" file logic
+    if args.input == "latest":
+        output_dir = Path("data/outputs")
+        if not output_dir.exists():
+            print("❌ No output directory found (data/outputs)")
+            return 1
+            
+        json_files = sorted(output_dir.glob("unified_analysis_*.json"), reverse=True)
+        if not json_files:
+            # Fallback to complete analysis
+            json_files = sorted(output_dir.glob("complete_analysis_*.json"), reverse=True)
+            
+        if not json_files:
+            print("❌ No analysis files found")
+            return 1
+            
+        input_path = json_files[0]
+    else:
+        input_path = Path(args.input)
     
     if not input_path.exists():
-        print(f"❌ Error: File not found: {args.input}")
-        print(f"\nAvailable files:")
-        for f in Path('.').glob('betting_recommendations*.json'):
-            print(f"  - {f.name}")
-        return 1
+        # Check if it was just a filename in data/outputs
+        potential_path = Path("data/outputs") / args.input
+        if potential_path.exists():
+            input_path = potential_path
+        else:
+            print(f"❌ Error: File not found: {args.input}")
+            print(f"\nAvailable files in data/outputs:")
+            for f in Path("data/outputs").glob('*.json'):
+                print(f"  - {f.name}")
+            return 1
 
     print("=" * 100)
     print("ENHANCED BET VIEWER - ALL TIERS")
@@ -56,7 +78,34 @@ def main():
 
     try:
         with open(input_path, 'r', encoding='utf-8') as f:
-            recommendations = json.load(f)
+            data = json.load(f)
+            
+        # Handle Unified Format (dict with recommendations key)
+        if isinstance(data, dict):
+            if 'recommendations' in data:
+                recommendations = data['recommendations']
+            elif 'bets' in data:
+                recommendations = data['bets']
+            else:
+                # Fallback: maybe the dict itself IS the recommendation list (old format case)??
+                # But typically old format was a LIST of dicts.
+                # If we are here, it's a dict but no known key.
+                # However, previous logic said `else: recommendations = data`, which caused the bug because recommendations became a dict.
+                # We should be careful.
+                # If it's the unified file validation, it failed.
+                # Let's try to assume it's NOT a recommendation list if it has meta keys.
+                if 'analysis_date' in data or 'games_analyzed' in data:
+                     # It's the metadata wrapper but empty bets? or maybe just 'team_bets'/'player_props'?
+                     # Let's try to combine them if 'bets' is missing
+                     if 'team_bets' in data or 'player_props' in data:
+                         recommendations = (data.get('team_bets') or []) + (data.get('player_props') or [])
+                     else:
+                         recommendations = [] # Empty
+                else:
+                     recommendations = data # Fallback for single dict? (Unlikely for list of bets)
+        else:
+            recommendations = data
+            
     except Exception as e:
         print(f"❌ Error loading file: {e}")
         return 1

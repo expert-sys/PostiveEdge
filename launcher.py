@@ -306,15 +306,16 @@ class SimpleLauncher:
 
         if choice.isdigit() and 1 <= int(choice) <= min(10, len(json_files)):
             file_path = json_files[int(choice) - 1]
-            print(f"\n[VIEWING] {file_path.name}\n")
-
-            import json
-            try:
-                with open(file_path, 'r') as f:
-                    data = json.load(f)
-                print(json.dumps(data, indent=2)[:3000] + "\n...(truncated)")
-            except Exception as e:
-                print(f"[ERROR] {e}")
+            
+            # Use the dedicated viewer script
+            if "unified_analysis" in file_path.name:
+                script = "show_enhanced_bets.py"
+            elif "betting_recommendations" in file_path.name:
+                 script = "view_enhanced_bets.py"
+            else:
+                 script = "view_analysis_results.py"
+                 
+            self.run_script(f"{script} --file {file_path.name}", f"Viewing {file_path.name}")
 
         input("\n\nPress Enter to continue...")
 

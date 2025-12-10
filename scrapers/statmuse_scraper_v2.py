@@ -151,7 +151,25 @@ def scrape_team_stats(team_slug: str, season: str = "2025-26", headless: bool = 
     Returns:
         TeamStats object or None if scraping failed
     """
-    url = f"https://www.statmuse.com/nba/team/{season}-{team_slug}-13/stats/2026"
+    # Lookup team ID from mapping
+    team_id = "13" # Default fallback
+    teams_search_name = team_slug.replace("-", " ").title()
+    
+    # Try to find correct ID
+    from scrapers.statmuse_team_ids import TEAM_STATMUSE_MAPPING
+    
+    found_team = False
+    for name, info in TEAM_STATMUSE_MAPPING.items():
+        if info['slug'] == team_slug:
+            team_id = info['id']
+            # Also ensure season prefix matches if needed
+            found_team = True
+            break
+            
+    if not found_team:
+        logger.warning(f"Could not find ID for slug {team_slug}, using default 13")
+
+    url = f"https://www.statmuse.com/nba/team/{season}-{team_slug}-{team_id}/stats/2026"
     logger.info(f"Scraping team stats: {team_slug} ({season})")
     logger.info(f"URL: {url}")
 
@@ -271,7 +289,23 @@ def scrape_player_stats(team_slug: str, season: str = "2025-26", headless: bool 
     """
     Scrape player statistics for a team from StatMuse (robust version).
     """
-    url = f"https://www.statmuse.com/nba/team/{season}-{team_slug}-13/stats/2026"
+    # Lookup team ID from mapping
+    team_id = "13" # Default fallback
+    
+    # Try to find correct ID
+    from scrapers.statmuse_team_ids import TEAM_STATMUSE_MAPPING
+    
+    found_team = False
+    for name, info in TEAM_STATMUSE_MAPPING.items():
+        if info['slug'] == team_slug:
+            team_id = info['id']
+            found_team = True
+            break
+            
+    if not found_team:
+        logger.warning(f"Could not find ID for slug {team_slug}, using default 13")
+
+    url = f"https://www.statmuse.com/nba/team/{season}-{team_slug}-{team_id}/stats/2026"
     logger.info(f"Scraping player stats: {team_slug} ({season})")
 
     players = []
