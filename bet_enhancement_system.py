@@ -22,10 +22,32 @@ Usage:
     enhancer.display_enhanced_bets(enhanced_bets)
 """
 
+import logging
 from typing import List, Dict, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from enum import Enum
+
+# PHASE 8: Import QA Validator for pre-display validation
+try:
+    from scrapers.qa_validator import QAValidator
+except ImportError:
+    logger.warning("QA Validator not available - validation will be limited")
+    QAValidator = None
 import math
+from scrapers.nba_stats_api_scraper import get_player_game_log, GameLogEntry
+from scrapers.player_projection_model import PlayerProjectionModel
+from scrapers.statmuse_player_scraper import scrape_player_game_log
+
+# Initialize global model instance to avoid reloading every time
+_GLOBAL_PROJECTION_MODEL = None
+
+def _get_model():
+    global _GLOBAL_PROJECTION_MODEL
+    if _GLOBAL_PROJECTION_MODEL is None:
+        _GLOBAL_PROJECTION_MODEL = PlayerProjectionModel()
+    return _GLOBAL_PROJECTION_MODEL
 
 
 # ============================================================================
@@ -56,6 +78,7 @@ class EnhancedBet:
 
     # Core metrics
     player_name: Optional[str] = None
+    historical_hit_rate: float = 0.0 # Historical hit rate %
     market: str = ""
     selection: str = ""
     line: Optional[float] = None
@@ -63,10 +86,12 @@ class EnhancedBet:
 
     # Probabilities & Value
     projected_probability: float = 0.0
+    calibrated_probability: float = 0.0  # PHASE 1: Single source of truth probability
     implied_probability: float = 0.0
     edge_percentage: float = 0.0
     expected_value: float = 0.0
     adjusted_ev: float = 0.0 # EV scaled by confidence
+    confidence_score: float = 0.0  # PHASE 6: New confidence formula (0-100)
 
     # Enhanced Metrics
     quality_tier: QualityTier = QualityTier.D
@@ -112,8 +137,13 @@ class EnhancedBet:
 
     # Injury / Role Change (NEW)
     role_change_detected: bool = False
-    role_change_type: str = ""  # "increased_usage", "decreased_usage", "teammate_out"
+    role_change_type: str = ""  # "increased_usage", "decreased_usage", "teammate_out", "TEMPORARY_SPIKE"
     role_change_impact: float = 0.0  # % projection adjustment
+
+    # Player Archetype (PHASE 2)
+    archetype_name: str = ""  # "Elite Star", "Starter", "Bench Scorer", etc.
+    archetype_cap: float = 0.82  # Max probability for this archetype
+    correlation_multiplier: float = 1.0  # PHASE 4: EV multiplier from correlation (0.85-1.0)
 
     # Line Efficiency (shaded lines)
     line_shaded: bool = False
@@ -136,6 +166,10 @@ class EnhancedBet:
     notes: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
+    # Advanced Context (restored for display)
+    advanced_context: Optional[Dict] = field(default_factory=dict)
+    matchup_factors: Optional[Dict] = field(default_factory=dict)
+
 
 # ============================================================================
 # BET ENHANCEMENT SYSTEM
@@ -147,12 +181,12 @@ class BetEnhancementSystem:
     """
 
     def __init__(self):
-        # Quality tier thresholds
+        # Quality tier thresholds (RELAXED for more bets)
         self.tier_thresholds = {
-            'S': {'ev_min': 20.0, 'edge_min': 12.0, 'prob_min': 0.68},
-            'A': {'ev_min': 10.0, 'edge_min': 8.0},
-            'B': {'ev_min': 5.0, 'edge_min': 4.0},
-            'C': {'ev_min': 1.0, 'conf_min': 70.0},
+            'S': {'ev_min': 12.0, 'edge_min': 8.0, 'prob_min': 0.65},
+            'A': {'ev_min': 6.0, 'edge_min': 4.0},
+            'B': {'ev_min': 2.0, 'edge_min': 1.5},
+            'C': {'ev_min': 0.0, 'conf_min': 50.0},
         }
 
         # Sample size baseline
@@ -201,23 +235,46 @@ class BetEnhancementSystem:
         for bet in enhanced_bets:
             self._calculate_final_score(bet)
 
-        # Sort by quality
-        enhanced_bets = self._sort_bets(enhanced_bets)
+        # PHASE 8: Fifth pass - COMPREHENSIVE QA VALIDATION (CRITICAL)
+        # Use QA Validator for complete mathematical consistency checks
+        # Using lenient mode (strict_mode=False) for more bets to pass through
+        if QAValidator:
+            validator = QAValidator(strict_mode=False)
+            validated_bets = validator.validate_batch(enhanced_bets)
+        else:
+            # Fallback to basic validation if QA Validator not available
+            validated_bets = []
+            blocked_count = 0
+            for bet in enhanced_bets:
+                if self._validate_probability_consistency(bet):
+                    validated_bets.append(bet)
+                else:
+                    blocked_count += 1
 
-        return enhanced_bets
+            if blocked_count > 0:
+                logger.warning(f"QA: Blocked {blocked_count} bet(s) due to probability inconsistency")
+
+        # Sort by quality
+        validated_bets = self._sort_bets(validated_bets)
+
+        return validated_bets
 
     def _create_enhanced_bet(self, rec: Dict) -> EnhancedBet:
         """Create enhanced bet from recommendation dict"""
-        # Extract core data
+        # Extract core data - handle both nested (insight/analysis) and flat structures
+        insight = rec.get('insight', {})
+        analysis = rec.get('analysis', {})
+
         # Handle Unified Analysis keys (player vs player_name, etc.)
         player_name = rec.get('player_name') or rec.get('player')
-        
+
         # Smart market string generation
-        raw_market = rec.get('market')
+        # Try insight first (for team bets), then top level (for player props)
+        raw_market = insight.get('market') or rec.get('market')
         stat = rec.get('stat', '')
         prediction = rec.get('prediction', '')
         line_val = str(rec.get('line', ''))
-        
+
         if raw_market:
             market = raw_market
         else:
@@ -227,35 +284,201 @@ class BetEnhancementSystem:
             else:
                 market = f"{stat} {prediction} {line_val}"
 
-        selection = rec.get('selection') or rec.get('prediction', '')
+        # Extract selection from insight or rec
+        selection = insight.get('result') or rec.get('selection') or rec.get('prediction', '')
         line = rec.get('line')
-        odds = rec.get('odds', 0.0)
 
-        # Extract metrics
-        proj_prob = rec.get('projected_probability') or rec.get('final_prob') or rec.get('projected_prob') or 0.0
-        impl_prob = rec.get('implied_probability', 0.0)
-        edge = rec.get('edge_percentage') or rec.get('edge', 0.0)
-        ev = rec.get('expected_value') or rec.get('ev_per_100', 0.0)
-        confidence = rec.get('confidence_score') or rec.get('confidence', 0.0)
+        # Extract odds from insight or rec
+        odds = insight.get('odds') or rec.get('odds', 0.0)
+
+        # CRITICAL FIX: For player props, use projection model's calibrated_prob
+        # Check if this is a player prop with projection model data
+        is_player_prop = rec.get('_bet_type') == 'player_prop'
+        has_projection_model = analysis.get('calibrated_prob') is not None
+
+        if is_player_prop and has_projection_model:
+            # USE PROJECTION MODEL'S CALIBRATED PROBABILITY (single source of truth)
+            proj_prob = analysis.get('projected_prob', 0.0)  # Raw model probability
+            calibrated_prob = analysis.get('calibrated_prob', 0.0)  # Archetype-capped probability
+            archetype_name = analysis.get('archetype_name', '')
+            archetype_cap = analysis.get('archetype_cap', 0.82)
+        else:
+            # For team bets, use market-heavy blended probability
+            proj_prob = (analysis.get('final_probability') or
+                        analysis.get('adjusted_probability') or
+                        rec.get('projected_probability') or
+                        rec.get('final_prob') or
+                        rec.get('projected_prob') or 0.0)
+            calibrated_prob = proj_prob  # No separate calibration for team bets
+            archetype_name = ''
+            archetype_cap = 0.82
+
+        impl_prob = (analysis.get('bookmaker_probability') or
+                    analysis.get('market_probability') or
+                    rec.get('implied_probability', 0.0))
+
+        edge = (analysis.get('value_percentage') or
+               rec.get('edge_percentage') or
+               rec.get('edge', 0.0))
+
+        ev = (analysis.get('ev_per_100') or
+             rec.get('expected_value') or
+             rec.get('ev_per_100', 0.0))
+
+        confidence = (analysis.get('confidence_score') or
+                     rec.get('confidence_score') or
+                     rec.get('confidence', 0.0))
+
+        sample_size = (analysis.get('sample_size') or
+                      rec.get('sample_size', 0))
+
+        # Safe extraction helper
+        def _safe_get(obj, key, default=0.0):
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return getattr(obj, key, default)
+
+        historical_hit_rate = (_safe_get(rec, 'historical_hit_rate') or 
+                              _safe_get(rec, 'historical_prob'))
+
+        # FALLBACK: Calculate using model if missing and we have player/market info
+        # If player_name is missing (common in team_bets/insights), try using selection
+        calc_player_name = player_name or selection
+        
+        if (historical_hit_rate == 0.0 or historical_hit_rate is None) and calc_player_name and market:
+            try:
+                import re
+                # Simple extraction logic (simplified version of unified_pipeline logic)
+                stat_type = ''
+                line = 0.0
+                
+                market_lower = market.lower()
+                patterns = [
+                    (r'(\d+)\+?\s*points?', 'points'),
+                    (r'(\d+)\+?\s*rebounds?', 'rebounds'),
+                    (r'(\d+)\+?\s*assists?', 'assists'),
+                    (r'(\d+)\+?\s*steals?', 'steals'),
+                    (r'(\d+)\+?\s*blocks?', 'blocks'),
+                    (r'(\d+)\+?\s*threes?', 'three_pt_made'),
+                ]
+                
+                for pattern, s_type in patterns:
+                    match = re.search(pattern, market_lower)
+                    if match:
+                        line = float(match.group(1))
+                        stat_type = s_type
+                        break
+                        
+                if stat_type and line > 0:
+                    model = _get_model()
+                    games = []
+                    
+                    
+                    # PRIORITY 1: Try StatMuse (User requested primary source)
+                    try:
+                        sm_logs = scrape_player_game_log(calc_player_name, season="2024-25")
+                        
+                        if sm_logs:
+                            # Convert StatMuse logs to GameLogEntry format for model
+                            for sm in sm_logs:
+                                entry = GameLogEntry(
+                                    game_date=sm.date,
+                                    game_id="", # Dummy
+                                    matchup=f"{'vs' if sm.home_away == 'HOME' else '@'} {sm.opponent}",
+                                    home_away=sm.home_away,
+                                    opponent=sm.opponent,
+                                    opponent_id=0,
+                                    won=(sm.win_loss == 'W'),
+                                    minutes=sm.minutes,
+                                    points=sm.points,
+                                    rebounds=sm.rebounds,
+                                    assists=sm.assists,
+                                    steals=sm.steals,
+                                    blocks=sm.blocks,
+                                    turnovers=sm.turnovers,
+                                    fg_made=sm.fg_made,
+                                    fg_attempted=sm.fg_attempted,
+                                    three_pt_made=sm.three_made,
+                                    three_pt_attempted=sm.three_attempted,
+                                    ft_made=sm.ft_made,
+                                    ft_attempted=sm.ft_attempted
+                                )
+                                games.append(entry)
+                            logger.info(f"  ✓ StatMuse returned {len(games)} games")
+                        else:
+                            logger.info("  StatMuse returned no games, falling back...")
+                    except Exception as e:
+                        logger.warning(f"  StatMuse scraping failed: {e}")
+                    
+                    # PRIORITY 2: Fallback into DataballR (via legacy nba_stats_api wrapper)
+                    if not games:
+                        logger.info(f"  Falling back to DataballR for {calc_player_name}...")
+                        games = get_player_game_log(calc_player_name, season="2024-25")
+
+                    # Run Projection if we have games
+                    if games and len(games) >= 5:
+                        # Ensure games are objects (GameLogEntry) not dicts
+                        if isinstance(games[0], dict):
+                            try:
+                                games = [GameLogEntry(**g) for g in games]
+                            except Exception:
+                                pass # Try best effort
+
+                        try:
+                            proj = model.project_stat(calc_player_name, stat_type, games, line)
+                            if proj:
+                                historical_hit_rate = proj.historical_hit_rate
+                                logger.info(f"  [Fix] Calculated missing history for {calc_player_name}: {historical_hit_rate:.1%}")
+                        except Exception as e:
+                            print(f"DEBUG: project_stat failed: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            
+                            # Also populate other missing fields if possible
+                            if proj_prob == 0.0:
+                                proj_prob = proj.probability_over_line
+                                calibrated_prob = proj.calibrated_probability
+                                ev = proj.expected_value
+                                sample_size = len(games)
+            except Exception as e:
+                pass # Fail silently, keep defaults
 
         # Create base enhanced bet
         bet = EnhancedBet(
             original_rec=rec,
             player_name=player_name,
+            historical_hit_rate=historical_hit_rate,
             market=market,
             selection=selection,
             line=line,
             odds=odds,
-            projected_probability=proj_prob,
+            projected_probability=proj_prob,  # Raw projection (81.4% for Mark Williams)
+            calibrated_probability=calibrated_prob,  # Archetype-capped (74% for Mark Williams)
             implied_probability=impl_prob,
             edge_percentage=edge,
             expected_value=ev,
+            confidence_score=confidence,
             game=rec.get('game', ''),
             player_team=rec.get('player_team'),
             opponent_team=rec.get('opponent_team'),
-            sample_size=rec.get('sample_size', 0),
-            projected_value=rec.get('projected_value')
+            sample_size=sample_size,
+            projected_value=rec.get('projected_value'),
+            archetype_name=archetype_name,  # Store archetype name
+            archetype_cap=archetype_cap,  # Store archetype cap
+            advanced_context=analysis.get('advanced_context') or rec.get('advanced_context', {}),
+            matchup_factors=analysis.get('matchup_factors') or rec.get('matchup_factors', {})
         )
+
+        # RECALCULATE EV and Edge using calibrated_probability (ensures consistency)
+        if is_player_prop and has_projection_model and odds > 0 and calibrated_prob > 0:
+            # Calculate fair odds from calibrated probability
+            fair_odds = 1.0 / calibrated_prob
+
+            # Edge % = ((fair_odds / market_odds) - 1) * 100 (matches QA validator formula)
+            bet.edge_percentage = ((fair_odds / odds) - 1) * 100
+
+            # EV % = (odds * calibrated_prob - 1) * 100
+            bet.expected_value = (odds * calibrated_prob - 1) * 100
 
         # Apply enhancements
         self._calculate_adjusted_ev(bet) # User Request: 1. Adjust EV
@@ -275,66 +498,149 @@ class BetEnhancementSystem:
 
         return bet
 
+    def _validate_bet_mathematics(self, probability: float, odds: float, edge: float, ev: float, player_name: str = "") -> bool:
+        """
+        Enforce hard mathematical validation rules.
+        
+        Rules:
+        1. Edge = (Market Odds - Fair Odds) / Fair Odds
+        2. EV = (Odds × Probability) - 1  
+        3. Edge and EV must have same sign (both positive or both negative)
+        
+        Returns: True if valid, False to block bet
+        """
+        if probability <= 0 or probability >= 1:
+            logger.warning(f"[MATH BLOCK] {player_name}: Invalid probability {probability:.3f}")
+            return False
+        
+        # Calculate fair odds from probability
+        fair_odds = 1 / probability
+        
+        # Verify edge calculation
+        expected_edge = (odds - fair_odds) / fair_odds
+        edge_as_decimal = edge / 100  # Convert from percentage
+        
+        if abs(edge_as_decimal - expected_edge) > 0.02:  # Allow 2% tolerance
+            logger.warning(f"[MATH BLOCK] {player_name}: Edge inconsistent - calculated {expected_edge*100:.1f}%, got {edge:.1f}%")
+            return False
+        
+        # Verify EV calculation  
+        expected_ev = (odds * probability) - 1
+        ev_as_decimal = ev / 100  # Convert from percentage
+        
+        if abs(ev_as_decimal - expected_ev) > 0.02:  # Allow 2% tolerance
+            logger.warning(f"[MATH BLOCK] {player_name}: EV inconsistent - calculated {expected_ev*100:.1f}%, got {ev:.1f}%")
+            return False
+        
+        # Verify same sign (most critical check)
+        edge_positive = edge > 0
+        ev_positive = ev > 0
+        
+        if edge_positive != ev_positive:
+            logger.error(f"[MATH BLOCK] {player_name}: CRITICAL ERROR - Edge={edge:.1f}%, EV={ev:.1f}% have opposite signs!")
+            return False
+        
+        return True
+
+    def _calculate_confidence_with_lag(self, final_probability: float, sample_size: int, variance: float) -> float:
+        """
+        Calculate confidence with volatility penalty lag.
+        
+        Confidence ≤ Final Probability − Volatility Penalty
+        
+        Args:
+            final_probability: Final blended probability (0-1)
+            sample_size: Number of games in sample
+            variance: Statistical variance of outcomes
+            
+        Returns:
+            Confidence score (0-100) that lags behind probability
+        """
+        # Base volatility penalty on sample size
+        if sample_size >= 20:
+            volatility_penalty = 0.05  # 5% penalty for good sample
+        elif sample_size >= 10:
+            volatility_penalty = 0.10  # 10% penalty for okay sample
+        else:
+            volatility_penalty = 0.15  # 15% penalty for small sample
+        
+        # Additional penalty for high variance
+        if variance > 0.2:
+            volatility_penalty += 0.05
+        
+        # Confidence MUST be below probability
+        max_confidence_decimal = final_probability - volatility_penalty
+        max_confidence = max_confidence_decimal * 100  # Convert to percentage
+        
+        # Start from a base confidence scaled with sample
+        base_confidence = 50 + (sample_size / 2)  # Scale with sample (max ~65 for n=30)
+        
+        # Return the lower of calculated vs max allowed
+        final_confidence = min(base_confidence, max_confidence, 85.0)  # Never exceed 85%
+        final_confidence = max(0.0, final_confidence)  # Never below 0%
+        
+        return final_confidence
+
+
     def _calculate_adjusted_ev(self, bet: EnhancedBet):
         """
-        Calculate Adjusted EV = EV * (Confidence / 100)
+        Calculate Adjusted EV = EV * (Confidence / 100) * correlation_multiplier
+
+        PHASE 4: Now applies correlation multiplier (0.85-1.0) to EV
         """
-        bet.adjusted_ev = bet.expected_value * (bet.projected_probability) # Use probability as verification proxy?
-        # User requested: Adjusted EV = EV * (Confidence / 100)
-        # Note: 'confidence' is typically 0-100 or 0-1. Let's use the confidence score.
+        # Get confidence score from original recommendation
         confidence = bet.original_rec.get('confidence_score') or bet.original_rec.get('confidence', 0.0)
-        bet.adjusted_ev = bet.expected_value * (confidence / 100.0)
+
+        # Apply both confidence and correlation multiplier
+        bet.adjusted_ev = bet.expected_value * (confidence / 100.0) * bet.correlation_multiplier
 
 
     def _classify_quality_tier(self, bet: EnhancedBet, confidence: float):
         """
-        ✅ 1. Classify bet into quality tier (S/A/B/C/D)
+        PHASE 5: STRICT TIER LOGIC
 
-        Tiers (User Adjusted):
-        - S-Tier: Confidence ≥ 85% OR Edge ≥ 20%
-        - A-Tier: Confidence ≥ 70%
-        - B-Tier: Confidence 60-70%
-        - C-Tier: Confidence < 60% OR Correlation Issues
-        - D-Tier: Negative EV or <50% Prob
+        Tiers:
+        - S-Tier: ALL conditions must be met (no single metric can elevate)
+        - A-Tier: Strong metrics with some flexibility
+        - B-Tier: Minimum playable quality
+        - C-Tier: Below quality thresholds
+        - D-Tier: Negative EV or low probability
+
+        HIGH EV ALONE CANNOT ELEVATE TIER - All requirements must be met.
         """
         ev = bet.expected_value
-        edge = bet.edge_percentage
-        prob = bet.projected_probability
+        prob = bet.calibrated_probability  # PHASE 5: Use calibrated probability
+        vol = bet.minutes_volatility_score
+        has_corr = bet.correlation_multiplier < 1.0
 
-        # D-Tier (Avoid) - negative value
-        if ev <= 0 or prob < 0.50:
+        # D-Tier: Negative EV or too low probability (more lenient)
+        if ev <= -1.0 or prob < 0.45:
             bet.quality_tier = QualityTier.D
             bet.tier_emoji = "❌"
             return
 
-        # S-Tier (Elite)
-        # 85%+ Confidence OR Massive Edge (20%+)
-        if confidence >= 85.0 or edge >= 20.0:
+        # S-Tier: ALL conditions must be met (strictest requirements)
+        if (ev >= 12.0 and prob >= 0.65 and confidence >= 75.0 and
+            vol < 6.0 and not has_corr):
             bet.quality_tier = QualityTier.S
             bet.tier_emoji = "💎"
-            bet.notes.append("ELITE VALUE: Top Tier Metrics")
             return
 
-        # A-Tier (High Quality)
-        # 70%+ Confidence
-        if confidence >= 70.0:
+        # A-Tier: High quality with some flexibility
+        if ev >= 6.0 and prob >= 0.60 and vol < 8.0:
             bet.quality_tier = QualityTier.A
             bet.tier_emoji = "⭐"
             return
 
-        # B-Tier (Playable)
-        # 60-70% Confidence
-        if confidence >= 60.0:
+        # B-Tier: Minimum playable (more lenient)
+        if ev >= 2.0 and prob >= 0.55:
             bet.quality_tier = QualityTier.B
             bet.tier_emoji = "✓"
             return
 
-        # C-Tier (Marginal)
-        # Positive EV but low confidence (<60%)
-        # Note: Excessive correlation will also downgrade to this tier later
+        # C-Tier: Below thresholds but still positive EV
         bet.quality_tier = QualityTier.C
         bet.tier_emoji = "⛔"
-        bet.warnings.append(f"Low confidence ({confidence:.0f}% < 60%)")
 
     def _calculate_sample_size_penalty(self, bet: EnhancedBet, confidence: float):
         """
@@ -376,7 +682,7 @@ class BetEnhancementSystem:
             * proj_margin > 4 → penalty -4
         """
         for i, bet in enumerate(bets):
-            max_penalty = 0.0
+            correlation_multiplier = 1.0  # PHASE 4: Start with no penalty
             conflicts = []
 
             for j, other in enumerate(bets):
@@ -395,32 +701,36 @@ class BetEnhancementSystem:
 
                 same_stat = self._extract_stat_type(bet.market) == self._extract_stat_type(other.market)
 
-                penalty = 0.0
+                multiplier = 1.0
 
                 if same_team and same_stat and bet.player_name and other.player_name:
-                    # Scale penalty by projection distance between players
-                    penalty = self._get_scaled_correlation_penalty(bet, other)
+                    # PHASE 4: Get multiplicative penalty (0.85 or 0.88)
+                    multiplier = self._get_scaled_correlation_penalty(bet, other)
                     proj_dist = abs(bet.projected_value - other.projected_value) if bet.projected_value and other.projected_value else 0
                     conflicts.append(f"Same team ({player_team}) + stat ({self._extract_stat_type(bet.market)}, {proj_dist:.1f}pts apart)")
                 elif same_game and same_stat and bet.player_name and other.player_name:
-                    # Scale penalty by projection distance between players
-                    penalty = self._get_scaled_correlation_penalty(bet, other)
+                    # PHASE 4: Get multiplicative penalty (0.85 or 0.88)
+                    multiplier = self._get_scaled_correlation_penalty(bet, other)
                     proj_dist = abs(bet.projected_value - other.projected_value) if bet.projected_value and other.projected_value else 0
                     conflicts.append(f"Same game + stat ({self._extract_stat_type(bet.market)}, {proj_dist:.1f}pts apart)")
 
-                max_penalty = min(max_penalty, penalty)  # Most negative
+                # Track lowest multiplier (most severe penalty)
+                correlation_multiplier = min(correlation_multiplier, multiplier)
 
-            bet.correlation_penalty = max_penalty
-            bet.conflict_score = abs(max_penalty)
+            # PHASE 4: Store multiplier and apply to EV
+            bet.correlation_multiplier = correlation_multiplier
+            bet.correlation_penalty = (1.0 - correlation_multiplier) * -100  # For legacy compatibility
+            bet.conflict_score = (1.0 - correlation_multiplier) * 100
 
             if conflicts:
                 bet.warnings.append("Warning: Correlation (same game/team)")
 
     def _check_excessive_correlation(self, bets: List[EnhancedBet]):
         """
-        Check for >2 props in the same game and downgrade to C-tier (Do Not Bet).
+        PHASE 4: HARD BLOCK if 3+ player props in same game (excessive correlation).
 
-        This prevents over-exposure to a single game.
+        Downgrades all excess props to D-Tier (completely blocked).
+        This prevents over-exposure to a single game outcome.
         """
         # Count props per game
         game_prop_counts: Dict[str, List[EnhancedBet]] = {}
@@ -434,61 +744,73 @@ class BetEnhancementSystem:
 
         # Check each game
         for game, game_bets in game_prop_counts.items():
-            if len(game_bets) > 2:
-                # More than 2 props in same game - downgrade excess to C-tier
-                # Sort by final_score to keep the best 2
-                sorted_bets = sorted(game_bets, key=lambda b: b.projected_probability, reverse=True)
-
-                # Downgrade all but top 2
-                for bet in sorted_bets[2:]:
-                    # Only downgrade if currently better than C-tier
-                    if bet.quality_tier in [QualityTier.S, QualityTier.A, QualityTier.B]:
-                        bet.quality_tier = QualityTier.C
-                        bet.tier_emoji = "⛔"
-                        bet.warnings.append("Warning: Correlation (same game - limit exceeded)")
+            if len(game_bets) >= 3:
+                # 3+ props in same game - HARD BLOCK all of them (D-Tier)
+                for bet in game_bets:
+                    bet.quality_tier = QualityTier.D
+                    bet.tier_emoji = "❌"
+                    bet.warnings.append("BLOCKED: 3+ props same game (excessive correlation)")
 
     def _get_scaled_correlation_penalty(self, bet1: EnhancedBet, bet2: EnhancedBet) -> float:
         """
-        ✅ ENHANCED: Calculate correlation penalty based on projection distance
+        PHASE 4: STRICT CORRELATION PENALTIES (Multiplicative EV reduction)
 
-        For same game + same stat, scale penalty by how far apart projections are:
-        - If projections < 3 points apart → penalty -12 (direct competition)
-        - If 3-6 apart → penalty -8 (some overlap)
-        - If > 6 apart → penalty -5 (different tiers)
+        Returns EV multiplier based on correlation risk:
+        - Two scorers same team → 0.85 (15% EV reduction)
+        - Big + Guard same team → 0.88 (12% EV reduction)
+        - No correlation → 1.0 (no penalty)
 
-        This prevents over-penalizing when players don't compete for same volume.
+        This replaces the old additive penalty system with multiplicative
+        factors that directly scale expected value.
 
         Args:
             bet1: First bet
             bet2: Second bet
 
         Returns:
-            Penalty value (negative)
+            EV multiplier (0.85, 0.88, or 1.0)
         """
-        # Get projected values (use line if projection not available)
-        proj1 = bet1.projected_value if bet1.projected_value else bet1.line if bet1.line else 0
-        proj2 = bet2.projected_value if bet2.projected_value else bet2.line if bet2.line else 0
+        # Check if same team
+        same_team = (bet1.player_team == bet2.player_team and
+                     bet1.player_team not in [None, 'Unknown', ''])
 
-        # Calculate distance between projections
-        if proj1 > 0 and proj2 > 0:
-            proj_distance = abs(proj1 - proj2)
+        # Check if same stat type
+        same_stat = self._extract_stat_type(bet1.market) == self._extract_stat_type(bet2.market)
 
-            # Scale penalty by projection distance
-            if proj_distance < 3.0:
-                return -12.0  # Close projections = direct competition
-            elif proj_distance <= 6.0:
-                return -8.0   # Moderate distance = some overlap
+        if same_team and same_stat:
+            # Detect if one is big man, other is guard
+            is_big_guard = self._is_big_guard_combo(bet1, bet2)
+
+            if is_big_guard:
+                return 0.88  # Big + Guard: 12% EV reduction
             else:
-                return -5.0   # Large distance = different tiers
-        else:
-            # Fallback to original margin-based logic if projections not available
-            proj_margin = bet1.projection_margin
-            if proj_margin < 2.0:
-                return -10.0
-            elif proj_margin <= 4.0:
-                return -6.0
-            else:
-                return -4.0
+                return 0.85  # Same position scorers: 15% EV reduction
+
+        # No correlation detected
+        return 1.0
+
+    def _is_big_guard_combo(self, bet1: EnhancedBet, bet2: EnhancedBet) -> bool:
+        """
+        PHASE 4: Check if one player is a big man and the other is a guard.
+
+        Uses archetype names to infer position:
+        - "Low-Usage Big", "Defensive First" → Big man
+        - Others → Guard/Wing
+
+        Args:
+            bet1: First bet
+            bet2: Second bet
+
+        Returns:
+            True if one is big and one is guard/wing
+        """
+        big_archetypes = ['Low-Usage Big', 'Defensive First']
+
+        arch1_is_big = bet1.archetype_name in big_archetypes
+        arch2_is_big = bet2.archetype_name in big_archetypes
+
+        # Return True if one is big and the other is not
+        return arch1_is_big != arch2_is_big
 
     def _extract_stat_type(self, market: str) -> str:
         """Extract stat type from market string"""
@@ -616,17 +938,56 @@ class BetEnhancementSystem:
 
     def _calculate_fair_odds(self, bet: EnhancedBet):
         """
-        ✅ 8. Calculate true fair odds
+        ✅ 8. Calculate true fair odds using CALIBRATED probability
 
-        Fair Odds = 1 / Probability
+        Fair Odds = 1 / Calibrated Probability (SINGLE SOURCE OF TRUTH)
         Mispricing = Market Odds - Fair Odds
         """
-        if bet.projected_probability > 0:
-            bet.fair_odds = 1.0 / bet.projected_probability
+        # Use calibrated_probability if available, fallback to projected_probability
+        calibrated_prob = getattr(bet, 'calibrated_probability', None)
+        if calibrated_prob is None:
+            calibrated_prob = bet.projected_probability
+
+        if calibrated_prob > 0:
+            bet.fair_odds = 1.0 / calibrated_prob
             bet.odds_mispricing = bet.odds - bet.fair_odds
         else:
             bet.fair_odds = 0.0
             bet.odds_mispricing = 0.0
+
+    def _validate_probability_consistency(self, bet: EnhancedBet) -> bool:
+        """
+        CRITICAL VALIDATION: Ensure mathematical consistency
+
+        Checks:
+        1. Fair Odds = 1 / Calibrated Probability (±1%)
+        2. EV formula consistency with probability
+
+        Returns:
+            True if valid, False if inconsistent (bet should be BLOCKED)
+        """
+        # Get calibrated probability
+        calibrated_prob = getattr(bet, 'calibrated_probability', None)
+        if calibrated_prob is None:
+            # If no calibrated probability, use projected as fallback
+            calibrated_prob = bet.projected_probability
+
+        if calibrated_prob <= 0:
+            return False  # Invalid probability
+
+        # 1. Check Fair Odds = 1/Probability (tolerance ±1%)
+        expected_fair_odds = 1.0 / calibrated_prob
+        if abs(bet.fair_odds - expected_fair_odds) > 0.01:
+            bet.warnings.append(f"BLOCKED: Fair odds inconsistency ({bet.fair_odds:.3f} ≠ {expected_fair_odds:.3f})")
+            return False
+
+        # 2. Check EV formula consistency
+        expected_ev = (bet.odds * calibrated_prob - 1) * 100
+        if abs(bet.expected_value - expected_ev) > 1.0:
+            bet.warnings.append(f"BLOCKED: EV formula inconsistency ({bet.expected_value:.2f}% ≠ {expected_ev:.2f}%)")
+            return False
+
+        return True
 
     def _calculate_projection_margin(self, bet: EnhancedBet):
         """
@@ -934,13 +1295,24 @@ class BetEnhancementSystem:
         # Store final adjusted confidence
         bet.adjusted_confidence = max(0.0, min(100.0, score))
 
+        # NEW: Calculate correlation impact multiplier (moderate: 15-30 point reduction)
+        correlation_impact = abs(bet.correlation_penalty) * 2.5  # Amplify penalty effect
+
         # Calculate final score for sorting (weights different factors)
+        # FIXED: Now uses adjusted_confidence (which includes penalties) instead of effective_confidence
         bet.final_score = (
             bet.adjusted_confidence * 0.4 +
             bet.expected_value * 2.0 +
             bet.edge_percentage * 3.0 +
-            bet.projected_probability * 50.0
+            bet.projected_probability * 50.0 -
+            correlation_impact  # NEW: Subtract correlation impact from final score
         )
+
+        # NEW: Add visual warnings for correlation
+        if bet.correlation_penalty < -8:
+            bet.notes.append(f"⚠️ High Correlation: Same-game exposure reduces score by {correlation_impact:.0f} pts")
+        elif bet.correlation_penalty < -5:
+            bet.notes.append(f"⚠️ Correlation: Multiple bets from same game")
 
     def _sort_bets(self, bets: List[EnhancedBet]) -> List[EnhancedBet]:
         """
@@ -1060,94 +1432,161 @@ class BetEnhancementSystem:
                 print()
 
     def _display_single_bet(self, bet: EnhancedBet, index: int):
-        """Display a single enhanced bet - CLEAN 5-SIGNAL MODEL"""
-        # Header with team name
+        """
+        PHASE 9: STANDARDIZED OUTPUT FORMAT
+
+        Required fields:
+        - Calibrated Probability
+        - Fair Odds
+        - Market Odds
+        - Edge %
+        - EV %
+        - Confidence Score
+        - Volatility Flags
+        - Tier Justification (1-2 lines)
+        """
+        # Header with player and market
         team_info = ""
         if bet.player_team and bet.player_team != "Unknown":
             team_info = f" ({bet.player_team})"
-        
-        # Market already contains selection info from our fix, avoiding duplication
-        print(f"{index}. {bet.tier_emoji} {bet.player_name or 'TEAM'}{team_info} - {bet.market}")
 
-        # Signal 1: Odds & Mispricing (Market Inefficiency)
-        print(f"   Odds {bet.odds:.2f} → Fair {bet.fair_odds:.2f} (Mispricing {bet.odds_mispricing:+.2f})")
+        print(f"\n{index}. {bet.tier_emoji} {bet.player_name or 'TEAM'}{team_info} - {bet.market}")
 
-        # Signal 2: EV + Edge + Projected Probability (User Requested: EV scaled by confidence)
-        # Show Adjusted EV as primary "Val" metric? Or Just "Adj. EV"
-        print(f"   Edge {bet.edge_percentage:+.1f}% | Adj. EV {bet.adjusted_ev:+.1f}% | Projected {bet.projected_probability:.1%}")
+        # Tier justification (1-2 lines explaining tier assignment)
+        tier_justification = self._get_tier_justification(bet)
+        print(f"   Tier: {bet.quality_tier.name} - {tier_justification}")
 
-        # Signal 3: Confidence (already includes all adjustments)
-        print(f"   Confidence: {bet.adjusted_confidence:.0f}%")
+        # Core probability and odds
+        print(f"   Probability: {bet.calibrated_probability:.1%} | Fair Odds: {bet.fair_odds:.2f} | Market: {bet.odds:.2f}")
 
-        # Signal 4: Expected Line Movement (timing signal)
-        movement_label = self._get_movement_label(bet)
-        if movement_label:
-            print(f"   Movement: {movement_label}")
+        # Value metrics
+        print(f"   Edge: {bet.edge_percentage:+.1f}% | EV: {bet.expected_value:+.1f}% | Confidence: {bet.confidence_score:.0f}%")
 
-        # Signal 5: ONE Warning Max (most important only)
-        primary_warning = self._get_primary_warning(bet)
-        if primary_warning:
-            print(f"   Warning: {primary_warning}")
+        # Volatility flag (if applicable)
+        vol_flag = self._get_volatility_flag(bet)
+        if vol_flag:
+            print(f"   {vol_flag}")
+
+        # Primary warning (highest priority issue)
+        warning = self._get_primary_warning(bet)
+        if warning:
+            print(f"   {warning}")
+
+    def _get_tier_justification(self, bet: EnhancedBet) -> str:
+        """
+        PHASE 9: Provide 1-2 line explanation of tier assignment.
+
+        Returns:
+            Brief explanation of why bet received this tier
+        """
+        if bet.quality_tier == QualityTier.S:
+            return f"Elite value: EV {bet.expected_value:.1f}%, Conf {bet.confidence_score:.0f}%, Stable minutes"
+        elif bet.quality_tier == QualityTier.A:
+            return f"High quality: EV {bet.expected_value:.1f}%, Prob {bet.calibrated_probability:.0%}"
+        elif bet.quality_tier == QualityTier.B:
+            return f"Playable: EV {bet.expected_value:.1f}%, moderate risk"
+        elif bet.quality_tier == QualityTier.C:
+            return "Pass: Below quality thresholds"
+        else:
+            return "Avoid: Negative expected value"
+
+    def _get_volatility_flag(self, bet: EnhancedBet) -> str:
+        """
+        PHASE 9: Return volatility status flag.
+
+        Returns:
+            Volatility warning or stability confirmation
+        """
+        vol = bet.minutes_volatility_score
+
+        if vol >= 8.0:
+            return f"⚠ HIGH VOLATILITY: {vol:.1f}/10 minutes variance"
+        elif vol >= 6.0:
+            return f"⚠ Moderate volatility: {vol:.1f}/10"
+        elif vol <= 2.0:
+            return f"✓ Very stable minutes: {vol:.1f}/10"
+
+        # 2.0-6.0 range: no flag needed (normal)
+        return ""
 
     def _get_movement_label(self, bet: EnhancedBet) -> str:
-        """Get clean movement label (BUY NOW • WAIT • MONITOR • FADE)"""
-        # Uses the urgency we set in _predict_line_movement based on Tiers
-        urgency = bet.line_movement_urgency
-        
-        if urgency == "BUY NOW":
+        """
+        PHASE 7: ANTI-HYPE DISPLAY RESTRICTIONS
+
+        Rules:
+        - NO "BUY NOW" on B/C tiers
+        - NO "High Value" if EV < 8%
+        - Conservative language for lower tiers
+        """
+        tier = bet.quality_tier
+        ev = bet.expected_value
+
+        # S/A Tiers with high EV → BUY NOW
+        if tier in [QualityTier.S, QualityTier.A] and ev >= 8.0:
             return "BUY NOW (High value)"
-        elif urgency == "WAIT":
-            return "WAIT (Line likely to improve)"
-        elif urgency == "MONITOR":
-            return "MONITOR (Neutral)"
-        elif urgency == "FADE":
-            return "FADE (Don't touch)"
+
+        # B Tier → MONITOR (never "BUY NOW")
+        elif tier == QualityTier.B:
+            return "MONITOR (Moderate value)"
+
+        # C Tier → WAIT (low confidence)
+        elif tier == QualityTier.C:
+            return "WAIT (Low confidence)"
+
+        # D Tier → FADE (avoid)
         else:
-            return "STABLE"
+            return "FADE (Avoid)"
 
     def _get_primary_warning(self, bet: EnhancedBet) -> str:
         """
-        Get ONLY the most important warning (priority order)
+        PHASE 7: Get ONLY the most important warning (priority order)
 
-        Priority:
-        1. Negative edge (bad bet)
-        2. Small sample (unreliable)
-        3. High correlation (parlay risk)
-        4. Public heavy (fading opportunity)
-        5. High volatility (unreliable minutes)
-        6. Role decline (negative trend)
+        NEW Priority:
+        1. High volatility (≥8.0) - role instability
+        2. Role change/spike - temporary usage increase
+        3. Correlation - EV reduced by correlation
+        4. Small sample - unreliable data
+        5. Negative edge - bad bet
+        6. Other warnings
         """
-        # Check for critical issues first
-        if bet.edge_percentage < 0:
-            return "Negative edge - avoid"
+        # 1. High volatility (highest priority - indicates unreliable role)
+        if bet.minutes_volatility_score >= 8.0:
+            return f"⚠ High minutes volatility ({bet.minutes_volatility_score:.1f}/10)"
 
+        # 2. Role change or temporary spike
+        if bet.role_change_detected:
+            if bet.role_change_type == "TEMPORARY_SPIKE":
+                return f"⚠ Role spike: Temporary usage increase"
+            elif bet.role_change_type == "decreased_usage":
+                return f"⚠ Usage declining"
+            elif bet.role_change_type == "increased_usage":
+                return f"⚠ Usage spike detected"
+
+        # 3. Correlation (EV reduction)
+        if bet.correlation_multiplier < 0.90:
+            reduction_pct = (1.0 - bet.correlation_multiplier) * 100
+            return f"⚠ Correlation: EV reduced {reduction_pct:.0f}%"
+
+        # 4. Small sample
         if bet.sample_size < 5:
-            return f"Small sample (n={bet.sample_size})"
+            return f"⚠ Small sample (n={bet.sample_size})"
 
-        # Correlation (most impactful for parlays)
-        if bet.correlation_penalty < -8:
-            return "High correlation (same game)"
-        elif bet.correlation_penalty < 0:
-            return "Moderate correlation (same game)"
+        # 5. Negative edge
+        if bet.edge_percentage < 0:
+            return "⚠ Negative edge - avoid"
 
-        # Public/Sharp signals
-        if bet.sharp_public_indicator == "PUBLIC_OVER" or bet.sharp_public_indicator == "PUBLIC_UNDER":
-            return "Public heavy (fade candidate)"
-
-        if bet.sharp_public_indicator == "SHARP_UNDER" and "over" in bet.selection.lower():
-            return "Sharp disagreement (pros on under)"
-
-        # Volatility issues
-        if bet.minutes_volatility_score >= 7.0:
-            return f"High minutes volatility ({bet.minutes_volatility_score:.1f}/10)"
-
-        # Role changes
-        if bet.role_change_detected and bet.role_change_type == "decreased_usage":
-            return f"Usage declining ({bet.role_change_impact:.1f}%)"
+        # 6. Other warnings (lower priority)
+        # Moderate volatility
+        if bet.minutes_volatility_score >= 6.0:
+            return f"⚠ Moderate volatility: {bet.minutes_volatility_score:.1f}/10"
 
         # Line difficulty
         if bet.line_difficulty_penalty < -8:
-            return f"Extreme line ({bet.line:.1f})"
+            return f"⚠ Extreme line ({bet.line:.1f})"
+
+        # Public/Sharp signals
+        if bet.sharp_public_indicator == "PUBLIC_OVER" or bet.sharp_public_indicator == "PUBLIC_UNDER":
+            return "ℹ Public heavy (fade candidate)"
 
         # Default: no major warning
         return ""

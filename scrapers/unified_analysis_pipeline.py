@@ -7,7 +7,7 @@ into a single unified pipeline. NO NBA API - uses only Sportsbet + databallr + N
 QUALITY OVER QUANTITY:
 - Analyzes ALL available games by default
 - Filters to only 70+ confidence bets
-- Returns top 5 high-confidence bets
+- Returns ALL high-confidence bets
 - Max 2 bets per game (correlation control)
 
 Data Flow:
@@ -15,7 +15,7 @@ Data Flow:
 2. Analyze team bets using Context-Aware Value Engine
 3. Analyze player props using databallr player stats
 4. Filter to 70+ confidence, rank by confidence score
-5. Return top 5 bets across all games
+5. Return ALL qualifying bets across all games
 
 Usage:
   python unified_analysis_pipeline.py           # Analyze ALL games (recommended)
@@ -41,6 +41,9 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import time
 
+from scrapers.nba_stats_api_scraper import get_player_game_log
+from scrapers.player_projection_model import PlayerProjectionModel
+
 # Import new recommendation display system
 from utils.convert_recommendations import convert_dict_to_recommendation
 from utils.display_recommendations import display_recommendations
@@ -52,17 +55,35 @@ logger = logging.getLogger("unified_pipeline")
 from scrapers.sportsbet_final_enhanced import scrape_nba_overview, scrape_match_complete
 from scrapers.insights_to_value_analysis import analyze_all_insights
 
-# Use robust DataballR scraper (with fallback to original for compatibility)
+# Use HYBRID PIPELINE (StatsMuse primary + DataballR supplementary)
 try:
-    from scrapers.databallr_robust.integration import get_player_game_log
-    DATABALLR_ROBUST_AVAILABLE = True
-    logger.info("[PIPELINE] Using robust DataballR scraper with retry logic and schema mapping")
+    from scrapers.hybrid_data_pipeline import HybridPlayerDataPipeline
+    HYBRID_PIPELINE_AVAILABLE = True
+    DATABALLR_ROBUST_AVAILABLE = True  # Hybrid pipeline includes robust DataballR
+    logger.info("[PIPELINE] Using Hybrid Pipeline: StatsMuse (primary) + DataballR (supplementary)")
 except ImportError as e:
-    from scrapers.databallr_scraper import get_player_game_log
-    DATABALLR_ROBUST_AVAILABLE = False
-    logger.warning(f"[PIPELINE] Robust DataballR scraper not available ({e}), using original scraper")
+    # Fallback to DataballR only if hybrid not available
+    logger.warning(f"[PIPELINE] Hybrid pipeline not available ({e}), falling back to DataballR only")
+    HYBRID_PIPELINE_AVAILABLE = False
+    try:
+        from scrapers.databallr_robust.integration import get_player_game_log
+        DATABALLR_ROBUST_AVAILABLE = True
+        logger.info("[PIPELINE] Using robust DataballR scraper with retry logic")
+    except ImportError:
+        from scrapers.databallr_scraper import get_player_game_log
+        DATABALLR_ROBUST_AVAILABLE = False
+        logger.warning("[PIPELINE] Using original DataballR scraper")
 
 from scrapers.player_projection_model import PlayerProjectionModel
+
+# Initialize hybrid pipeline if available
+if HYBRID_PIPELINE_AVAILABLE:
+    _hybrid_pipeline = HybridPlayerDataPipeline(
+        use_cache=True,
+        cache_ttl_hours=24,
+        default_season="2024-25"
+    )
+    logger.info("[PIPELINE] Hybrid pipeline initialized with 24h cache")
 
 # Initialize NBA player cache
 try:
@@ -70,6 +91,48 @@ try:
     initialize_cache()
 except ImportError:
     pass  # Cache optional
+
+
+def get_player_game_log(
+    player_name: str,
+    last_n_games: int = 20,
+    headless: bool = True,
+    retries: int = 3,
+    use_cache: bool = True
+) -> Optional[List[Dict]]:
+    """
+    Get player game logs using the hybrid pipeline (StatsMuse + DataballR).
+
+    Falls back to direct DataballR if hybrid pipeline is not available.
+
+    Args:
+        player_name: Player's full name
+        last_n_games: Number of recent games to fetch
+        headless: Run browser in headless mode
+        retries: Number of retry attempts
+        use_cache: Whether to use cached data
+
+    Returns:
+        List of game dictionaries or None
+    """
+    if HYBRID_PIPELINE_AVAILABLE:
+        # Use hybrid pipeline (StatsMuse primary, DataballR for game logs)
+        return _hybrid_pipeline.get_player_game_log(
+            player_name=player_name,
+            last_n_games=last_n_games,
+            headless=headless,
+            retries=retries,
+            use_cache=use_cache
+        )
+    else:
+        # Fallback to direct DataballR import
+        from scrapers.databallr_scraper import get_player_game_log as _get_game_log
+        return _get_game_log(
+            player_name=player_name,
+            last_n_games=last_n_games,
+            headless=headless,
+            use_cache=use_cache
+        )
 
 
 def extract_player_props_from_markets(all_markets: List) -> Tuple[List[Dict], List[str]]:
@@ -334,6 +397,15 @@ def _extract_prop_info_from_insight(insight: Dict) -> Optional[Dict]:
             line = float(match.group(1))
             stat_type = stat
             break
+            
+    # Fallback: Check market string if no stat found in fact
+    if not stat_type:
+        for pattern, stat in patterns:
+            match = re.search(pattern, market.lower())
+            if match:
+                line = float(match.group(1))
+                stat_type = stat
+                break
     
     if not player_name or not stat_type or not line:
         return None
@@ -560,7 +632,31 @@ def _calculate_team_projections(game_data: Dict, insight: Dict) -> Optional[Dict
         if away_stats.avg_total_points and home_stats.avg_total_points:
             confidence_score += 10.0  # Have direct total data
         confidence_score = min(80.0, confidence_score)  # Cap at 80
-        
+
+        # NEW: Extract situational data from TeamStats objects
+        clutch_factor = None
+        reliability_factor = None
+        pace_advantage = None
+        opponent_def_rating = None
+
+        # Clutch win % differential (for away team perspective)
+        if hasattr(away_stats, 'clutch_win_pct') and hasattr(home_stats, 'clutch_win_pct'):
+            if away_stats.clutch_win_pct is not None and home_stats.clutch_win_pct is not None:
+                clutch_factor = away_stats.clutch_win_pct - home_stats.clutch_win_pct
+
+        # Reliability % differential (halftime lead protection)
+        if hasattr(away_stats, 'reliability_pct') and hasattr(home_stats, 'reliability_pct'):
+            if away_stats.reliability_pct is not None and home_stats.reliability_pct is not None:
+                reliability_factor = away_stats.reliability_pct - home_stats.reliability_pct
+
+        # Pace advantage
+        if away_pace and home_pace:
+            pace_advantage = away_pace - home_pace
+
+        # Opponent defensive rating (for away team, opponent is home team)
+        if hasattr(home_stats, 'avg_points_against') and home_stats.avg_points_against:
+            opponent_def_rating = home_stats.avg_points_against
+
         return {
             'projected_total': projected_total,
             'projected_spread': projected_spread,
@@ -569,7 +665,12 @@ def _calculate_team_projections(game_data: Dict, insight: Dict) -> Optional[Dict
             'confidence_score': confidence_score,
             'away_form_score': away_form,
             'home_form_score': home_form,
-            'form_differential': form_diff
+            'form_differential': form_diff,
+            # NEW: Situational factors for context-aware analysis
+            'clutch_factor': clutch_factor,
+            'reliability_factor': reliability_factor,
+            'pace_advantage': pace_advantage,
+            'opponent_def_rating': opponent_def_rating
         }
         
     except Exception as e:
@@ -633,10 +734,26 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
     # Analyze team insights with projection model integration
     analyzed_team = []
     if team_insights:
-        # Get base historical analysis
+        # NEW: Calculate team projections first to extract clutch stats
+        # Use first insight to get team stats (all insights share same game/teams)
+        team_projection = _calculate_team_projections(game_data, team_insights[0]) if team_insights else None
+
+        # NEW: Create ContextFactors with clutch stats if available
+        from scrapers.context_aware_analysis import ContextFactors
+        lineup_context = None
+        if team_projection:
+            lineup_context = ContextFactors(
+                clutch_factor=team_projection.get('clutch_factor'),
+                reliability_factor=team_projection.get('reliability_factor'),
+                pace_advantage=team_projection.get('pace_advantage'),
+                opponent_def_rating=team_projection.get('opponent_def_rating')
+            )
+
+        # Get base historical analysis with clutch stats passed via lineup_context
         base_analyzed = analyze_all_insights(
             team_insights,
             minimum_sample_size=4,  # RELAXED: Lower threshold to catch more insights
+            lineup_context=lineup_context,  # NEW: Pass clutch stats
             home_team=game_data['game_info']['home_team'],
             away_team=game_data['game_info']['away_team']
         )
@@ -826,19 +943,23 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
                         logger.debug(f"  Skipping {prop_info['player']} {prop_info['stat']} - projection model returned None")
                         continue
                     
-                    # Save original historical probability before combining
+                    # Save original historical probability for reference
                     original_hist_prob = hist_analysis['historical_probability']
-                    
-                    # Combine: 70% projection, 30% historical
-                    final_prob = 0.7 * projection.probability_over_line + 0.3 * original_hist_prob
-                    final_confidence = 0.7 * projection.confidence_score + 0.3 * hist_analysis['confidence_score']
-                    
+
+                    # USE CALIBRATED PROBABILITY (single source of truth)
+                    # No more 70/30 blending - projection model already applies all adjustments
+                    calibrated_prob = projection.calibrated_probability
+                    calibrated_confidence = projection.confidence_score  # Already includes lag check
+
                     # Update analysis with projection-based values
-                    hist_analysis['historical_probability'] = final_prob  # Final combined probability
+                    hist_analysis['historical_probability'] = calibrated_prob  # Use calibrated probability
                     hist_analysis['original_historical_probability'] = original_hist_prob  # Save original
-                    hist_analysis['confidence_score'] = min(final_confidence, 80.0)  # Cap at 80 for small samples
-                    hist_analysis['projected_prob'] = projection.probability_over_line
+                    hist_analysis['confidence_score'] = calibrated_confidence  # Use calibrated confidence
+                    hist_analysis['projected_prob'] = projection.probability_over_line  # Raw probability (before caps/penalties)
+                    hist_analysis['calibrated_prob'] = calibrated_prob  # Calibrated probability (after caps/penalties)
                     hist_analysis['projected_expected_value'] = projection.expected_value
+                    hist_analysis['archetype_name'] = projection.archetype_name
+                    hist_analysis['archetype_cap'] = projection.archetype_cap
                     # Extract projection details with proper fallbacks
                     pace_mult = 1.0
                     defense_adj = 1.0
@@ -854,10 +975,10 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
                         'role_change_detected': projection.role_change.detected if (hasattr(projection, 'role_change') and projection.role_change) else False
                     }
                     
-                    # Recalculate EV with new probability
+                    # Recalculate EV using CALIBRATED probability
                     bookmaker_prob = 1.0 / insight['odds']
-                    hist_analysis['value_percentage'] = (final_prob - bookmaker_prob) * 100
-                    hist_analysis['ev_per_100'] = (final_prob * (insight['odds'] - 1) * 100) - ((1 - final_prob) * 100)
+                    hist_analysis['value_percentage'] = (calibrated_prob - bookmaker_prob) * 100
+                    hist_analysis['ev_per_100'] = (calibrated_prob * (insight['odds'] - 1) * 100) - ((1 - calibrated_prob) * 100)
                     hist_analysis['has_value'] = hist_analysis['ev_per_100'] > 0
                     
                     # Only add if projection succeeded
@@ -999,31 +1120,32 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
                 logger.debug(f"  Insufficient valid games for {player_name} (n={len(stat_values)})")
                 continue
 
-            # Historical hit-rate
+            # Historical hit-rate (for reference only)
             over_count = sum(1 for v in stat_values if v > line)
             historical_prob = over_count / len(stat_values) if len(stat_values) > 0 else 0.5
 
-            # Combine projection (70%) + historical (30%)
-            final_prob = 0.7 * projection.probability_over_line + 0.3 * historical_prob
+            # USE CALIBRATED PROBABILITY (single source of truth)
+            # No more 70/30 blending - projection model already applies all adjustments
+            calibrated_prob = projection.calibrated_probability
 
-            # Use projection confidence as primary confidence
+            # Use calibrated confidence (already includes lag check)
             confidence = projection.confidence_score
 
-            # Determine recommendation
+            # Determine recommendation using CALIBRATED probability
             recommendation = None
             selected_odds = None
 
-            if final_prob > 0.55 and confidence >= 60:
+            if calibrated_prob > 0.55 and confidence >= 60:
                 recommendation = 'OVER'
                 selected_odds = odds_over
-            elif final_prob < 0.45 and confidence >= 60:
+            elif calibrated_prob < 0.45 and confidence >= 60:
                 recommendation = 'UNDER'
                 selected_odds = odds_under
 
             if recommendation:
-                # Calculate EV
+                # Calculate EV using CALIBRATED probability
                 implied_prob = 1.0 / selected_odds
-                actual_prob = final_prob if recommendation == 'OVER' else (1 - final_prob)
+                actual_prob = calibrated_prob if recommendation == 'OVER' else (1 - calibrated_prob)
                 edge = actual_prob - implied_prob
                 ev_per_100 = (actual_prob * (selected_odds - 1) * 100) - ((1 - actual_prob) * 100)
 
@@ -1218,14 +1340,16 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
     - Props: Minimum +3% EV
     - Sides/Totals: Minimum +2% EV
     - Minimum confidence threshold: 50/100
-    - Maximum 5 bets total
     - Maximum 2 bets per game (correlation control)
     - Trend-only bets (no model projections) get confidence penalty
 
     Returns:
-        List of top 5 high-confidence bets
+        List of ALL high-confidence bets
     """
     all_bets = []
+    
+    # Initialize projection model for insight props
+    model = PlayerProjectionModel()
 
     # Convert team bets to unified format
     for bet in team_bets:
@@ -1259,7 +1383,35 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                 # Check for projection details
                 projection_details = analysis.get('projection_details', {})
                 if not projection_details or not isinstance(projection_details, dict):
-                    logger.debug(f"  Skipping player prop {player_name} - missing projection_details")
+                    # Try to CALCULATE projection using the model (Fix for 0% history)
+                    try:
+                        # Get game logs
+                        games = get_player_game_log(player_name, season="2024-25")
+                        if games and len(games) >= 5:
+                            # Run projection
+                            proj = model.project_stat(player_name, stat_type, line, games)
+                            if proj:
+                                # Update analysis with REAL model data
+                                analysis['projection_details'] = {
+                                    'std_dev': getattr(proj, 'std_dev', 0),
+                                    'minutes_projected': proj.minutes_projection.projected_minutes if (hasattr(proj, 'minutes_projection') and proj.minutes_projection) else 0,
+                                    'pace_multiplier': 1.0,
+                                    'defense_adjustment': 1.0, 
+                                    'role_change_detected': proj.role_change.detected if (hasattr(proj, 'role_change') and proj.role_change) else False
+                                }
+                                analysis['projected_prob'] = proj.probability_over_line
+                                analysis['historical_probability'] = proj.historical_hit_rate
+                                analysis['original_historical_probability'] = proj.historical_hit_rate # Redundant key for safety
+                                analysis['projected_expected_value'] = proj.expected_value
+                                analysis['sample_size'] = len(games)
+                                # Update projection_details variable
+                                projection_details = analysis['projection_details']
+                                logger.info(f"  Calculated missing projection for {player_name}: Hist={proj.historical_hit_rate:.1%}")
+                    except Exception as e:
+                         logger.warning(f"  Failed to calculate projection for {player_name}: {e}")
+
+                if not projection_details:
+                    logger.debug(f"  Skipping player prop {player_name} - missing projection_details and calculation failed")
                     continue
                 
                 # Calculate weighted confidence for player props from insights
@@ -1490,28 +1642,22 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
         logger.warning(f"Error sorting bets: {e}")
         all_bets_sorted = ev_filtered_bets
     
-    # RELAXED: Lower confidence thresholds to catch more insights (projection model will validate)
-    confidence_thresholds = [50, 45, 40, 35, 30, 25, 20]  # Start at 50
+    # Use minimum confidence threshold
+    MIN_CONFIDENCE = 50
+    high_confidence_bets = [bet for bet in all_bets_sorted if bet.get('confidence', 0) >= MIN_CONFIDENCE]
+
+    # IMPROVEMENT 2.3: Correlation Control Upgrade
+    # Instead of "max 2 per game", calculate correlation score:
+    # - Props from same player = very high correlation -> allow max 1
+    # - Props + total = moderate correlation -> allow max 2
+    # - Props from opposite teams = low correlation -> allow 3 max
     filtered_bets = []
-    used_threshold = None
+    player_counts = {}  # Track bets per player
+    game_counts = {}  # Track bets per game
+    game_bets = {}  # Track bets by game for correlation calculation
     confidence_filtered_out = []
-    
-    for threshold in confidence_thresholds:
-        high_confidence_bets = [bet for bet in all_bets_sorted if bet.get('confidence', 0) >= threshold]
-        
-        if not high_confidence_bets:
-            continue
-        
-        # IMPROVEMENT 2.3: Correlation Control Upgrade
-        # Instead of "max 2 per game", calculate correlation score:
-        # - Props from same player = very high correlation -> allow max 1
-        # - Props + total = moderate correlation -> allow max 2
-        # - Props from opposite teams = low correlation -> allow 3 max
-        filtered_bets = []
-        player_counts = {}  # Track bets per player
-        game_counts = {}  # Track bets per game
-        game_bets = {}  # Track bets by game for correlation calculation
-        
+
+    if high_confidence_bets:
         for bet in high_confidence_bets:
             if not bet or not isinstance(bet, dict):
                 continue
@@ -1571,7 +1717,7 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                     can_add = False
                     reason = f'Game limit (already {game_count} bets for {game}, max {max_allowed})'
                 
-                if can_add and len(filtered_bets) < 5:
+                if can_add:
                     filtered_bets.append(bet)
                     game_counts[game] = game_count + 1
                     if player:
@@ -1587,41 +1733,26 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                         bet_desc = f"{bet.get('market', 'Unknown')} - {bet.get('result', '')}"
                     confidence_filtered_out.append({
                         'desc': bet_desc,
-                        'reason': reason if not can_add else f'Total limit (already {len(filtered_bets)} bets)',
+                        'reason': reason if not can_add else f'Already {len(filtered_bets)} bets',
                         'confidence': bet.get('confidence', 0),
                         'ev_pct': bet.get('edge', 0)
                     })
-                
-                # Stop if we have 5 bets
-                if len(filtered_bets) >= 5:
-                    break
             except Exception as e:
                 logger.debug(f"  Error processing bet in ranking: {e}")
                 continue
-        
-        if len(filtered_bets) >= 5:
-            used_threshold = threshold
-            break
-        elif len(filtered_bets) > 0:
-            # Keep the best we found so far, but continue trying
-            used_threshold = threshold
-            if threshold == confidence_thresholds[-1]:
-                # Last threshold, use what we have
-                break
-    
-    if used_threshold and used_threshold < 50:
-        logger.info(f"Lowered confidence threshold to {used_threshold}/100 to find 5 bets (found {len(filtered_bets)})")
-    
-    # Show why we don't have 5 bets
-    if len(filtered_bets) < 5:
+
+    # Show filtering summary
+    logger.info(f"Found {len(filtered_bets)} bets with confidence >= {MIN_CONFIDENCE}/100")
+
+    if len(filtered_bets) < len(ev_filtered_bets):
         total_available = len(ev_filtered_bets)
-        logger.info(f"  Only {len(filtered_bets)}/{total_available} bets meet all criteria (need 5)")
-        
+        logger.info(f"  {len(filtered_bets)}/{total_available} bets passed all criteria")
+
         # Show bets that passed EV but failed confidence
         if total_available > len(filtered_bets):
-            low_confidence = [bet for bet in ev_filtered_bets if bet.get('confidence', 0) < (used_threshold or 50)]
+            low_confidence = [bet for bet in ev_filtered_bets if bet.get('confidence', 0) < MIN_CONFIDENCE]
             if low_confidence:
-                logger.info(f"  {len(low_confidence)} bets filtered by confidence (< {used_threshold or 50}):")
+                logger.info(f"  {len(low_confidence)} bets filtered by confidence (< {MIN_CONFIDENCE}):")
                 for bet in sorted(low_confidence, key=lambda x: x.get('confidence', 0), reverse=True)[:5]:
                     bet_type = bet.get('type', 'unknown')
                     if bet_type == 'player_prop':
@@ -1643,7 +1774,7 @@ def print_unified_report(final_bets: List[Dict]):
     """
     Print comprehensive report of all value bets (team + player props).
 
-    Shows top 5 high-confidence bets only (QUALITY OVER QUANTITY).
+    Shows ALL high-confidence bets that meet quality thresholds.
     """
     if not final_bets:
         print("\n" + "="*70)
@@ -1667,11 +1798,11 @@ def print_unified_report(final_bets: List[Dict]):
         if confidences:
             min_confidence = min(confidences)
             max_confidence = max(confidences)
-            print(f"Confidence Range: {min_confidence:.0f}-{max_confidence:.0f}/100 | Max per Game: 2 | Max Total: 5")
+            print(f"Confidence Range: {min_confidence:.0f}-{max_confidence:.0f}/100 | Max per Game: 2")
         else:
-            print(f"Minimum Confidence: 50/100 | Max per Game: 2 | Max Total: 5")
+            print(f"Minimum Confidence: 50/100 | Max per Game: 2")
     else:
-        print(f"Minimum Confidence: 50/100 | Max per Game: 2 | Max Total: 5")
+        print(f"Minimum Confidence: 50/100 | Max per Game: 2")
     print()
 
     for i, bet in enumerate(final_bets, 1):
@@ -1740,8 +1871,8 @@ def print_unified_report(final_bets: List[Dict]):
                             print(f"   Confidence Penalty: {original_conf:.0f} -> {bet.get('confidence', 0):.0f} (-20 for trend-only)")
                 
                 # Print standard metrics for all team bets
-                print(f"   Odds: {bet.get('odds', 0):.2f} | Confidence: {bet.get('confidence', 0):.0f}/100")
-                print(f"   EV: ${bet.get('ev_per_100', 0):+.2f}/100 | Edge: {bet.get('edge', 0):+.1f}% | Sample: n={bet.get('sample_size', 0)}")
+                print(f"   Odds: {bet.get('odds', 0):.2f} | Confidence: {bet.get('confidence', 0):.0f}/100 | SAMPLE SIZE: {bet.get('sample_size', 0)} games")
+                print(f"   EV: ${bet.get('ev_per_100', 0):+.2f}/100 | Edge: {bet.get('edge', 0):+.1f}%")
                 print(f"   Game: {bet.get('game', 'Unknown')}")
 
             elif bet_type == 'player_prop':
@@ -1783,9 +1914,9 @@ def print_unified_report(final_bets: List[Dict]):
                 ev_per_100 = bet.get('ev_per_100', 0)
                 edge = bet.get('edge', 0)
                 sample = bet.get('sample_size', 0)
-                
-                print(f"   Odds: {odds:.2f} | Confidence: {confidence:.0f}/100")
-                print(f"   EV: ${ev_per_100:+.2f}/100 | Edge: {edge:+.1f}% | Sample: n={sample}")
+
+                print(f"   Odds: {odds:.2f} | Confidence: {confidence:.0f}/100 | SAMPLE SIZE: {sample} games")
+                print(f"   EV: ${ev_per_100:+.2f}/100 | Edge: {edge:+.1f}%")
                 print(f"   Game: {bet.get('game', 'Unknown')}")
 
             print()
@@ -1838,14 +1969,14 @@ def main():
     try:
         print("\n" + "="*70)
         print("  UNIFIED ANALYSIS PIPELINE")
-        print("  QUALITY OVER QUANTITY - Top 5 High-Confidence Bets")
+        print("  QUALITY OVER QUANTITY - ALL High-Confidence Bets")
         print("="*70)
         print("\nPipeline Flow:")
         print("  1. [SPORTSBET SCRAPER] Scrapes games, markets, insights, and player props")
         print("  2. [DATABALLR SCRAPER] Fetches player game logs (robust, with retries)")
         print("  3. [INSIGHT ANALYZER] Analyzes team bets using Context-Aware Value Engine")
         print("  4. [MODEL PROJECTIONS] Calculates player prop projections with matchup adjustments")
-        print("  5. [DISPLAY] Filters to high-confidence bets and returns top 5 (max 2 per game)")
+        print("  5. [DISPLAY] Filters to high-confidence bets and returns ALL qualifying bets (max 2 per game)")
         print()
     except Exception as e:
         logger.error(f"Failed to initialize: {e}")
@@ -1878,7 +2009,7 @@ def main():
                 max_games = 999
 
     if max_games >= 999:
-        print(f"\nAnalyzing ALL available games to find top 5 high-confidence bets...")
+        print(f"\nAnalyzing ALL available games to find high-confidence bets...")
     else:
         print(f"\nAnalyzing {max_games} game(s)...")
 
@@ -1983,7 +2114,6 @@ def main():
     print("  * EV Thresholds: Props >= +3%, Sides/Totals >= +2%")
     print("  * Confidence: 50+/100 (lowered if needed)")
     print("  * Max per game: 2 bets (correlation control)")
-    print("  * Max total: 5 bets")
     print("  * Trend-only bets: -20 confidence penalty")
 
     try:
@@ -2063,7 +2193,7 @@ def main():
         print(f"\n[ERROR] Failed to display results: {e}")
         print("Attempting to show basic bet list...")
         try:
-            for i, bet in enumerate(final_bets[:5], 1):
+            for i, bet in enumerate(final_bets, 1):
                 if bet and isinstance(bet, dict):
                     bet_type = bet.get('type', 'UNKNOWN')
                     if bet_type == 'player_prop':

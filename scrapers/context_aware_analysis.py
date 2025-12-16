@@ -73,6 +73,12 @@ class ContextFactors:
     back_to_back: bool = False
     injury_impact: Optional[str] = None  # From lineup data
 
+    # NEW: Clutch and situational factors
+    clutch_factor: Optional[float] = None          # Differential: team clutch% - opponent clutch%
+    reliability_factor: Optional[float] = None     # Team reliability% - opponent reliability%
+    pace_advantage: Optional[float] = None         # Positive if team plays faster
+    opponent_def_rating: Optional[float] = None    # Opponent points allowed per game
+
     def get_risk_multiplier(self) -> float:
         """Calculate risk multiplier based on context (0.5 to 1.5)"""
         multiplier = 1.0
@@ -87,6 +93,36 @@ class ContextFactors:
             multiplier *= 0.85
 
         return max(0.5, min(1.5, multiplier))
+
+    def get_situational_adjustment(self) -> float:
+        """
+        Calculate probability adjustment from situational factors (±5-8% max).
+
+        Returns a multiplier adjustment (e.g., 0.05 = +5% to probability)
+        """
+        adjustment = 0.0
+
+        # Clutch situations (±3% for 20%+ differential)
+        if self.clutch_factor and abs(self.clutch_factor) > 15:
+            adjustment += (self.clutch_factor / 100) * 0.15
+
+        # Halftime reliability (±2% for 20%+ differential)
+        if self.reliability_factor and abs(self.reliability_factor) > 15:
+            adjustment += (self.reliability_factor / 100) * 0.10
+
+        # Pace advantage (±2% for 5+ possession difference)
+        if self.pace_advantage and abs(self.pace_advantage) > 3:
+            adjustment += (self.pace_advantage / 100) * 0.12
+
+        # Defensive matchup (±2.5%)
+        if self.opponent_def_rating:
+            if self.opponent_def_rating > 115:   # Weak defense
+                adjustment += 0.025
+            elif self.opponent_def_rating < 105: # Strong defense
+                adjustment -= 0.025
+
+        # Cap total at ±8%
+        return max(-0.08, min(0.08, adjustment))
 
     def to_dict(self):
         return asdict(self)
@@ -149,6 +185,10 @@ class ContextAwareAnalysis:
     confidence_interval_upper: float  # Wilson/Jeffreys upper bound
     kelly_fraction: float  # Kelly fraction for stake sizing
     edge_category: str  # "Strong edge", "Moderate edge", "Weak edge", "No edge"
+
+    # NEW: Final probability used for EV calculations (confidence-weighted blend)
+    final_probability: float  # Actual probability used in EV calculation
+    probability_source: str   # "market-heavy" | "balanced" | "model-heavy"
 
     # Recommendations (must come before optional fields)
     recommendation: str  # "STRONG BET", "BET", "CONSIDER", "PASS", "AVOID"
@@ -923,6 +963,76 @@ class ContextAwareAnalyzer:
             min_minutes_threshold
         )
 
+        # 4.5. Calculate confidence score early (needed for probability blending later)
+        # Calculate variance of outcomes
+        outcome_variance = statistics.variance(historical_outcomes) if len(historical_outcomes) > 1 else 0.0
+
+        # Sample size component (0-40 points) - MORE CONSERVATIVE
+        if sample_size >= 30:
+            sample_score = 40.0  # Large sample
+        elif sample_size >= 20:
+            sample_score = 30.0  # Good sample
+        elif sample_size >= 15:
+            sample_score = 22.0  # Moderate sample (reduced from 30)
+        elif sample_size >= 10:
+            sample_score = 15.0  # Small sample (reduced from 20)
+        else:
+            sample_score = 8.0  # Very small sample (reduced from 10)
+
+        # Variance component (0-20 points) - lower variance = higher confidence
+        variance_score = max(0.0, 20.0 - (outcome_variance * 40.0))
+
+        # Predictive strength of trend (0-20 points) - REDUCED MAX
+        # Cap trend score contribution
+        trend_score = min(15.0, trend_quality['confidence_boost'] + 10.0)  # Reduced max from 20 to 15
+
+        # Market efficiency (0-10 points) - assume moderate efficiency
+        market_efficiency_score = 7.0
+
+        # Team/player stability (0-10 points) - based on minutes consistency
+        if minutes_proj.benching_risk == "LOW":
+            stability_score = 8.0  # Reduced from 10
+        elif minutes_proj.benching_risk == "MEDIUM":
+            stability_score = 5.0  # Reduced from 6
+        else:
+            stability_score = 2.0  # Reduced from 3
+
+        # Calculate base confidence (0-100)
+        base_confidence = sample_score + variance_score + trend_score + market_efficiency_score + stability_score
+
+        # AGGRESSIVE CAPS for small samples (fix overconfidence issue)
+        if sample_size < 10:
+            max_confidence = 60.0  # Very small samples capped at 60
+        elif sample_size < 15:
+            max_confidence = 70.0  # Small samples capped at 70
+        elif sample_size < 20:
+            max_confidence = 80.0  # Moderate samples capped at 80
+        elif sample_size < 30:
+            max_confidence = 90.0  # Good samples capped at 90
+        else:
+            max_confidence = 100.0  # Large samples can reach 100
+
+        # Apply cap
+        final_confidence = min(base_confidence, max_confidence)
+        final_confidence = max(0.0, min(100.0, final_confidence))
+
+        # Enforce minimum confidence for TEAM_NARRATIVE_TREND (relaxed requirement)
+        if trend_type == 'TEAM_NARRATIVE_TREND':
+            min_confidence = trend_quality.get('min_confidence', 60)  # Relaxed from 75
+            if final_confidence < min_confidence:
+                # Confidence too low for team narrative trends - reject
+                final_confidence = 0.0  # Set to 0 to trigger rejection
+
+        # Categorize confidence
+        if final_confidence >= 80:
+            confidence_level = "VERY_HIGH"  # Large sample, consistent context, low variance
+        elif final_confidence >= 60:
+            confidence_level = "HIGH"  # Moderate sample or moderate variance
+        elif final_confidence >= 40:
+            confidence_level = "MEDIUM"  # Small sample or high variance
+        else:
+            confidence_level = "LOW"  # Unreliable trend; not recommended
+
         # 5. Recency adjustment
         recency_adj = self._calculate_recency_adjustment(
             historical_outcomes,
@@ -946,6 +1056,10 @@ class ContextAwareAnalyzer:
         # Apply external context
         context_multiplier = context_factors.get_risk_multiplier()
         adjusted_prob *= context_multiplier
+
+        # NEW: Apply situational adjustments (clutch, pace, defense)
+        situational_adj = context_factors.get_situational_adjustment()
+        adjusted_prob = adjusted_prob * (1.0 + situational_adj)
 
         # Ensure probability stays in valid range
         adjusted_prob = max(0.01, min(0.99, adjusted_prob))
@@ -1013,9 +1127,27 @@ class ContextAwareAnalyzer:
         if abs(blended_prob - bayesian_prob) < 0.001:
             # Force a blend by moving slightly toward market
             blended_prob = bookmaker_prob * 0.95 + bayesian_prob * 0.05
+
+
+        # NEW PROBABILITY BLEND: 60% Model + 30% Historical + 10% Market
+        # This is the PRIMARY probability calculation - model-driven, not market-heavy
+        # Formula: final_prob = (0.6 × adjusted_prob) + (0.3 × historical_prob) + (0.1 × bookmaker_prob)
+        # 
+        # Rationale:
+        # - 60% Model (adjusted_prob): Trust our statistical analysis with adjustments
+        # - 30% Historical (historical_prob): Real performance data counts
+        # - 10% Market (bookmaker_prob): Slight nod to betting market wisdom
+        #
+        # NOTE: Archetype caps are applied in the projection model, not here
         
+        final_probability = (0.6 * adjusted_prob) + (0.3 * historical_prob) + (0.1 * bookmaker_prob)
+        
+        # Since we're now model-driven (60%), label as model-heavy
+        probability_source = "model-heavy"
+
         # FIX #3: Cap edges based on sample size (stricter for small samples)
-        raw_edge = (blended_prob - bookmaker_prob) * 100
+        # NOTE: Use final_probability for edge calculation instead of blended_prob
+        raw_edge = (final_probability - bookmaker_prob) * 100
 
         # Stricter caps based on sample size (updated for better accuracy)
         if sample_size < 10:
@@ -1051,8 +1183,8 @@ class ContextAwareAnalyzer:
 
         # Expected Value (IMPROVEMENT: Fix #4 - Proper EV formula)
         # EV = (p · (odds - 1) - (1 - p)) per unit
-        # Use blended probability for EV calculation
-        ev_per_unit = (blended_prob * (bookmaker_odds - 1)) - (1 - blended_prob)
+        # Use final_probability for EV calculation (confidence-weighted blend)
+        ev_per_unit = (final_probability * (bookmaker_odds - 1)) - (1 - final_probability)
         ev_per_100 = ev_per_unit * 100
         
         # Final value determination: Use EV > 0 instead of edge > 0
@@ -1070,83 +1202,7 @@ class ContextAwareAnalyzer:
             sample_size
         )
 
-        # SPECIFICATION: Confidence Rating (0-100)
-        # Must be based on: sample size, variance, predictive strength, market efficiency,
-        # team/player stability, injury/rotation reliability
-        # DO NOT correlate confidence with historical hit rate
-        
-        # Calculate variance of outcomes
-        outcome_variance = statistics.variance(historical_outcomes) if len(historical_outcomes) > 1 else 0.0
-        
-        # Sample size component (0-40 points) - MORE CONSERVATIVE
-        if sample_size >= 30:
-            sample_score = 40.0  # Large sample
-        elif sample_size >= 20:
-            sample_score = 30.0  # Good sample
-        elif sample_size >= 15:
-            sample_score = 22.0  # Moderate sample (reduced from 30)
-        elif sample_size >= 10:
-            sample_score = 15.0  # Small sample (reduced from 20)
-        else:
-            sample_score = 8.0  # Very small sample (reduced from 10)
-        
-        # Variance component (0-20 points) - lower variance = higher confidence
-        variance_score = max(0.0, 20.0 - (outcome_variance * 40.0))
-        
-        # Predictive strength of trend (0-20 points) - REDUCED MAX
-        trend_type = self.classify_trend_type(insight_fact or "", market or "")
-        trend_quality = self.trend_quality_weights.get(trend_type, self.trend_quality_weights['PLAYER_USAGE_SPLIT'])
-        # Cap trend score contribution
-        trend_score = min(15.0, trend_quality['confidence_boost'] + 10.0)  # Reduced max from 20 to 15
-        
-        # Market efficiency (0-10 points) - assume moderate efficiency
-        market_efficiency_score = 7.0
-        
-        # Team/player stability (0-10 points) - based on minutes consistency
-        if minutes_proj.benching_risk == "LOW":
-            stability_score = 8.0  # Reduced from 10
-        elif minutes_proj.benching_risk == "MEDIUM":
-            stability_score = 5.0  # Reduced from 6
-        else:
-            stability_score = 2.0  # Reduced from 3
-        
-        # Calculate base confidence (0-100)
-        base_confidence = sample_score + variance_score + trend_score + market_efficiency_score + stability_score
-        
-        # AGGRESSIVE CAPS for small samples (fix overconfidence issue)
-        if sample_size < 10:
-            max_confidence = 60.0  # Very small samples capped at 60
-        elif sample_size < 15:
-            max_confidence = 70.0  # Small samples capped at 70
-        elif sample_size < 20:
-            max_confidence = 80.0  # Moderate samples capped at 80
-        elif sample_size < 30:
-            max_confidence = 90.0  # Good samples capped at 90
-        else:
-            max_confidence = 100.0  # Large samples can reach 100
-        
-        # Apply cap
-        final_confidence = min(base_confidence, max_confidence)
-        final_confidence = max(0.0, min(100.0, final_confidence))
-        
-        # Enforce minimum confidence for TEAM_NARRATIVE_TREND (relaxed requirement)
-        if trend_type == 'TEAM_NARRATIVE_TREND':
-            min_confidence = trend_quality.get('min_confidence', 60)  # Relaxed from 75
-            if final_confidence < min_confidence:
-                # Confidence too low for team narrative trends - reject
-                final_confidence = 0.0  # Set to 0 to trigger rejection
-        
-        # Categorize confidence
-        if final_confidence >= 80:
-            confidence_level = "VERY_HIGH"  # Large sample, consistent context, low variance
-        elif final_confidence >= 60:
-            confidence_level = "HIGH"  # Moderate sample or moderate variance
-        elif final_confidence >= 40:
-            confidence_level = "MEDIUM"  # Small sample or high variance
-        else:
-            confidence_level = "LOW"  # Unreliable trend; not recommended
-        
-        # Store components for reporting
+        # Store confidence components for reporting (confidence already calculated earlier)
         edge_comp = 0.0  # Not used in confidence calculation per spec
         sample_comp = sample_score
         recency_comp = 0.0  # Not used per spec
@@ -1240,7 +1296,10 @@ class ContextAwareAnalyzer:
             confidence_interval_lower=ci_lower,
             confidence_interval_upper=ci_upper,
             kelly_fraction=kelly_frac,
-            edge_category=edge_category
+            edge_category=edge_category,
+            # NEW: Final probability used for EV calculations
+            final_probability=final_probability,
+            probability_source=probability_source
         )
 
     def _analyze_minutes(

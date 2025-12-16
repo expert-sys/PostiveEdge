@@ -30,6 +30,7 @@ from enum import Enum
 # Import data structures
 from scrapers.nba_stats_api_scraper import GameLogEntry
 from scrapers.sportsbet_final_enhanced import TeamStats, MatchStats
+from scrapers.player_archetype_classifier import classify_player
 
 
 class StatType(Enum):
@@ -63,6 +64,7 @@ class MinutesProjection:
     volatility: float  # Standard deviation
     trend: str  # "INCREASING", "DECREASING", "STABLE"
     minutes_ratio: float  # projected / historical (for stat adjustment)
+    volatility_penalty: float = 0.0  # -0.04 to -0.12 probability reduction
 
 
 @dataclass
@@ -77,9 +79,10 @@ class MatchupAdjustments:
 class RoleChange:
     """Role change detection"""
     detected: bool
-    change_type: str  # "INCREASE", "DECREASE", "STABLE"
+    change_type: str  # "INCREASE", "DECREASE", "STABLE", "TEMPORARY_SPIKE"
     minutes_change_pct: float
     confidence_penalty: float  # 0.0 to 1.0 (reduces confidence if role changed)
+    usage_spike_pct: float = 0.0  # PHASE 3: Percentage spike in usage rate (pts/36)
 
 
 @dataclass
@@ -88,8 +91,9 @@ class StatProjection:
     expected_value: float
     variance: float
     std_dev: float
-    probability_over_line: float  # P(X >= prop_line)
-    confidence_score: float  # 0-100
+    probability_over_line: float  # P(X >= prop_line) - RAW probability before caps/penalties
+    calibrated_probability: float = 0.0  # Final probability after all caps and penalties (SINGLE SOURCE OF TRUTH)
+    confidence_score: float = 0.0  # 0-100
     rolling_stats_5: Optional[RollingStats] = None
     rolling_stats_10: Optional[RollingStats] = None
     rolling_stats_20: Optional[RollingStats] = None
@@ -97,6 +101,9 @@ class StatProjection:
     matchup_adjustments: Optional[MatchupAdjustments] = None
     role_change: Optional[RoleChange] = None
     distribution_type: str = "normal"  # "normal", "poisson", "negative_binomial", "zero_inflated_poisson"
+    archetype_name: str = "Unknown"  # Player archetype classification
+    archetype_cap: float = 0.82  # Maximum probability for this archetype
+    historical_hit_rate: float = 0.0  # Historical hit rate against the line
 
 
 class PlayerProjectionModel:
@@ -168,10 +175,10 @@ class PlayerProjectionModel:
         matchup_adj = self._calculate_matchup_adjustments(
             opponent_team, player_team, team_stats, stat_type
         )
-        
-        # 4. Detect role changes
-        role_change = self._detect_role_change(valid_games)
-        
+
+        # 4. Detect role changes (PHASE 3: Now includes usage spike detection)
+        role_change = self._detect_role_change(valid_games, stat_type)
+
         # 5. Adjust base projection for minutes and matchup
         base_expected = primary_stats.weighted_mean
         
@@ -185,21 +192,47 @@ class PlayerProjectionModel:
         adjusted_variance = primary_stats.variance * (minutes_proj.minutes_ratio ** 2)
         adjusted_std_dev = math.sqrt(adjusted_variance)
         
-        # 7. Calculate probability using appropriate distribution
+        # 7. Calculate RAW probability using appropriate distribution
         prob_over_line = self._calculate_probability_over_line(
             stat_type, adjusted_expected, adjusted_std_dev, prop_line
         )
-        
-        # 8. Calculate confidence score
-        confidence = self._calculate_confidence_score(
-            primary_stats, minutes_proj, role_change, matchup_adj
+
+        # 8. CLASSIFY PLAYER ARCHETYPE (determines probability cap)
+        archetype = classify_player(
+            player_name=player_name,
+            game_log=valid_games,
+            stat_type=stat_type
         )
-        
+
+        # 9. Calculate CALIBRATED probability (single source of truth)
+        # Apply volatility penalty, role penalty, and archetype cap
+        calibrated_prob = self.get_calibrated_probability(
+            base_probability=prob_over_line,
+            archetype_cap=archetype.max_probability,
+            volatility_penalty=minutes_proj.volatility_penalty,
+            role_penalty=role_change.confidence_penalty
+        )
+
+        # 10. PHASE 6: Calculate historical hit rate for confidence formula
+        historical_hit_rate = self._calculate_historical_hit_rate(
+            valid_games, stat_type, prop_line
+        )
+
+        # 11. Calculate confidence score (4 components)
+        confidence = self._calculate_confidence_score(
+            primary_stats, minutes_proj, role_change, matchup_adj, historical_hit_rate
+        )
+
+        # PHASE 6: Confidence must LAG probability (never exceed it)
+        if confidence > (calibrated_prob * 100):
+            confidence = calibrated_prob * 100
+
         return StatProjection(
             expected_value=adjusted_expected,
             variance=adjusted_variance,
             std_dev=adjusted_std_dev,
-            probability_over_line=prob_over_line,
+            probability_over_line=prob_over_line,  # RAW probability
+            calibrated_probability=calibrated_prob,  # CALIBRATED probability (use this for EV/Fair Odds)
             confidence_score=confidence,
             rolling_stats_5=rolling_stats_5,
             rolling_stats_10=rolling_stats_10,
@@ -207,9 +240,54 @@ class PlayerProjectionModel:
             minutes_projection=minutes_proj,
             matchup_adjustments=matchup_adj,
             role_change=role_change,
-            distribution_type=self._get_distribution_type(stat_type)
+            distribution_type=self._get_distribution_type(stat_type),
+            archetype_name=archetype.name,  # Player archetype classification
+            archetype_cap=archetype.max_probability,  # Maximum probability for this archetype
+            historical_hit_rate=historical_hit_rate  # Percentage of games hitting the line
         )
-    
+
+    def get_calibrated_probability(
+        self,
+        base_probability: float,
+        archetype_cap: float,
+        volatility_penalty: float,
+        role_penalty: float
+    ) -> float:
+        """
+        SINGLE SOURCE OF TRUTH for probability calculation.
+        Apply all penalties and caps in consistent order.
+
+        Args:
+            base_probability: Raw probability from distribution model
+            archetype_cap: Maximum probability for player archetype (≤0.82)
+            volatility_penalty: Minutes volatility penalty (-0.04 to -0.12)
+            role_penalty: Role change penalty (0.0 to 0.15)
+
+        Returns:
+            Calibrated probability after all adjustments (0.01 to 0.99)
+
+        Order of operations (CRITICAL - DO NOT CHANGE):
+        1. Apply volatility penalty (multiplicative)
+        2. Apply role penalty (multiplicative)
+        3. Apply archetype cap
+        4. Ensure valid range [0.01, 0.99]
+        """
+        # 1. Apply volatility penalty (multiplicative)
+        # volatility_penalty is negative (-0.04 to -0.12)
+        prob = base_probability * (1.0 + volatility_penalty)
+
+        # 2. Apply role penalty (multiplicative)
+        # role_penalty is 0.0 to 0.15
+        prob = prob * (1.0 - role_penalty)
+
+        # 3. Apply archetype cap (hard maximum)
+        prob = min(prob, archetype_cap)
+
+        # 4. Ensure valid probability range
+        prob = max(0.01, min(0.99, prob))
+
+        return prob
+
     def _calculate_rolling_stats(
         self, 
         games: List[GameLogEntry], 
@@ -267,7 +345,8 @@ class PlayerProjectionModel:
                 projected_minutes=0.0,
                 volatility=0.0,
                 trend="STABLE",
-                minutes_ratio=1.0
+                minutes_ratio=1.0,
+                volatility_penalty=0.0  # No penalty for missing data
             )
             
         # Last 5 games
@@ -285,7 +364,19 @@ class PlayerProjectionModel:
             volatility = statistics.stdev(historical_minutes)
         else:
             volatility = 0.0
-            
+
+        # PHASE 2.3: Calculate volatility penalty based on standard deviation
+        # High volatility = role inconsistency = reduced confidence in projection
+        if volatility > 8.0:
+            # Very high volatility: -8% to -12% penalty
+            volatility_penalty = min(-0.12, -(volatility - 8.0) * 0.02)
+        elif volatility > 6.0:
+            # Moderate-high volatility: -4% to -8% penalty
+            volatility_penalty = min(-0.08, -(volatility - 6.0) * 0.02)
+        else:
+            # Low volatility: no penalty
+            volatility_penalty = 0.0
+
         # Project minutes (weight recent more heavily)
         # 70% recent, 30% historical
         projected_minutes = 0.7 * recent_avg + 0.3 * historical_avg
@@ -300,14 +391,15 @@ class PlayerProjectionModel:
             
         # Minutes ratio for stat adjustment
         minutes_ratio = projected_minutes / historical_avg if historical_avg > 0 else 1.0
-        
+
         return MinutesProjection(
             recent_avg=recent_avg,
             historical_avg=historical_avg,
             projected_minutes=projected_minutes,
             volatility=volatility,
             trend=trend,
-            minutes_ratio=minutes_ratio
+            minutes_ratio=minutes_ratio,
+            volatility_penalty=volatility_penalty  # PHASE 2.3: Include penalty for use in calibrated probability
         )
     
     def _calculate_matchup_adjustments(
@@ -384,8 +476,17 @@ class PlayerProjectionModel:
             total_adjustment=total_adjustment
         )
     
-    def _detect_role_change(self, games: List[GameLogEntry]) -> RoleChange:
-        """Detect role changes based on minutes trends"""
+    def _detect_role_change(
+        self,
+        games: List[GameLogEntry],
+        stat_type: str = 'points'
+    ) -> RoleChange:
+        """
+        Detect role changes based on minutes trends and usage spikes.
+
+        PHASE 3 Enhancement: Now detects temporary usage spikes (e.g., hot streaks,
+        injury replacements) that may not be sustainable long-term.
+        """
         if len(games) < 10:
             return RoleChange(
                 detected=False,
@@ -393,7 +494,28 @@ class PlayerProjectionModel:
                 minutes_change_pct=0.0,
                 confidence_penalty=0.0
             )
-            
+
+        # PHASE 3: Check for usage spike FIRST (higher priority than minutes)
+        # Usage spikes indicate temporary role elevation that may not sustain
+        if len(games) >= 5:
+            recent_usage = self._calculate_usage_proxy(games[:5], stat_type)
+            season_usage = self._calculate_usage_proxy(games, stat_type)
+
+            # Calculate usage spike percentage
+            if season_usage > 0:
+                usage_spike = (recent_usage - season_usage) / season_usage
+
+                # If usage spiked >25%, flag as temporary spike
+                if usage_spike > 0.25:
+                    return RoleChange(
+                        detected=True,
+                        change_type="TEMPORARY_SPIKE",
+                        minutes_change_pct=0.0,  # Not minutes-based
+                        usage_spike_pct=usage_spike * 100,
+                        confidence_penalty=min(0.15, usage_spike * 0.3)  # Cap at 15% penalty
+                    )
+
+        # Existing minutes-based detection
         # Last 5 games
         recent_minutes = [g.minutes for g in games[:5]]
         recent_avg = statistics.mean(recent_minutes)
@@ -441,7 +563,46 @@ class PlayerProjectionModel:
             minutes_change_pct=change_pct * 100,
             confidence_penalty=confidence_penalty
         )
-    
+
+    def _calculate_usage_proxy(
+        self,
+        games: List[GameLogEntry],
+        stat_type: str = 'points'
+    ) -> float:
+        """
+        PHASE 3: Calculate usage proxy (stat per 36 minutes).
+
+        This simplified usage metric helps detect temporary role spikes
+        (e.g., player scoring more due to injuries, hot streak).
+
+        Args:
+            games: List of game log entries
+            stat_type: Stat to calculate (default: 'points')
+
+        Returns:
+            Stat value per 36 minutes (usage proxy)
+        """
+        if not games:
+            return 0.0
+
+        total_stat = 0.0
+        total_minutes = 0.0
+
+        for game in games:
+            stat_value = getattr(game, stat_type, 0)
+            minutes = getattr(game, 'minutes', 0)
+
+            if stat_value is not None and minutes is not None and minutes > 0:
+                total_stat += stat_value
+                total_minutes += minutes
+
+        if total_minutes == 0:
+            return 0.0
+
+        # Calculate per 36 minutes (standard NBA usage metric)
+        per_36 = (total_stat / total_minutes) * 36.0
+        return per_36
+
     def _calculate_probability_over_line(
         self,
         stat_type: str,
@@ -608,43 +769,94 @@ class PlayerProjectionModel:
         
         return 1.0 - prob_less
     
+    def _calculate_historical_hit_rate(
+        self,
+        games: List[GameLogEntry],
+        stat_type: str,
+        prop_line: float
+    ) -> float:
+        """
+        PHASE 6: Calculate historical hit rate (% of games player hit the prop line).
+
+        This provides empirical evidence of how often the player actually
+        exceeds this specific line, complementing the statistical probability.
+
+        Args:
+            games: List of game log entries
+            stat_type: Stat type to check (points, rebounds, etc.)
+            prop_line: The prop line to check against
+
+        Returns:
+            Hit rate as decimal (0.0 to 1.0)
+        """
+        if not games:
+            return 0.5  # Neutral baseline with no data
+
+        hits = 0
+        for game in games:
+            stat_value = getattr(game, stat_type, None)
+            if stat_value is not None and stat_value > prop_line:
+                hits += 1
+
+        return hits / len(games)
+
     def _calculate_confidence_score(
         self,
         rolling_stats: RollingStats,
         minutes_proj: MinutesProjection,
         role_change: RoleChange,
-        matchup_adj: MatchupAdjustments
+        matchup_adj: MatchupAdjustments,
+        historical_hit_rate: float
     ) -> float:
-        """Calculate confidence score (0-100)"""
-        # Base confidence from sample size
-        sample_size_score = min(100, rolling_stats.sample_size * 5)  # 20 games = 100
-        
-        # Consistency score (inverse of coefficient of variation)
-        if rolling_stats.mean > 0:
-            cv = rolling_stats.std_dev / rolling_stats.mean
-            consistency_score = max(0, 100 - (cv * 100))
+        """
+        PHASE 6: NEW CONFIDENCE FORMULA (4 components)
+
+        Components:
+        1. Minutes stability (30%): Low volatility = stable role
+        2. Role clarity (25%): No recent role changes or usage spikes
+        3. Historical hit rate (25%): Empirical success rate on this line
+        4. Matchup consistency (20%): Stable matchup factors
+
+        Returns confidence score (0-100)
+        """
+        # 1. MINUTES STABILITY (30%): Stable role = higher confidence
+        if minutes_proj.volatility < 4.0:
+            minutes_score = 30.0  # Very stable (<4 min std dev)
+        elif minutes_proj.volatility < 6.0:
+            minutes_score = 22.0  # Stable (4-6 min std dev)
+        elif minutes_proj.volatility < 8.0:
+            minutes_score = 15.0  # Moderate (6-8 min std dev)
         else:
-            consistency_score = 50
-            
-        # Minutes stability (lower volatility = higher confidence)
-        if minutes_proj.historical_avg > 0:
-            minutes_cv = minutes_proj.volatility / minutes_proj.historical_avg
-            minutes_stability = max(0, 100 - (minutes_cv * 50))
+            minutes_score = 5.0   # Volatile (>8 min std dev)
+
+        # 2. ROLE CLARITY (25%): No role changes or usage spikes
+        if not role_change.detected:
+            role_score = 25.0
         else:
-            minutes_stability = 50
-            
-        # Role change penalty
-        role_penalty = role_change.confidence_penalty * 100
-        
-        # Weighted combination
-        confidence = (
-            0.4 * sample_size_score +
-            0.3 * consistency_score +
-            0.3 * minutes_stability -
-            role_penalty
-        )
-        
-        return max(0, min(100, confidence))
+            # Reduce score based on confidence penalty
+            role_score = max(0.0, 25.0 - (role_change.confidence_penalty * 100))
+
+        # 3. HISTORICAL HIT RATE (25%): Direct empirical evidence
+        # hit_rate is 0.0-1.0, multiply by 25 for score
+        hit_rate_score = historical_hit_rate * 25.0
+
+        # 4. MATCHUP CONSISTENCY (20%): Stable matchup factors
+        # Use matchup adjustment magnitude as proxy
+        # Closer to 1.0 = more stable matchup
+        matchup_deviation = abs(matchup_adj.total_adjustment - 1.0)
+        if matchup_deviation < 0.05:  # Very stable (within 5%)
+            matchup_score = 20.0
+        elif matchup_deviation < 0.10:  # Stable (within 10%)
+            matchup_score = 15.0
+        elif matchup_deviation < 0.15:  # Moderate (within 15%)
+            matchup_score = 10.0
+        else:
+            matchup_score = 5.0  # High variance matchup
+
+        # Combine all components
+        total = minutes_score + role_score + hit_rate_score + matchup_score
+
+        return max(0.0, min(100.0, total))
     
     def _get_distribution_type(self, stat_type: str) -> str:
         """Get appropriate distribution type for stat"""

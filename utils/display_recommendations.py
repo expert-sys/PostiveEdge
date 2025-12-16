@@ -1,17 +1,24 @@
 """
 Display Betting Recommendations
 ================================
-Formatted display of BettingRecommendation objects with all analysis details.
+Formatted display of EnhancedBet objects with all analysis details.
 """
 
 import logging
-from typing import List
-from models import BettingRecommendation
+from typing import List, Union
+try:
+    from models import BettingRecommendation
+except ImportError:
+    BettingRecommendation = None
+try:
+    from bet_enhancement_system import EnhancedBet
+except ImportError:
+    EnhancedBet = None
 
 logger = logging.getLogger(__name__)
 
 
-def display_recommendations(recommendations: List[BettingRecommendation], max_display: int = None, use_print: bool = False):
+def display_recommendations(recommendations: List[Union[BettingRecommendation, 'EnhancedBet']], max_display: int = None, use_print: bool = False):
     """
     Display betting recommendations in a formatted, easy-to-read format.
     
@@ -37,9 +44,23 @@ def display_recommendations(recommendations: List[BettingRecommendation], max_di
     output(f"  FINAL RECOMMENDATIONS ({len(display_list)} of {len(recommendations)} total)")
     output("=" * 80)
     
-    # Count by type
-    team_count = sum(1 for r in display_list if r.bet_type.startswith('team_'))
-    prop_count = sum(1 for r in display_list if r.bet_type == 'player_prop')
+    # Count by type (handle both EnhancedBet and BettingRecommendation)
+    def is_team_bet(r):
+        if hasattr(r, 'player_name'):  # EnhancedBet
+            return not r.player_name
+        elif hasattr(r, 'bet_type'):  # BettingRecommendation
+            return r.bet_type.startswith('team_')
+        return False
+
+    def is_player_prop(r):
+        if hasattr(r, 'player_name'):  # EnhancedBet
+            return bool(r.player_name)
+        elif hasattr(r, 'bet_type'):  # BettingRecommendation
+            return r.bet_type == 'player_prop'
+        return False
+
+    team_count = sum(1 for r in display_list if is_team_bet(r))
+    prop_count = sum(1 for r in display_list if is_player_prop(r))
     
     output(f"\nTotal: {len(display_list)} bets ({team_count} team, {prop_count} player)")
     
@@ -66,106 +87,43 @@ def display_recommendations(recommendations: List[BettingRecommendation], max_di
     output("=" * 80)
 
 
-def _display_single_recommendation(rec: BettingRecommendation, index: int, use_print: bool = False):
+def _display_single_recommendation(rec: Union[BettingRecommendation, 'EnhancedBet'], index: int, use_print: bool = False):
     """Display a single betting recommendation with all details"""
     output = logger.info if not use_print else print
-    
-    # Check if this is a team market or player prop
-    is_team_market = rec.bet_type.startswith('team_')
+
+    # Check if this is a team market or player prop (handle both EnhancedBet and BettingRecommendation)
+    if hasattr(rec, 'player_name'):  # EnhancedBet
+        is_team_market = not rec.player_name
+    elif hasattr(rec, 'bet_type'):  # BettingRecommendation
+        is_team_market = rec.bet_type.startswith('team_')
+    else:
+        is_team_market = False
     
     if is_team_market:
-        output(f"\n{index}. TEAM MARKET: {rec.market} - {rec.selection}")
-        output(f"   Game: {rec.game} ({rec.match_time})")
-        output(f"   Odds: {rec.odds:.2f} | Confidence: {rec.confidence_score:.0f}% | Strength: {rec.recommendation_strength}")
+        output(f"\nTEAM MARKET: {rec.market} - {rec.selection}")
+        match_time = getattr(rec, 'match_time', 'TBD')
+        output(f"   Game: {rec.game} ({match_time})")
+
+        recommendation_strength = getattr(rec, 'recommendation_strength', 'N/A')
+        output(f"   Odds: {rec.odds:.2f} | Confidence: {rec.confidence_score:.0f}% | Strength: {recommendation_strength}")
         output(f"   Edge: {rec.edge_percentage:+.1f}% | EV: {rec.expected_value:+.1f}%")
+
+        historical_hit_rate = getattr(rec, 'historical_hit_rate', 0.0)
+        output(f"   Sample Size: {rec.sample_size} games | Historical: {historical_hit_rate:.1%}")
         output(f"   Projected Probability: {rec.projected_probability:.1%}")
-        
-        # Show projection details
-        if rec.advanced_context and 'projection' in rec.advanced_context:
-            proj = rec.advanced_context['projection']
-            away_score = proj.get('away_score', 'N/A')
-            home_score = proj.get('home_score', 'N/A')
-            total = proj.get('total', 'N/A')
-            margin = proj.get('margin', 'N/A')
-            
-            output(f"   Projected Score: {away_score} - {home_score}")
-            if isinstance(margin, (int, float)):
-                output(f"   Projected Total: {total} | Margin: {margin:+.1f}")
-            else:
-                output(f"   Projected Total: {total} | Margin: {margin}")
-        
-        # Show reasoning
-        if rec.sportsbet_insight:
-            output(f"   Reasoning:")
-            for line in rec.sportsbet_insight.split('\n')[:3]:  # Show first 3 reasons
-                if line.strip():
-                    output(f"     • {line.strip()}")
     else:
         # Player prop
-        output(f"\n{index}. PLAYER PROP: {rec.player_name} - {rec.market} {rec.selection}")
-        if rec.player_team:
-            output(f"   Player Team: {rec.player_team}")
-        if rec.opponent_team:
-            output(f"   Matchup: vs {rec.opponent_team}")
-        output(f"   Game: {rec.game} ({rec.match_time})")
-        output(f"   Odds: {rec.odds:.2f} | Confidence: {rec.confidence_score:.0f}% | Strength: {rec.recommendation_strength}")
+        output(f"\nPLAYER PROP: {rec.player_name} - {rec.market} {rec.selection}")
+        match_time = getattr(rec, 'match_time', 'TBD')
+        output(f"   Game: {rec.game} ({match_time})")
+
+        recommendation_strength = getattr(rec, 'recommendation_strength', 'N/A')
+        output(f"   Odds: {rec.odds:.2f} | Confidence: {rec.confidence_score:.0f}% | Strength: {recommendation_strength}")
         output(f"   Edge: {rec.edge_percentage:+.1f}% | EV: {rec.expected_value:+.1f}%")
-        output(f"   Historical: {rec.historical_hit_rate:.1%} ({rec.sample_size} games)")
-        output(f"   Projected: {rec.projected_probability:.1%}")
-        
-        # Show stat details
-        if rec.stat_type and rec.line:
-            output(f"   Stat: {rec.stat_type.replace('_', ' ').title()} Over {rec.line}")
-        
-        # Show DataBallr stats if available
-        if rec.databallr_stats:
-            db_stats = rec.databallr_stats
-            if 'avg_value' in db_stats:
-                output(f"   Season Avg: {db_stats['avg_value']:.1f}")
-            if 'recent_avg' in db_stats:
-                output(f"   Recent Avg: {db_stats['recent_avg']:.1f} (last 5)")
-            if 'trend' in db_stats:
-                output(f"   Trend: {db_stats['trend'].upper()}")
-    
-    # Show advanced context if available
-    if rec.advanced_context:
-        ctx = rec.advanced_context
-        
-        # Minutes analysis
-        if 'minutes_analysis' in ctx:
-            mins = ctx['minutes_analysis']
-            stability = "STABLE" if mins.get('stable') else "VARIABLE"
-            output(f"   Minutes: {mins.get('recent_avg', 'N/A')}min avg (last 5), {stability} rotation")
-        
-        # Stat-specific context
-        if 'assist_context' in ctx:
-            ast = ctx['assist_context']
-            output(f"   Assist Rate: {ast.get('per_36_rate', 'N/A')}/36min | Consistency: {ast.get('consistency', 0):.0f}%")
-        
-        if 'scoring_context' in ctx:
-            pts = ctx['scoring_context']
-            output(f"   Scoring: {pts.get('recent_form', 'N/A')} ppg (last 5) | Consistency: {pts.get('consistency', 0):.0f}%")
-        
-        if 'rebounding_context' in ctx:
-            reb = ctx['rebounding_context']
-            output(f"   Rebounding: {reb.get('recent_form', 'N/A')} rpg (last 5)")
-    
-    # Show matchup factors if available
-    if rec.matchup_factors:
-        mf = rec.matchup_factors
-        if mf.get('total_multiplier'):
-            output(f"   Matchup: {mf['total_multiplier']:.2f}x multiplier", end="")
-            if mf.get('favorable_matchup'):
-                output(" (FAVORABLE)", end="")
-            output("")
-            
-            if mf.get('pace_multiplier') and abs(mf['pace_multiplier'] - 1.0) > 0.03:
-                pace_desc = "Fast" if mf['pace_multiplier'] > 1.0 else "Slow"
-                output(f"   Pace: {pace_desc} ({mf['pace_multiplier']:.2f}x)")
-            
-            if mf.get('defense_multiplier') and abs(mf['defense_multiplier'] - 1.0) > 0.03:
-                def_desc = "Favorable" if mf['defense_multiplier'] > 1.0 else "Tough"
-                output(f"   Defense: {def_desc} ({mf['defense_multiplier']:.2f}x)")
+
+        historical_hit_rate = getattr(rec, 'historical_hit_rate', 0.0)
+        output(f"   Sample Size: {rec.sample_size} games | Historical: {historical_hit_rate:.1%}")
+        output(f"   Projected Probability: {rec.projected_probability:.1%}")
 
 
 def display_recommendations_summary(recommendations: List[BettingRecommendation]):

@@ -526,9 +526,18 @@ def analyze_all_insights(
                     # Core metrics
                     'sample_size': sample_size,
                     'sample_weight': analysis.sample_weight,  # Include sample weight
-                    'historical_probability': analysis.historical_probability,
-                    'adjusted_probability': analysis.adjusted_probability,
+
+                    # Probability transparency (NEW)
+                    'model_probability': analysis.adjusted_probability,      # What model thinks
+                    'market_probability': analysis.bookmaker_probability,    # What market thinks
+                    'final_probability': analysis.final_probability,         # What we use for EV
+                    'probability_source': analysis.probability_source,       # How we blended
+
+                    # For backward compatibility
+                    'historical_probability': analysis.final_probability,    # CHANGED: now uses final_probability
+                    'adjusted_probability': analysis.adjusted_probability,   # Keep for reference
                     'bookmaker_probability': analysis.bookmaker_probability,
+
                     'value_percentage': analysis.value_percentage,
                     'ev_per_100': analysis.ev_per_100,
                     'has_value': analysis.has_value,
