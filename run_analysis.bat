@@ -3,12 +3,20 @@ REM ============================================================================
 REM PositiveEdge - NBA Betting Analysis System
 REM ============================================================================
 REM Run the unified analysis pipeline with all updates and enhancements
+REM
+REM Features Enabled:
+REM   - Market-Specific Confidence Tiers (Player Props C=35, Sides C=40, Totals C=45)
+REM   - Role Modifier (Usage/Minutes/Teammate Impact, max +5% probability boost)
+REM   - Insight Decay Penalties (Age-based and multi-season)
+REM   - Prop Volatility Index (PVI) for bench/low-minutes players
+REM   - Correlation Awareness (De-tier instead of blocking)
+REM   - CLV Tracking (Opening vs Closing Line Value)
+REM   - Explanation Consistency Validation
+REM   - SQLite Persistent Cache (Minutes/Usage/Injuries/Role data)
 REM ============================================================================
 
 echo.
-echo ============================================================================
-echo PositiveEdge - NBA Betting Analysis System
-echo ============================================================================
+echo PositiveEdge - NBA Betting Analysis
 echo.
 
 REM Change to the script's directory (project root)
@@ -24,10 +32,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM Display Python version
-echo Python version:
-python --version
-echo.
+REM Display Python version (quiet)
+python --version >nul 2>&1
 
 REM Check if the main script exists
 if not exist "scrapers\unified_analysis_pipeline.py" (
@@ -38,28 +44,27 @@ if not exist "scrapers\unified_analysis_pipeline.py" (
     exit /b 1
 )
 
-REM Run the unified analysis pipeline
-echo Starting unified analysis pipeline...
+REM Check if required directories exist (quiet)
+if not exist "data" mkdir data >nul 2>&1
+if not exist "data\cache" mkdir data\cache >nul 2>&1
+if not exist "data\outputs" mkdir data\outputs >nul 2>&1
+
+echo Starting analysis...
 echo.
 
+REM Run the unified analysis pipeline
 python scrapers\unified_analysis_pipeline.py %*
 
 REM Check if the script ran successfully
 if errorlevel 1 (
     echo.
-    echo ============================================================================
-    echo [ERROR] Analysis pipeline encountered an error
-    echo ============================================================================
-    echo Check the output above for details.
-    echo Error log may also be saved to: error_log.txt
+    echo [ERROR] Analysis failed - check output above
     echo.
     pause
     exit /b 1
 ) else (
     echo.
-    echo ============================================================================
-    echo [SUCCESS] Analysis completed successfully
-    echo ============================================================================
+    echo [SUCCESS] Analysis complete - results in data\outputs\
     echo.
 )
 

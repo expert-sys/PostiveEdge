@@ -41,15 +41,19 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import time
 
-from scrapers.nba_stats_api_scraper import get_player_game_log
+from scrapers.player_data_fetcher import get_player_game_log
+from scrapers.data_models import GameLogEntry
 from scrapers.player_projection_model import PlayerProjectionModel
+from scrapers.fade_detection import detect_fades
 
 # Import new recommendation display system
 from utils.convert_recommendations import convert_dict_to_recommendation
 from utils.display_recommendations import display_recommendations
 
-logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
-logger = logging.getLogger("unified_pipeline")
+# Use centralized logging configuration
+from config.logging_config import setup_logging, get_logger
+setup_logging()  # Initialize with default (WARNING level)
+logger = get_logger(__name__)
 
 # Imports for Sportsbet scraping
 from scrapers.sportsbet_final_enhanced import scrape_nba_overview, scrape_match_complete
@@ -60,19 +64,19 @@ try:
     from scrapers.hybrid_data_pipeline import HybridPlayerDataPipeline
     HYBRID_PIPELINE_AVAILABLE = True
     DATABALLR_ROBUST_AVAILABLE = True  # Hybrid pipeline includes robust DataballR
-    logger.info("[PIPELINE] Using Hybrid Pipeline: StatsMuse (primary) + DataballR (supplementary)")
+    logger.debug("Pipeline: StatsMuse → DataballR → Inference")
 except ImportError as e:
     # Fallback to DataballR only if hybrid not available
-    logger.warning(f"[PIPELINE] Hybrid pipeline not available ({e}), falling back to DataballR only")
+    logger.warning(f"Hybrid pipeline not available, using DataballR only")
     HYBRID_PIPELINE_AVAILABLE = False
     try:
         from scrapers.databallr_robust.integration import get_player_game_log
         DATABALLR_ROBUST_AVAILABLE = True
-        logger.info("[PIPELINE] Using robust DataballR scraper with retry logic")
+        logger.debug("Using robust DataballR scraper")
     except ImportError:
         from scrapers.databallr_scraper import get_player_game_log
         DATABALLR_ROBUST_AVAILABLE = False
-        logger.warning("[PIPELINE] Using original DataballR scraper")
+        logger.warning("Using original DataballR scraper")
 
 from scrapers.player_projection_model import PlayerProjectionModel
 
@@ -83,7 +87,7 @@ if HYBRID_PIPELINE_AVAILABLE:
         cache_ttl_hours=24,
         default_season="2024-25"
     )
-    logger.info("[PIPELINE] Hybrid pipeline initialized with 24h cache")
+    logger.debug("Pipeline initialized with persistent cache")
 
 # Initialize NBA player cache
 try:
@@ -92,6 +96,10 @@ try:
 except ImportError:
     pass  # Cache optional
 
+# Session-level game log cache (numeric ID-based keys)
+# Format: "player_{player_id}_{season_year}" -> (List[GameLogEntry], datetime)
+_session_game_log_cache: Dict[str, Tuple[List, datetime]] = {}
+
 
 def get_player_game_log(
     player_name: str,
@@ -99,11 +107,12 @@ def get_player_game_log(
     headless: bool = True,
     retries: int = 3,
     use_cache: bool = True
-) -> Optional[List[Dict]]:
+) -> Optional[List]:
     """
-    Get player game logs using the hybrid pipeline (StatsMuse + DataballR).
+    Get player game logs - Priority: StatsMuse → DataballR → Inference.
 
-    Falls back to direct DataballR if hybrid pipeline is not available.
+    Uses player_data_fetcher.get_player_game_log which implements StatsMuse-first priority.
+    Returns GameLogEntry objects (not dicts) for compatibility with projection model.
 
     Args:
         player_name: Player's full name
@@ -113,26 +122,22 @@ def get_player_game_log(
         use_cache: Whether to use cached data
 
     Returns:
-        List of game dictionaries or None
+        List of GameLogEntry objects (most recent first)
     """
-    if HYBRID_PIPELINE_AVAILABLE:
-        # Use hybrid pipeline (StatsMuse primary, DataballR for game logs)
-        return _hybrid_pipeline.get_player_game_log(
+    # Use the StatsMuse-first version from player_data_fetcher
+    # This function already handles: StatsMuse (primary) → DataballR (secondary) → Inference (fallback)
+    # Returns List[GameLogEntry] which is what the projection model expects
+    from scrapers.player_data_fetcher import get_player_game_log as _get_log_statsmuse_first
+    
+    game_log_entries = _get_log_statsmuse_first(
             player_name=player_name,
+        season="2024-25",
             last_n_games=last_n_games,
-            headless=headless,
             retries=retries,
             use_cache=use_cache
         )
-    else:
-        # Fallback to direct DataballR import
-        from scrapers.databallr_scraper import get_player_game_log as _get_game_log
-        return _get_game_log(
-            player_name=player_name,
-            last_n_games=last_n_games,
-            headless=headless,
-            use_cache=use_cache
-        )
+    
+    return game_log_entries if game_log_entries else []
 
 
 def extract_player_props_from_markets(all_markets: List) -> Tuple[List[Dict], List[str]]:
@@ -260,7 +265,7 @@ def scrape_games(max_games: int, headless: bool = True) -> List[Dict]:
     Returns:
         List of game dicts with: game_info, team_markets, team_insights, match_stats, player_props
     """
-    logger.info("Scraping NBA games from Sportsbet...")
+    logger.debug("Scraping NBA games from Sportsbet...")
     try:
         games = scrape_nba_overview(headless=headless)
     except Exception as e:
@@ -275,11 +280,11 @@ def scrape_games(max_games: int, headless: bool = True) -> List[Dict]:
 
     # Limit to actual games available
     actual_max = min(max_games, len(games))
-    logger.info(f"Found {len(games)} games on Sportsbet, analyzing {actual_max}")
+    logger.info(f"Found {len(games)} games, analyzing {actual_max}")
 
     results = []
     for i, game in enumerate(games[:actual_max], 1):
-        logger.info(f"[{i}/{min(max_games, len(games))}] Scraping {game['away_team']} @ {game['home_team']}...")
+        logger.debug(f"Game {i}/{min(max_games, len(games))}: {game['away_team']} @ {game['home_team']}")
 
         try:
             # Get complete match data
@@ -297,7 +302,16 @@ def scrape_games(max_games: int, headless: bool = True) -> List[Dict]:
             # Extract player props from all markets
             player_props, market_players = extract_player_props_from_markets(all_markets)
 
-            logger.info(f"  Retrieved {len(all_markets)} markets, {len(match_insights)} insights, {len(player_props)} player props")
+            # Count player props from insights (they're embedded in insights, not separate markets)
+            player_props_from_insights = sum(1 for insight in match_insights if _is_player_prop_insight({
+                'fact': _safe_insight_get(insight, 'fact', ''),
+                'market': _safe_insight_get(insight, 'market', ''),
+                'result': _safe_insight_get(insight, 'result', '')
+            }))
+            
+            total_player_props = len(player_props) + player_props_from_insights
+
+            logger.debug(f"  Retrieved {len(all_markets)} markets, {len(match_insights)} insights, {total_player_props} player props")
 
             # Convert match_stats to dict if it's an object
             match_stats_dict = None
@@ -348,11 +362,30 @@ def scrape_games(max_games: int, headless: bool = True) -> List[Dict]:
     return results
 
 
+def _safe_insight_get(insight, key: str, default=None):
+    """
+    Safely get value from insight whether it's a dict or MatchInsight object.
+    
+    Args:
+        insight: Either a dict or MatchInsight dataclass object
+        key: Key/attribute name to retrieve
+        default: Default value if key/attr not found
+    
+    Returns:
+        Value from insight or default
+    """
+    if isinstance(insight, dict):
+        return insight.get(key, default)
+    else:
+        # MatchInsight object - use getattr
+        return getattr(insight, key, default)
+
+
 def _is_player_prop_insight(insight: Dict) -> bool:
     """Check if an insight is a player prop (points, rebounds, assists, etc.)"""
-    fact = (insight.get('fact') or '').lower()
-    market = (insight.get('market') or '').lower()
-    result = (insight.get('result') or '').lower()
+    fact = (_safe_insight_get(insight, 'fact') or '').lower()
+    market = (_safe_insight_get(insight, 'market') or '').lower()
+    result = (_safe_insight_get(insight, 'result') or '').lower()
     
     # Check for player prop keywords
     prop_keywords = ['points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', '3-pointers']
@@ -370,9 +403,9 @@ def _extract_prop_info_from_insight(insight: Dict) -> Optional[Dict]:
     """Extract player name, stat type, and line from insight"""
     import re
     
-    fact = insight.get('fact') or ''
-    result = insight.get('result') or ''
-    market = insight.get('market') or ''
+    fact = _safe_insight_get(insight, 'fact') or ''
+    result = _safe_insight_get(insight, 'result') or ''
+    market = _safe_insight_get(insight, 'market') or ''
     
     # Extract player name (usually in result field)
     player_name = result.strip() if result else None
@@ -558,8 +591,8 @@ def _calculate_team_projections(game_data: Dict, insight: Dict) -> Optional[Dict
         form_diff = home_form - away_form  # Home advantage
         
         # Determine market type from insight
-        market = insight.get('market', '').lower()
-        fact = insight.get('fact', '').lower()
+        market = _safe_insight_get(insight, 'market', '').lower()
+        fact = _safe_insight_get(insight, 'fact', '').lower()
         
         model_probability = None
         projected_spread = None
@@ -680,6 +713,48 @@ def _calculate_team_projections(game_data: Dict, insight: Dict) -> Optional[Dict
         return None
 
 
+# FIX #5: Insight weights for quantifying Sportsbet insights
+INSIGHT_WEIGHTS = {
+    "Win/Loss": 0.04,
+    "Head-to-Head": 0.03,
+    "Against Division": 0.025,
+    "Recent Form": 0.02,
+    "Streak": 0.015,
+    "Home/Away": 0.015
+}
+
+
+def quantify_insight_boost(insights: List[Dict]) -> float:
+    """
+    Convert Sportsbet insight tags to probability delta.
+    
+    Args:
+        insights: List of insight dictionaries with 'tags' field
+    
+    Returns:
+        Probability boost (0.0 to 0.08 max)
+    """
+    total_boost = 0.0
+    for insight in insights:
+        tags = _safe_insight_get(insight, 'tags', [])
+        if isinstance(tags, str):
+            tags = [tags]
+        for tag in tags:
+            if isinstance(tag, str):
+                # Try exact match first
+                boost = INSIGHT_WEIGHTS.get(tag, 0)
+                if boost == 0:
+                    # Try case-insensitive partial match
+                    tag_lower = tag.lower()
+                    for key, value in INSIGHT_WEIGHTS.items():
+                        if key.lower() in tag_lower or tag_lower in key.lower():
+                            boost = value
+                            break
+                total_boost += boost
+    # Cap total boost at 8%
+    return min(total_boost, 0.08)
+
+
 def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
     """
     Analyze team-based betting insights using Context-Aware Value Engine.
@@ -702,26 +777,15 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
     team_insights_raw = game_data.get('team_insights', []) or []
     for insight in team_insights_raw:
         try:
-            # Handle both dict and object insight formats
-            if isinstance(insight, dict):
-                insight_dict = {
-                    'fact': insight.get('fact', ''),
-                    'market': insight.get('market', ''),
-                    'result': insight.get('result', ''),
-                    'odds': insight.get('odds', 0),
-                    'tags': insight.get('tags', []),
-                    'icon': insight.get('icon', '')
-                }
-            else:
-                # Object format with attributes
-                insight_dict = {
-                    'fact': getattr(insight, 'fact', ''),
-                    'market': getattr(insight, 'market', ''),
-                    'result': getattr(insight, 'result', ''),
-                    'odds': getattr(insight, 'odds', 0),
-                    'tags': getattr(insight, 'tags', []),
-                    'icon': getattr(insight, 'icon', '')
-                }
+            # Handle both dict and object insight formats using helper function
+            insight_dict = {
+                'fact': _safe_insight_get(insight, 'fact', ''),
+                'market': _safe_insight_get(insight, 'market', ''),
+                'result': _safe_insight_get(insight, 'result', ''),
+                'odds': _safe_insight_get(insight, 'odds', 0),
+                'tags': _safe_insight_get(insight, 'tags', []),
+                'icon': _safe_insight_get(insight, 'icon', '')
+            }
             
             if _is_player_prop_insight(insight_dict):
                 player_prop_insights.append(insight_dict)
@@ -786,6 +850,11 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
                     # Combine probabilities
                     final_prob = 0.6 * model_prob + 0.4 * hist_prob
                     
+                    # FIX #5: Apply insight boost (quantify Sportsbet insights)
+                    insight_boost = quantify_insight_boost([insight])
+                    final_prob = min(final_prob + insight_boost, 0.99)
+                    analysis['insight_boost'] = insight_boost  # Store for display
+                    
                     # Combine confidence scores
                     hist_confidence = analysis.get('confidence_score', 50)
                     model_confidence = team_projection.get('confidence_score', 50)
@@ -797,21 +866,30 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
                     analysis['confidence_score'] = min(final_confidence, 85.0)  # Cap at 85
                     analysis['projected_prob'] = model_prob
                     
-                    # Recalculate EV with new probability
-                    bookmaker_prob = 1.0 / insight.get('odds', 2.0) if insight.get('odds', 0) > 0 else 0.5
-                    analysis['value_percentage'] = (final_prob - bookmaker_prob) * 100
-                    analysis['ev_per_100'] = (final_prob * (insight.get('odds', 2.0) - 1) * 100) - ((1 - final_prob) * 100)
-                    analysis['has_value'] = analysis['ev_per_100'] > 0
+                    # Recalculate EV with new probability (final_prob is the single source of truth)
+                    odds_val = _safe_insight_get(insight, 'odds', 2.0)
+                    bookmaker_prob = 1.0 / odds_val if odds_val > 0 else 0.5
+                    edge = (final_prob - bookmaker_prob) * 100
+                    ev_per_100 = (final_prob * (odds_val - 1) * 100) - ((1 - final_prob) * 100)
                     
-                    logger.debug(f"  [OK] Enhanced team bet with projection: {insight.get('market', 'Unknown')} - Proj: {model_prob:.3f}, Hist: {hist_prob:.3f}, Final: {final_prob:.3f}")
+                    # Safety assertion - EV must match probability
+                    expected_ev = (final_prob * (odds_val - 1) * 100) - ((1 - final_prob) * 100)
+                    assert abs(ev_per_100 - expected_ev) < 0.001, f"EV calculation mismatch: {ev_per_100} vs {expected_ev} for prob {final_prob}"
+                    
+                    analysis['value_percentage'] = edge
+                    analysis['ev_per_100'] = ev_per_100
+                    analysis['has_value'] = ev_per_100 > 0
+                    analysis['projection_source'] = 'blended'  # Model + historical blend for team bets
+                    
+                    logger.debug(f"  Team bet ({_safe_insight_get(insight, 'market', 'Unknown')}): prob={final_prob:.1%}, conf={final_confidence:.0f}")
                 else:
                     # Have projection data but no probability - try to calculate from projected_total if available
                     projected_total = team_projection.get('projected_total')
                     if projected_total:
                         # Try to extract line from insight
                         import re
-                        market = insight.get('market', '').lower()
-                        fact = insight.get('fact', '').lower()
+                        market = _safe_insight_get(insight, 'market', '').lower()
+                        fact = _safe_insight_get(insight, 'fact', '').lower()
                         line_match = re.search(r'(\d+\.?\d*)', market + ' ' + fact)
                         if not line_match:
                             line_match = re.search(r'(?:under|over)\s*(\d+\.?\d*)', fact, re.I)
@@ -831,21 +909,41 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
                             hist_prob = analysis.get('historical_probability', 0.5)
                             final_prob = 0.6 * model_prob + 0.4 * hist_prob
                             
+                            # FIX #5: Apply insight boost (quantify Sportsbet insights)
+                            insight_boost = quantify_insight_boost([insight])
+                            final_prob = min(final_prob + insight_boost, 0.99)
+                            analysis['insight_boost'] = insight_boost  # Store for display
+                            
                             analysis['historical_probability'] = final_prob
                             analysis['original_historical_probability'] = hist_prob
                             analysis['projected_prob'] = model_prob
                             
-                            # Recalculate EV
-                            bookmaker_prob = 1.0 / insight.get('odds', 2.0) if insight.get('odds', 0) > 0 else 0.5
-                            analysis['value_percentage'] = (final_prob - bookmaker_prob) * 100
-                            analysis['ev_per_100'] = (final_prob * (insight.get('odds', 2.0) - 1) * 100) - ((1 - final_prob) * 100)
-                            analysis['has_value'] = analysis['ev_per_100'] > 0
+                            # Recalculate EV (final_prob is the single source of truth)
+                            odds_val = _safe_insight_get(insight, 'odds', 2.0)
+                            bookmaker_prob = 1.0 / odds_val if odds_val > 0 else 0.5
+                            edge = (final_prob - bookmaker_prob) * 100
+                            ev_per_100 = (final_prob * (odds_val - 1) * 100) - ((1 - final_prob) * 100)
                             
-                            logger.debug(f"  [OK] Calculated probability from projected_total: {projected_total:.1f} vs line {line:.1f} = {model_prob:.3f}")
+                            # Safety assertion - EV must match probability
+                            odds_val = _safe_insight_get(insight, 'odds', 2.0)
+                            expected_ev = (final_prob * (odds_val - 1) * 100) - ((1 - final_prob) * 100)
+                            assert abs(ev_per_100 - expected_ev) < 0.001, f"EV calculation mismatch: {ev_per_100} vs {expected_ev} for prob {final_prob}"
+                            
+                            analysis['value_percentage'] = edge
+                            analysis['ev_per_100'] = ev_per_100
+                            analysis['has_value'] = ev_per_100 > 0
+                            analysis['projection_source'] = 'blended'  # Model (from projected_total) + historical blend
+                            
+                            logger.debug(f"  Team bet ({_safe_insight_get(insight, 'market', 'Unknown')}): prob={final_prob:.1%}")
                         else:
                             logger.debug(f"  [OK] Team bet has projection data (projected_total={projected_total:.1f}) but no line found for probability calculation")
                     else:
-                        logger.debug(f"  [OK] Team bet has projection data (no probability calculated): {insight.get('market', 'Unknown')}")
+                        logger.debug(f"  [OK] Team bet has projection data (no probability calculated): {_safe_insight_get(insight, 'market', 'Unknown')}")
+            
+            # Set projection_source for team bets that don't have model projections
+            if 'projection_source' not in analysis:
+                analysis['projection_source'] = 'insight-derived'  # Pure historical/insight analysis
+                logger.debug(f"  [PROJECTION SOURCE] Team bet ({_safe_insight_get(insight, 'market', 'Unknown')}): insight-derived (prob: {analysis.get('historical_probability', 0):.1%})")
             
             analyzed_team.append(analyzed_item)
     
@@ -858,10 +956,11 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
             prop_info = _extract_prop_info_from_insight(insight)
             if not prop_info:
                 # Skip if we can't extract prop info - no fallbacks
-                logger.debug(f"  Skipping insight - cannot extract prop info: {insight.get('fact', '')[:50]}...")
+                logger.debug(f"  Skipping insight - cannot extract prop info: {_safe_insight_get(insight, 'fact', '')[:50]}...")
                 continue
             
-            # Get player game log - NO FALLBACKS, must succeed
+            # Get player game log - Priority: StatsMuse → DataballR → Inference
+            # Returns List[GameLogEntry] objects for projection model
             try:
                 game_log = get_player_game_log(
                     player_name=prop_info['player'],
@@ -871,10 +970,19 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
                     use_cache=True
                 )
                 
+                # Convert dicts to GameLogEntry if needed (for compatibility)
+                if game_log and len(game_log) > 0 and isinstance(game_log[0], dict):
+                    from scrapers.data_models import GameLogEntry
+                    game_log = [GameLogEntry(**g) if isinstance(g, dict) else g for g in game_log]
+                
                 # Require sufficient game log data
                 if not game_log or len(game_log) < 5:
                     logger.debug(f"  Skipping {prop_info['player']} - insufficient game log data (n={len(game_log) if game_log else 0})")
                     continue
+                
+                # Log data source for debugging
+                if hasattr(game_log[0], '__class__'):
+                    logger.debug(f"  [DATA] Game log for {prop_info['player']}: {len(game_log)} games, type: {type(game_log[0]).__name__}")
                 
                 # Get historical analysis - required for combining with projection
                 # RELAXED: Lower sample size to catch more insights (projection model will validate)
@@ -923,40 +1031,105 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
                     else:
                         logger.debug(f"  No team stats for {prop_info['player']} - matchup adjustments will be 1.0x")
                     
-                    projection = projection_model.project_stat(
-                        player_name=prop_info['player'],
-                        stat_type=prop_info['stat'],
-                        game_log=game_log,
-                        prop_line=prop_info['line'],
-                        opponent_team=None,  # Will try to infer from match_stats
-                        player_team=None,
-                        team_stats=team_stats,
-                        min_games=5
-                    )
+                    try:
+                        projection = projection_model.project_stat(
+                            player_name=prop_info['player'],
+                            stat_type=prop_info['stat'],
+                            game_log=game_log,
+                            prop_line=prop_info['line'],
+                            opponent_team=None,  # Will try to infer from match_stats
+                            player_team=None,
+                            team_stats=team_stats,
+                            min_games=5
+                        )
+                    except Exception as proj_error:
+                        logger.warning(f"  [PROJECTION ERROR] Failed to project {prop_info['player']} {prop_info['stat']}: {proj_error}")
+                        import traceback
+                        logger.debug(traceback.format_exc())
+                        projection = None
                     
                     if projection and hasattr(projection, 'matchup_adjustments') and projection.matchup_adjustments:
                         logger.debug(f"  Matchup adjustments for {prop_info['player']}: pace={projection.matchup_adjustments.pace_multiplier:.3f}x, defense={projection.matchup_adjustments.defense_adjustment:.3f}x")
-                    else:
+                    elif projection:
                         logger.debug(f"  No matchup adjustments for {prop_info['player']}")
                     
+                    # PROJECTION FALLBACK: If projection model returned None, use historical analysis
                     if not projection:
-                        logger.debug(f"  Skipping {prop_info['player']} {prop_info['stat']} - projection model returned None")
+                        logger.debug(f"  Projection model returned None for {prop_info['player']} {prop_info['stat']}, trying fallback...")
+                        # Use historical analysis as fallback
+                        hist_analysis = analyzed[0]['analysis']
+                        hist_prob = hist_analysis.get('historical_probability', 0)
+                        hist_conf = hist_analysis.get('confidence_score', 0)
+                        
+                        # Only use fallback if historical analysis is reasonable
+                        if hist_prob >= 0.45 and hist_conf >= 35:
+                            logger.debug(f"  Fallback: {prop_info['player']} {prop_info['stat']} (prob: {hist_prob:.1%})")
+                            # Create a simplified bet entry from historical analysis
+                            odds_val = _safe_insight_get(insight, 'odds', 2.0)
+                            if odds_val > 0:
+                                bookmaker_prob = 1.0 / odds_val
+                                edge = (hist_prob - bookmaker_prob) * 100
+                                ev_per_100 = (hist_prob * (odds_val - 1) * 100) - ((1 - hist_prob) * 100)
+                                
+                                # Only add if positive edge
+                                if edge > 0:
+                                    # Create fallback analysis structure (match format expected by pipeline)
+                                    fallback_analysis = analyzed[0]['analysis'].copy()
+                                    fallback_analysis['historical_probability'] = hist_prob
+                                    fallback_analysis['final_prob'] = hist_prob  # For filtering consistency
+                                    fallback_analysis['confidence_score'] = hist_conf
+                                    fallback_analysis['has_model_projection'] = False
+                                    fallback_analysis['fallback_mode'] = True
+                                    fallback_analysis['projection_failure_reason'] = 'Model returned None'
+                                    fallback_analysis['projection_source'] = 'fallback'  # Track projection source
+                                    fallback_analysis['value_percentage'] = edge
+                                    fallback_analysis['ev_per_100'] = ev_per_100
+                                    fallback_analysis['has_value'] = ev_per_100 > 0
+                                    
+                                    analyzed_props.append({'insight': insight, 'analysis': fallback_analysis})
+                                    logger.debug(f"  {prop_info['player']} {prop_info['stat']}: fallback (prob: {hist_prob:.1%}, edge: {edge:+.1f}%)")
+                                    continue  # Skip to next insight
+                        # If fallback didn't work, skip this prop
+                        logger.debug(f"  Skipping {prop_info['player']} {prop_info['stat']} - projection returned None and fallback not viable")
                         continue
                     
                     # Save original historical probability for reference
                     original_hist_prob = hist_analysis['historical_probability']
 
-                    # USE CALIBRATED PROBABILITY (single source of truth)
-                    # No more 70/30 blending - projection model already applies all adjustments
+                    # FIX #1: Probability flow - raw_model_prob → adjusted_model_prob → final_blended_prob → EV
+                    # calibrated_probability is the adjusted_model_prob (after role/volatility/archetype adjustments)
                     calibrated_prob = projection.calibrated_probability
                     calibrated_confidence = projection.confidence_score  # Already includes lag check
+                    
+                    # Blend with market probability to get final_blended_prob (single source of truth for EV)
+                    from scrapers.player_projection_model import blend_probabilities
+                    odds_val = _safe_insight_get(insight, 'odds', 2.0)
+                    bookmaker_prob = 1.0 / odds_val if odds_val > 0 else 0.5
+                    MODEL_WEIGHT = 0.70
+                    MARKET_WEIGHT = 0.30
+                    final_blended_prob = blend_probabilities(
+                        model_prob=calibrated_prob,
+                        market_prob=bookmaker_prob,
+                        weight_model=MODEL_WEIGHT,
+                        weight_market=MARKET_WEIGHT
+                    )
+                    
+                    # Warn if market probability dominates model (>65% weight)
+                    market_weight_pct = MARKET_WEIGHT * 100
+                    if market_weight_pct > 65:
+                        model_disagreement = abs(calibrated_prob - bookmaker_prob) * 100
+                        if model_disagreement > 15:  # Significant disagreement (>15%)
+                            logger.warning(f"  [MARKET-DOMINANT] Market weight {market_weight_pct:.0f}%, model disagreement: model={calibrated_prob:.1%} vs market={bookmaker_prob:.1%} (diff={model_disagreement:+.1f}%)")
+                    
+                    # Ensure probability is in valid range
+                    final_blended_prob = max(0.01, min(0.99, final_blended_prob))
 
                     # Update analysis with projection-based values
-                    hist_analysis['historical_probability'] = calibrated_prob  # Use calibrated probability
+                    hist_analysis['historical_probability'] = final_blended_prob  # Use final blended probability (SINGLE SOURCE OF TRUTH)
                     hist_analysis['original_historical_probability'] = original_hist_prob  # Save original
+                    hist_analysis['calibrated_prob'] = calibrated_prob  # Save calibrated (before market blend)
                     hist_analysis['confidence_score'] = calibrated_confidence  # Use calibrated confidence
                     hist_analysis['projected_prob'] = projection.probability_over_line  # Raw probability (before caps/penalties)
-                    hist_analysis['calibrated_prob'] = calibrated_prob  # Calibrated probability (after caps/penalties)
                     hist_analysis['projected_expected_value'] = projection.expected_value
                     hist_analysis['archetype_name'] = projection.archetype_name
                     hist_analysis['archetype_cap'] = projection.archetype_cap
@@ -967,28 +1140,88 @@ def analyze_team_bets(game_data: Dict, headless: bool = True) -> List[Dict]:
                         pace_mult = getattr(projection.matchup_adjustments, 'pace_multiplier', 1.0)
                         defense_adj = getattr(projection.matchup_adjustments, 'defense_adjustment', 1.0)
                     
+                    # Extract structured role information from projection
+                    role_modifier_details = getattr(projection, 'role_modifier_details', None)
+                    role_info = {}
+                    if role_modifier_details:
+                        role_info = {
+                            'offensive_role': role_modifier_details.get('offensive_role', 'secondary'),
+                            'usage_state': role_modifier_details.get('usage_state', 'normal'),
+                            'minutes_state': role_modifier_details.get('minutes_state', 'stable')
+                        }
+                    
                     hist_analysis['projection_details'] = {
                         'std_dev': getattr(projection, 'std_dev', None),
                         'minutes_projected': projection.minutes_projection.projected_minutes if (hasattr(projection, 'minutes_projection') and projection.minutes_projection) else None,
                         'pace_multiplier': pace_mult,
                         'defense_adjustment': defense_adj,
-                        'role_change_detected': projection.role_change.detected if (hasattr(projection, 'role_change') and projection.role_change) else False
+                        'role_change_detected': projection.role_change.detected if (hasattr(projection, 'role_change') and projection.role_change) else False,
+                        'player_role': getattr(projection, 'player_role', None),  # Display name (e.g., "Secondary Creator (Elevated Usage)")
+                        'role_structured': role_info if role_info else None,  # Structured role (offensive_role, usage_state, minutes_state)
+                        'role_modifier': role_modifier_details  # Role modifier details (modifier, confidence, rationale)
                     }
                     
-                    # Recalculate EV using CALIBRATED probability
-                    bookmaker_prob = 1.0 / insight['odds']
-                    hist_analysis['value_percentage'] = (calibrated_prob - bookmaker_prob) * 100
-                    hist_analysis['ev_per_100'] = (calibrated_prob * (insight['odds'] - 1) * 100) - ((1 - calibrated_prob) * 100)
-                    hist_analysis['has_value'] = hist_analysis['ev_per_100'] > 0
+                    # Recalculate EV using FINAL_BLENDED_PROB (single source of truth)
+                    edge = (final_blended_prob - bookmaker_prob) * 100
+                    ev_per_100 = (final_blended_prob * (odds_val - 1) * 100) - ((1 - final_blended_prob) * 100)
+                    
+                    # Safety assertion - EV must match probability
+                    # odds_val already set above from bookmaker_prob calculation
+                    expected_ev = (final_blended_prob * (odds_val - 1) * 100) - ((1 - final_blended_prob) * 100)
+                    assert abs(ev_per_100 - expected_ev) < 0.001, f"EV calculation mismatch: {ev_per_100} vs {expected_ev} for prob {final_blended_prob}"
+                    
+                    hist_analysis['value_percentage'] = edge
+                    hist_analysis['ev_per_100'] = ev_per_100
+                    hist_analysis['has_value'] = ev_per_100 > 0
+                    hist_analysis['projection_source'] = 'blended'  # Model + market blend (track projection source)
                     
                     # Only add if projection succeeded
                     analyzed_props.append(analyzed[0])
-                    logger.debug(f"  SUCCESS: Projected {prop_info['player']} {prop_info['stat']}")
+                    logger.debug(f"  {prop_info['player']} {prop_info['stat']}: prob={final_blended_prob:.1%}, conf={calibrated_confidence:.0f}")
                     
                 except Exception as proj_e:
                     logger.warning(f"  Skipping {prop_info.get('player', 'unknown')} - projection model error: {proj_e}")
                     import traceback
                     logger.debug(traceback.format_exc())
+                    
+                    # PROJECTION FALLBACK: If projection failed but we have historical analysis, use it
+                    # This prevents "16 props found, 0 projections" scenarios
+                    if analyzed and len(analyzed) > 0:
+                        hist_analysis = analyzed[0]['analysis']
+                        hist_prob = hist_analysis.get('historical_probability', 0)
+                        hist_conf = hist_analysis.get('confidence_score', 0)
+                        
+                        # Only use fallback if historical analysis is reasonable
+                        if hist_prob >= 0.45 and hist_conf >= 35:
+                            logger.debug(f"  Fallback: {prop_info['player']} {prop_info['stat']} (prob: {hist_prob:.1%})")
+                            # Create a simplified bet entry from historical analysis
+                            odds_val = _safe_insight_get(insight, 'odds', 2.0)
+                            if odds_val > 0:
+                                bookmaker_prob = 1.0 / odds_val
+                                edge = (hist_prob - bookmaker_prob) * 100
+                                ev_per_100 = (hist_prob * (odds_val - 1) * 100) - ((1 - hist_prob) * 100)
+                                
+                                # Only add if positive edge
+                                if edge > 0:
+                                    fallback_bet = {
+                                        'type': 'player_prop',
+                                        'player': prop_info['player'],
+                                        'stat': prop_info['stat'],
+                                        'line': prop_info['line'],
+                                        'prediction': 'OVER' if hist_prob > 0.50 else 'UNDER',
+                                        'odds': odds_val,
+                                        'final_prob': hist_prob,
+                                        'historical_probability': hist_prob,
+                                        'confidence': hist_conf,
+                                        'edge': edge,
+                                        'ev_per_100': ev_per_100,
+                                        'has_model_projection': False,  # Flag as fallback
+                                        'fallback_mode': True,
+                                        'projection_source': 'fallback',  # Track projection source
+                                        'projection_failure_reason': str(proj_e)[:100]
+                                    }
+                                    analyzed_props.append({'insight': insight, 'analysis': fallback_bet})
+                                    logger.debug(f"  {prop_info['player']} {prop_info['stat']}: fallback (prob: {hist_prob:.1%}, edge: {edge:+.1f}%)")
                     continue
                     
             except Exception as e:
@@ -1053,6 +1286,14 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
     missing_data_players = []
     insufficient_games_players = []
     projection_failed_players = []
+    
+    # P1: Track projection sources separately
+    projection_source_counts = {
+        'model': 0,      # Direct model projection (no blending needed)
+        'blended': 0,    # Model + market blend
+        'fallback': 0,   # Fallback to historical analysis
+        'insight-derived': 0  # Derived from insights (handled elsewhere)
+    }
 
     for prop in player_props:
         try:
@@ -1062,15 +1303,20 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
             odds_over = prop['odds_over']
             odds_under = prop['odds_under']
 
-            # Get player stats from databallr
+            # Get player stats - Priority: StatsMuse → DataballR → Inference
             logger.debug(f"  Fetching stats for {player_name}...")
             game_log = get_player_game_log(
                 player_name=player_name,
                 last_n_games=20,
                 headless=headless,
-                retries=1,
+                retries=3,
                 use_cache=True
             )
+            
+            # Convert dicts to GameLogEntry if needed (for projection model compatibility)
+            if game_log and len(game_log) > 0 and isinstance(game_log[0], dict):
+                from scrapers.data_models import GameLogEntry
+                game_log = [GameLogEntry(**g) if isinstance(g, dict) else g for g in game_log]
 
             if not game_log:
                 logger.debug(f"  FAILED: No data found for {player_name} - may need to add to cache")
@@ -1092,27 +1338,35 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
             home_team = game_info.get('home_team', '') if game_info else ''
             
             # Use projection model (PRIMARY SIGNAL - 70% weight)
-            projection = projection_model.project_stat(
-                player_name=player_name,
-                stat_type=stat_type,
-                game_log=game_log,
-                prop_line=line,
-                opponent_team=opponent_team,
-                player_team=player_team,
-                team_stats=match_stats,
-                min_games=5
-            )
+            try:
+                projection = projection_model.project_stat(
+                    player_name=player_name,
+                    stat_type=stat_type,
+                    game_log=game_log,
+                    prop_line=line,
+                    opponent_team=opponent_team,
+                    player_team=player_team,
+                    team_stats=match_stats,
+                    min_games=5
+                )
+            except Exception as proj_err:
+                logger.warning(f"  [PROJECTION ERROR] Failed to project {player_name} {stat_type}: {proj_err}")
+                import traceback
+                logger.debug(traceback.format_exc())
+                projection = None
 
             if not projection:
-                logger.debug(f"  FAILED: Projection model returned None for {player_name}")
+                logger.debug(f"  FAILED: Projection model returned None for {player_name} {stat_type}")
                 projection_failed_players.append((player_name, stat_type))
                 continue
 
             # Calculate historical hit-rate (SECONDARY SIGNAL - 30% weight)
             stat_values = []
             for g in game_log:
-                if g.minutes >= 10:
-                    val = getattr(g, stat_type, None)
+                # Handle both GameLogEntry objects and dicts
+                minutes = g.minutes if hasattr(g, 'minutes') else g.get('minutes', 0)
+                if minutes >= 10:
+                    val = getattr(g, stat_type, None) if hasattr(g, stat_type) else g.get(stat_type, None)
                     if val is not None:
                         stat_values.append(val)
 
@@ -1124,30 +1378,59 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
             over_count = sum(1 for v in stat_values if v > line)
             historical_prob = over_count / len(stat_values) if len(stat_values) > 0 else 0.5
 
-            # USE CALIBRATED PROBABILITY (single source of truth)
-            # No more 70/30 blending - projection model already applies all adjustments
+            # FIX #1: Probability flow - raw_model_prob → adjusted_model_prob → final_blended_prob → EV
+            # calibrated_probability is the adjusted_model_prob (after role/volatility/archetype adjustments)
             calibrated_prob = projection.calibrated_probability
 
             # Use calibrated confidence (already includes lag check)
             confidence = projection.confidence_score
 
-            # Determine recommendation using CALIBRATED probability
+            # Blend with market probability to get final_blended_prob (single source of truth for EV)
+            from scrapers.player_projection_model import blend_probabilities
+            MODEL_WEIGHT = 0.70
+            MARKET_WEIGHT = 0.30
+            
+            # Determine recommendation using CALIBRATED probability (for direction)
             recommendation = None
             selected_odds = None
 
-            if calibrated_prob > 0.55 and confidence >= 60:
+            # CRITICAL FIX: Relaxed thresholds - don't require 55%/45% split
+            # Allow 50-55% range for OVER and 45-50% range for UNDER
+            # Confidence and tiering will handle quality control
+            if calibrated_prob > 0.50 and confidence >= 50:
                 recommendation = 'OVER'
                 selected_odds = odds_over
-            elif calibrated_prob < 0.45 and confidence >= 60:
+            elif calibrated_prob < 0.50 and confidence >= 50:
                 recommendation = 'UNDER'
                 selected_odds = odds_under
 
             if recommendation:
-                # Calculate EV using CALIBRATED probability
+                # Blend calibrated prob with market prob for final probability
                 implied_prob = 1.0 / selected_odds
-                actual_prob = calibrated_prob if recommendation == 'OVER' else (1 - calibrated_prob)
-                edge = actual_prob - implied_prob
-                ev_per_100 = (actual_prob * (selected_odds - 1) * 100) - ((1 - actual_prob) * 100)
+                calibrated_for_direction = calibrated_prob if recommendation == 'OVER' else (1 - calibrated_prob)
+                final_blended_prob = blend_probabilities(
+                    model_prob=calibrated_for_direction,
+                    market_prob=implied_prob,
+                    weight_model=MODEL_WEIGHT,
+                    weight_market=MARKET_WEIGHT
+                )
+                
+                # Warn if market probability dominates model (>65% weight)
+                market_weight_pct = MARKET_WEIGHT * 100
+                if market_weight_pct > 65:
+                    model_disagreement = abs(calibrated_for_direction - implied_prob) * 100
+                    if model_disagreement > 15:  # Significant disagreement (>15%)
+                        logger.warning(f"  [MARKET-DOMINANT] Market weight {market_weight_pct:.0f}%, model disagreement: model={calibrated_for_direction:.1%} vs market={implied_prob:.1%} (diff={model_disagreement:+.1f}%)")
+                
+                final_blended_prob = max(0.01, min(0.99, final_blended_prob))
+                
+                # Calculate EV using FINAL_BLENDED_PROB (single source of truth)
+                edge = final_blended_prob - implied_prob
+                ev_per_100 = (final_blended_prob * (selected_odds - 1) * 100) - ((1 - final_blended_prob) * 100)
+                
+                # Safety assertion - EV must match probability
+                expected_ev = (final_blended_prob * (selected_odds - 1) * 100) - ((1 - final_blended_prob) * 100)
+                assert abs(ev_per_100 - expected_ev) < 0.001, f"EV calculation mismatch: {ev_per_100} vs {expected_ev} for prob {final_blended_prob}"
 
                 prediction = {
                     'type': 'player_prop',
@@ -1157,16 +1440,20 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
                     'prediction': recommendation,
                     'odds': selected_odds,
                     'expected_value': round(projection.expected_value, 1),
-                    'projected_prob': round(projection.probability_over_line, 3),
+                    'projected_prob': round(calibrated_for_direction, 3),  # Calibrated prob (before market blend)
                     'historical_prob': round(historical_prob, 3),
-                    'final_prob': round(final_prob, 3),
+                    'final_prob': round(final_blended_prob, 3),  # Final blended probability (SINGLE SOURCE OF TRUTH)
                     'confidence': round(confidence, 0),
                     'sample_size': len(stat_values),
                     'edge': round(edge * 100, 1),
                     'ev_per_100': round(ev_per_100, 2),
                     'game': f"{away_team} @ {home_team}",
-                    'market_name': prop.get('market_name', '')
+                    'market_name': prop.get('market_name', ''),
+                    'projection_source': 'blended'  # P1: Track projection source (model + market blend)
                 }
+                
+                # P1: Count projection source
+                projection_source_counts['blended'] += 1
                 
                 # Extract projection details with proper fallbacks (outside dict)
                 pace_mult = 1.0
@@ -1181,6 +1468,7 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
                     'pace_multiplier': pace_mult,
                     'defense_adjustment': defense_adj,
                     'role_change_detected': projection.role_change.detected if (hasattr(projection, 'role_change') and projection.role_change) else False,
+                    'player_role': getattr(projection, 'player_role', None),  # FIX #3: Store role for display
                     'distribution_type': getattr(projection, 'distribution_type', None)
                 }
                 
@@ -1193,6 +1481,7 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
             logger.debug(traceback.format_exc())
             continue
 
+    # P1: Return projection source counts for logging
     # Report summary of failures
     total_attempted = len(player_props)
     total_succeeded = len(predictions)
@@ -1223,6 +1512,10 @@ def analyze_player_props(game_data: Dict, headless: bool = True) -> Tuple[List[D
             for player, stat in projection_failed_players:
                 logger.info(f"      - {player} ({stat})")
 
+    # P1: Store projection source counts in first prediction for retrieval (if any)
+    if predictions:
+        predictions[0]['_projection_source_counts'] = projection_source_counts
+
     return predictions, missing_data_players
 
 
@@ -1238,6 +1531,41 @@ def calculate_trend_score(hit_rate: float, sample_size: int) -> float:
     if sample_size == 0:
         return 0.0
     return (hit_rate - 0.5) * (sample_size / 10.0)
+
+
+def fade_display_bet(fade_bet: Dict, fade_type: str):
+    """
+    Display a fade alert bet with reasons.
+    
+    Args:
+        fade_bet: Bet dictionary with fade information
+        fade_type: Type of fade ("STRONG FADE", "FADE LEAN", etc.)
+    """
+    bet_type = fade_bet.get('type', 'unknown')
+    fade_score = fade_bet.get('fade_score', 0)
+    fade_reasons = fade_bet.get('fade_reasons', [])
+    fade_emoji = fade_bet.get('fade_emoji', '')
+    
+    if bet_type == 'player_prop':
+        desc = f"{fade_bet.get('player', 'Unknown')} - {fade_bet.get('stat', 'points').title()} {fade_bet.get('prediction', 'OVER')} {fade_bet.get('line', 0)}"
+    else:
+        desc = f"{fade_bet.get('market', 'Unknown')} - {fade_bet.get('result', 'N/A')}"
+    
+    model_prob = fade_bet.get('final_prob', fade_bet.get('historical_probability', 0))
+    market_prob = 1.0 / fade_bet.get('odds', 2.0) if fade_bet.get('odds', 0) > 0 else 0.5
+    edge = fade_bet.get('edge', 0)
+    conf = fade_bet.get('confidence', 0)
+    sample_size = fade_bet.get('sample_size', 0)
+    
+    logger.debug(f"Fade detected: {fade_type} - {desc} (score: {fade_score}/100)")
+    if fade_reasons:
+        print(f"       Why: {' | '.join(fade_reasons)}")
+    
+    # Show opposite side if viable
+    if fade_bet.get('has_viable_opposite'):
+        opp_prob = fade_bet.get('opposite_prob', 0)
+        opp_ev = fade_bet.get('opposite_ev', 0)
+        print(f"       → Consider opposite side: Prob {opp_prob:.1%}, EV {opp_ev:+.1f}%")
 
 
 def calculate_weighted_confidence(
@@ -1301,6 +1629,11 @@ def calculate_weighted_confidence(
             # Default trend-only penalty if no trend_score available
             weighted -= 20.0
     
+    # FIX #2: Apply sample-size reliability dampening to confidence
+    from scrapers.player_projection_model import sample_reliability
+    reliability_mult = sample_reliability(sample_size)
+    weighted = weighted * reliability_mult
+    
     return max(0.0, min(100.0, weighted))
 
 
@@ -1332,6 +1665,80 @@ def calculate_correlation_score(bet1: Dict, bet2: Dict) -> float:
     return 0.0
 
 
+def promote_best_b_tier(
+    all_bets: List[Dict],
+    min_confidence: int = 48,
+    min_probability: float = 0.55,
+    min_edge: float = 4.0
+) -> List[Dict]:
+    """
+    P4: Promote one B-tier bet per slate if justified.
+    
+    Criteria:
+    - Confidence 48-64 (B-tier range)
+    - Probability >= 55%
+    - Edge >= +4%
+    - CLV favorable (if available): must be positive OR unavailable, never negative
+    - Critical guardrail: confidence_after_penalties >= confidence_before_penalties - 25
+      Prevents promoting bets that were heavily suppressed for good reasons
+    
+    Args:
+        all_bets: List of all bets (may already be tiered)
+        min_confidence: Minimum confidence for promotion (default: 48)
+        min_probability: Minimum probability for promotion (default: 0.55)
+        min_edge: Minimum edge % for promotion (default: 4.0)
+    
+    Returns:
+        Updated bet list with promoted bet(s) if criteria met
+    """
+    # Filter B-tier bets (confidence 48-64)
+    b_tier_bets = [b for b in all_bets if 48 <= b.get('confidence', 0) < 65]
+    
+    if not b_tier_bets:
+        return all_bets  # No B-tier bets to promote
+    
+    # Apply strict criteria
+    candidates = []
+    for bet in b_tier_bets:
+        conf_after = bet.get('confidence', 0)
+        conf_before = bet.get('confidence_before_penalties', bet.get('original_confidence', conf_after))
+        prob = bet.get('final_prob', bet.get('historical_probability', 0))
+        edge = bet.get('edge', 0)
+        clv = bet.get('clv', None)  # None = unavailable, positive = favorable, negative = unfavorable
+        
+        # Guardrail: not heavily suppressed (confidence_after >= confidence_before - 25)
+        if conf_after < conf_before - 25:
+            continue
+        
+        # CLV check: must be positive OR unavailable (never negative)
+        if clv is not None and clv < 0:
+            continue
+        
+        # Other criteria
+        if prob >= min_probability and edge >= min_edge:
+            candidates.append(bet)
+    
+    # Promote best candidate (highest edge * confidence)
+    if candidates:
+        best = max(candidates, key=lambda b: b.get('edge', 0) * b.get('confidence', 0))
+        
+        # Update tier
+        best['tier'] = 'A'
+        best['promoted_from'] = 'B'
+        best['promotion_reason'] = f"Strong edge ({best.get('edge', 0):.1f}%) with CLV confirmation"
+        
+        # Log promotion
+        bet_type = best.get('type', 'unknown')
+        if bet_type == 'player_prop':
+            bet_desc = f"{best.get('player', 'Unknown')} - {best.get('stat', 'points').title()} {best.get('prediction', 'OVER')} {best.get('line', 0)}"
+        else:
+            bet_desc = f"{best.get('market', 'Unknown')} - {best.get('result', '')}"
+        
+        logger.debug(f"B-Tier promotion: {bet_desc} - {best['promotion_reason']}")
+    
+    return all_bets
+
+
 def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]:
     """
     Combine team bets and player props into a unified ranking.
@@ -1346,6 +1753,8 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
     Returns:
         List of ALL high-confidence bets
     """
+    # Initialize team bet rejection tracking for this function call
+    rank_all_bets._team_bet_rejections = []
     all_bets = []
     
     # Initialize projection model for insight props
@@ -1385,11 +1794,21 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                 if not projection_details or not isinstance(projection_details, dict):
                     # Try to CALCULATE projection using the model (Fix for 0% history)
                     try:
-                        # Get game logs
-                        games = get_player_game_log(player_name, season="2024-25")
+                        # Get game logs - use StatsMuse-first version
+                        games = get_player_game_log(
+                            player_name=player_name,
+                            last_n_games=20,
+                            headless=True,
+                            retries=3,
+                            use_cache=True
+                        )
+                        # Convert dicts to GameLogEntry if needed
+                        if games and len(games) > 0 and isinstance(games[0], dict):
+                            from scrapers.data_models import GameLogEntry
+                            games = [GameLogEntry(**g) if isinstance(g, dict) else g for g in games]
                         if games and len(games) >= 5:
                             # Run projection
-                            proj = model.project_stat(player_name, stat_type, line, games)
+                            proj = model.project_stat(player_name, stat_type, games, line)
                             if proj:
                                 # Update analysis with REAL model data
                                 analysis['projection_details'] = {
@@ -1397,7 +1816,8 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                                     'minutes_projected': proj.minutes_projection.projected_minutes if (hasattr(proj, 'minutes_projection') and proj.minutes_projection) else 0,
                                     'pace_multiplier': 1.0,
                                     'defense_adjustment': 1.0, 
-                                    'role_change_detected': proj.role_change.detected if (hasattr(proj, 'role_change') and proj.role_change) else False
+                                    'role_change_detected': proj.role_change.detected if (hasattr(proj, 'role_change') and proj.role_change) else False,
+                                    'player_role': getattr(proj, 'player_role', None)  # FIX #3: Store role for display
                                 }
                                 analysis['projected_prob'] = proj.probability_over_line
                                 analysis['historical_probability'] = proj.historical_hit_rate
@@ -1436,6 +1856,9 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                     trend_score=None
                 )
                 
+                # P1: Ensure projection_source is set (from analysis or default to insight-derived)
+                projection_source = analysis.get('projection_source', 'insight-derived')
+                
                 all_bets.append({
                     'type': 'player_prop',
                     'game': bet.get('game', 'Unknown Game'),
@@ -1443,7 +1866,7 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                     'stat': stat_type,
                     'line': line,
                     'prediction': 'OVER',  # Default, should be determined from analysis
-                    'odds': insight.get('odds', 0),
+                    'odds': _safe_insight_get(insight, 'odds', 0),
                     'confidence': weighted_conf,
                     'original_confidence': base_conf,
                     'has_model_projection': True,
@@ -1453,9 +1876,11 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                     'expected_value': analysis.get('projected_expected_value', 0),
                     'projected_prob': analysis.get('projected_prob', 0),
                     'historical_prob': analysis.get('original_historical_probability', analysis.get('historical_probability', 0)),
-                    'final_prob': analysis.get('historical_probability', 0),
+                    'final_prob': analysis.get('historical_probability', 0),  # Store final probability for filtering
+                    'historical_probability': analysis.get('historical_probability', 0),  # Also store for compatibility
                     'projection_details': projection_details,
-                    'has_matchup_alignment': has_matchup_alignment
+                    'has_matchup_alignment': has_matchup_alignment,
+                    'projection_source': projection_source  # P1: Track projection source
                 })
                 continue
             
@@ -1499,20 +1924,36 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
             if bet_type == 'team_bet' and not has_model_projection:
                 logger.debug(f"  Trend-only bet - base: {base_confidence:.0f}, weighted: {confidence:.0f}, trend_score: {trend_score:.2f if trend_score else 'N/A'}")
             
+            # Calculate EV using final_prob (single source of truth)
+            final_prob = analysis.get('historical_probability', 0.5)
+            odds = _safe_insight_get(insight, 'odds', 0)
+            ev_per_100 = analysis.get('ev_per_100', 0)
+            
+            # VALIDATION: Assert EV consistency at creation time
+            if odds > 0 and final_prob > 0:
+                from scrapers.bet_validation import calculate_ev
+                expected_ev = calculate_ev(final_prob, odds, stake=100.0)
+                if abs(expected_ev - ev_per_100) >= 0.01:  # 1 cent tolerance
+                    logger.debug(f"[VALIDATION] EV mismatch at creation: expected {expected_ev:.2f}, got {ev_per_100:.2f} "
+                               f"(prob={final_prob:.4f}, odds={odds:.2f})")
+                    # Recalculate to fix
+                    ev_per_100 = expected_ev
+            
             all_bets.append({
                 'type': bet_type,  # Use marked type instead of always 'team_bet'
                 'game': bet.get('game', 'Unknown Game'),
-                'market': insight.get('market', 'Unknown Market'),
-                'result': insight.get('result', ''),
-                'odds': insight.get('odds', 0),
+                'market': _safe_insight_get(insight, 'market', 'Unknown Market'),
+                'result': _safe_insight_get(insight, 'result', ''),
+                'odds': odds,
                 'confidence': confidence,
                 'original_confidence': base_confidence,
                 'has_model_projection': has_model_projection,
-                'ev_per_100': analysis.get('ev_per_100', 0),
+                'ev_per_100': ev_per_100,
                 'edge': analysis.get('value_percentage', 0),
                 'sample_size': analysis.get('sample_size', 0),
-                'fact': (insight.get('fact', '') or '')[:100],  # Truncate for display
-                'historical_probability': analysis.get('historical_probability', 0.5),
+                'fact': (_safe_insight_get(insight, 'fact', '') or '')[:100],  # Truncate for display
+                'historical_probability': final_prob,
+                'final_prob': final_prob,  # Store as final_prob for filtering consistency
                 'analysis': analysis,  # Include full analysis for projection details
                 'trend_score': trend_score,  # Store trend score for reference
                 'has_matchup_alignment': has_matchup_alignment  # Store matchup alignment flag
@@ -1567,6 +2008,21 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                 trend_score=None
             )
             
+            # Calculate EV using final_prob (single source of truth)
+            final_prob = prop.get('final_prob', 0)
+            odds = prop.get('odds', 0)
+            ev_per_100 = prop.get('ev_per_100', 0)
+            
+            # VALIDATION: Assert EV consistency at creation time
+            if odds > 0 and final_prob > 0:
+                from scrapers.bet_validation import calculate_ev
+                expected_ev = calculate_ev(final_prob, odds, stake=100.0)
+                if abs(expected_ev - ev_per_100) >= 0.01:  # 1 cent tolerance
+                    logger.debug(f"[VALIDATION] EV mismatch at creation for {player_name}: expected {expected_ev:.2f}, got {ev_per_100:.2f} "
+                               f"(prob={final_prob:.4f}, odds={odds:.2f})")
+                    # Recalculate to fix
+                    ev_per_100 = expected_ev
+            
             all_bets.append({
                 'type': 'player_prop',
                 'game': prop.get('game', 'Unknown Game'),
@@ -1574,23 +2030,37 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
                 'stat': prop.get('stat', 'points'),
                 'line': line,
                 'prediction': prop.get('prediction', 'OVER'),
-                'odds': prop.get('odds', 0),
+                'odds': odds,
                 'confidence': weighted_conf,
                 'original_confidence': base_conf,  # Store original for display
                 'has_model_projection': True,  # Player props always have projections
-                'ev_per_100': prop.get('ev_per_100', 0),
+                'ev_per_100': ev_per_100,
                 'edge': prop.get('edge', 0),
                 'sample_size': prop.get('sample_size', 0),
                 'expected_value': prop.get('expected_value', 0),
                 'projected_prob': prop.get('projected_prob', 0),
                 'historical_prob': prop.get('historical_prob', 0),
-                'final_prob': prop.get('final_prob', 0),
+                'final_prob': final_prob,
                 'projection_details': projection_details,
-                'market_name': prop.get('market_name', '')
+                'market_name': prop.get('market_name', ''),
+                'player_role': projection_details.get('player_role') if isinstance(projection_details, dict) else None,  # FIX #3: Store role for display
+                'projection_source': prop.get('projection_source', 'blended')  # P1: Track projection source (default to blended for analyze_player_props bets)
             })
         except Exception as e:
             logger.warning(f"  Error processing player prop: {e}")
             continue
+
+    # VALIDATION: Apply core invariants before filtering
+    from scrapers.bet_validation import validate_bet_list, health_snapshot_from_dicts
+    
+    # Generate health snapshot before filtering
+    pre_filter_health = health_snapshot_from_dicts(all_bets)
+    if pre_filter_health["count"] > 0:
+        logger.debug(f"[VALIDATION] Pre-filter health: {pre_filter_health['valid_count']}/{pre_filter_health['count']} valid, "
+                    f"EV inconsistencies: {pre_filter_health.get('ev_inconsistencies', 0)}")
+    
+    # Validate all bets (filter invalid ones silently)
+    validated_bets = validate_bet_list(all_bets, strict=False)
 
     # IMPROVEMENT 2.2: Combined EV + Probability Cutoff
     # Reject bets where:
@@ -1599,173 +2069,680 @@ def rank_all_bets(team_bets: List[Dict], player_props: List[Dict]) -> List[Dict]
     # - sample < 5 (unless model-driven)
     ev_filtered_bets = []
     rejected_bets = []
+    team_bet_rejections = []  # Track team bet rejections separately
     
-    for bet in all_bets:
+    for bet in validated_bets:
         probability = bet.get('final_prob', bet.get('historical_probability', 0))
         edge = bet.get('edge', 0)  # Edge percentage
         sample_size = bet.get('sample_size', 0)
         has_model = bet.get('has_model_projection', False)
+        bet_type = bet.get('type', 'unknown')
+        confidence = bet.get('confidence', 0)
         
-        # Reject if probability < 60%
-        if probability < 0.60:
-            rejected_bets.append({'bet': bet, 'reason': f'Probability too low ({probability:.1%} < 60%)'})
-            continue
+        # CRITICAL FIX: Decouple "Projection Validity" from "Bet Eligibility"
+        # Use market-specific probability floors instead of hard 50% rejection
+        # This allows props like Ja Morant (49.1%) to survive to tiering
+        from scrapers.bet_validation import get_market_type, MIN_PROBABILITY, MIN_PROBABILITY_LEGACY
+        market_type = get_market_type(bet)
+        min_prob = MIN_PROBABILITY.get(market_type, MIN_PROBABILITY_LEGACY)
+        
+        rejection_reason = None
+        
+        # Flag low probability but don't reject - let tiering handle it
+        if probability < min_prob:
+            # Only reject if probability is very low (< 45% for all markets)
+            # 47-49% props should survive to tiering (especially with +edge)
+            if probability < 0.45:
+                rejection_reason = f'Probability too low ({probability:.1%} < 45%, min for {market_type} is {min_prob:.1%})'
+            else:
+                # Otherwise, flag it but continue (will be handled by tiering/confidence)
+                bet['low_prob_flag'] = True
         
         # Reject if edge < 0%
-        if edge < 0:
-            rejected_bets.append({'bet': bet, 'reason': f'Negative edge ({edge:.1f}%)'})
-            continue
+        if not rejection_reason and edge < 0:
+            rejection_reason = f'Negative edge ({edge:.1f}%)'
         
         # Reject if sample < 5 (unless model-driven)
-        if sample_size < 5 and not has_model:
-            rejected_bets.append({'bet': bet, 'reason': f'Sample too small (n={sample_size} < 5, no model)'})
+        if not rejection_reason and sample_size < 5 and not has_model:
+            rejection_reason = f'Sample too small (n={sample_size} < 5, no model)'
+        
+        # Reject team bets with confidence below 40 (after all penalties)
+        if not rejection_reason and bet_type == 'team_bet' and confidence < 40:
+            rejection_reason = f'Confidence below 40 ({confidence:.0f})'
+        
+        # Check for correlation with player prop (team bets)
+        if not rejection_reason and bet_type == 'team_bet':
+            correlated_with = bet.get('correlated_with', [])
+            if correlated_with:
+                # Don't reject, but note it (correlation penalty already applied)
+                pass  # Correlation handled by penalty, not rejection
+        
+        # Record rejection
+        if rejection_reason:
+            rejected_bets.append({'bet': bet, 'reason': rejection_reason})
+            if bet_type == 'team_bet':
+                team_bet_rejections.append({
+                    'bet': bet,
+                    'reason': rejection_reason,
+                    'market': bet.get('market', 'Unknown'),
+                    'result': bet.get('result', ''),
+                    'confidence': confidence,
+                    'edge': edge,
+                    'probability': probability
+                })
             continue
         
         ev_filtered_bets.append(bet)
     
-    logger.info(f"EV + Probability Filtering: {len(ev_filtered_bets)}/{len(all_bets)} bets passed")
-    if rejected_bets:
-        logger.debug(f"  Rejected {len(rejected_bets)} bets:")
-        for r in rejected_bets[:5]:
-            bet = r['bet']
-            bet_type = bet.get('type', 'unknown')
-            if bet_type == 'player_prop':
-                desc = f"{bet.get('player', 'Unknown')} - {bet.get('stat', 'points').title()}"
-            else:
-                desc = f"{bet.get('market', 'Unknown')}"
-            logger.debug(f"    - {desc}: {r['reason']}")
+    logger.info(f"EV filtering: {len(ev_filtered_bets)}/{len(all_bets)} bets passed")
     
-    # Sort by confidence
+    # Log team bet rejections separately
+    if team_bet_rejections:
+        team_bet_count = sum(1 for b in all_bets if b.get('type') == 'team_bet')
+        team_bet_passed = sum(1 for b in ev_filtered_bets if b.get('type') == 'team_bet')
+        reason_counts = {}
+        for r in team_bet_rejections:
+            reason = r['reason']
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+        
+        logger.info(f"Team bets: {team_bet_passed} selected from {team_bet_count} found")
+        print(f"  Team bet rejections: {len(team_bet_rejections)}")
+        for r in team_bet_rejections[:5]:  # Show top 5 team bet rejections
+            desc = f"{r['market']} - {r['result']}"
+            print(f"    - {desc}: {r['reason']} (Prob: {r['probability']:.1%}, Edge: {r['edge']:+.1f}%, Conf: {r['confidence']:.0f})")
+    
+    if rejected_bets:
+        player_rejections = [r for r in rejected_bets if r['bet'].get('type') == 'player_prop']
+        if player_rejections:
+            print(f"  Rejected {len(player_rejections)} player prop bets:")
+            for r in player_rejections[:10]:  # Show more rejected bets
+                bet = r['bet']
+                desc = f"{bet.get('player', 'Unknown')} - {bet.get('stat', 'points').title()}"
+                prob = bet.get('final_prob', bet.get('historical_probability', 0))
+                edge = bet.get('edge', 0)
+                conf = bet.get('confidence', 0)
+                print(f"    - {desc}: {r['reason']} (Prob: {prob:.1%}, Edge: {edge:+.1f}%, Conf: {conf:.0f})")
+    
+    # FIX #4: Apply correlation penalty BEFORE sorting
+    # Group bets by game first
+    game_groups = {}
+    for bet in ev_filtered_bets:
+        game = bet.get('game', 'Unknown')
+        if game not in game_groups:
+            game_groups[game] = []
+        game_groups[game].append(bet)
+    
+    # Apply correlation awareness: De-tier correlated bets instead of blocking
+    # Identify correlated bets (same player different stats, same game pace props)
+    for game, bets_in_game in game_groups.items():
+        # Sort by confidence within game to identify order
+        bets_in_game.sort(key=lambda x: x.get('confidence', 0), reverse=True)
+        
+        # Identify correlated bets
+        for i, bet1 in enumerate(bets_in_game):
+            correlated_with = []
+            correlation_reasons = []
+            
+            for j, bet2 in enumerate(bets_in_game):
+                if i == j:
+                    continue
+                
+                # Same player, different stats (high correlation)
+                if (bet1.get('type') == 'player_prop' and bet2.get('type') == 'player_prop' and
+                    bet1.get('player') == bet2.get('player') and
+                    bet1.get('stat') != bet2.get('stat')):
+                    correlated_with.append(f"{bet2.get('player')} {bet2.get('stat')}")
+                    correlation_reasons.append(f"Same player ({bet1.get('player')}) different stat")
+                
+                # Same game pace-sensitive props (moderate correlation)
+                elif bet1.get('game') == bet2.get('game'):
+                    bet1_market = bet1.get('market', '').lower()
+                    bet2_market = bet2.get('market', '').lower()
+                    if 'total' in bet1_market or 'total' in bet2_market:
+                        # Pace-sensitive props
+                        if bet1.get('type') == 'player_prop' or bet2.get('type') == 'player_prop':
+                            correlated_with.append(f"{bet2.get('market', 'Unknown')} {bet2.get('result', '')}")
+                            correlation_reasons.append("Same game pace-sensitive props")
+            
+            if correlated_with:
+                bet1['correlated_with'] = correlated_with
+                bet1['correlation_reason'] = '; '.join(set(correlation_reasons))  # Deduplicate
+            
+            # Apply confidence penalty (2nd bet: 88%, 3rd: 76%, 4th: 64%, etc.)
+            penalty_multiplier = 1.0 - (i * 0.12)  # 1st: 100%, 2nd: 88%, 3rd: 76%, etc.
+            if i > 0:  # Only penalize 2nd bet and beyond
+                original_conf = bet1.get('confidence', 0)
+                bet1['confidence'] = max(0, original_conf * penalty_multiplier)
+                bet1['correlation_penalty'] = original_conf - bet1['confidence']
+    
+    # FADE DETECTION: Identify public traps and evaluate opposite sides
+    # Must happen after EV filtering but before tiered confidence filtering
+    logger.debug(f"Fade detection: Analyzing {len(ev_filtered_bets)} bets")
+    fade_alerts, opposite_side_bets = detect_fades(ev_filtered_bets, games_data=None)
+    
+    # Show fade detection summary
+    if ev_filtered_bets:
+        # Calculate fade score stats for all bets
+        fade_scores = [b.get('fade_score', 0) for b in ev_filtered_bets if 'fade_score' in b]
+        if fade_scores:
+            max_fade = max(fade_scores)
+            avg_fade = sum(fade_scores) / len(fade_scores)
+            print(f"  [FADE DETECTION] Fade scores: Max {max_fade:.0f}, Avg {avg_fade:.1f} (across {len(fade_scores)} bets)")
+    
+    if fade_alerts:
+        strong_fades = [f for f in fade_alerts if f.get('fade_score', 0) >= 70]
+        fade_leans = [f for f in fade_alerts if 50 <= f.get('fade_score', 0) < 70]
+        watch_fades = [f for f in fade_alerts if 30 <= f.get('fade_score', 0) < 50]
+        
+        print(f"  [FADE DETECTION] Found {len(fade_alerts)} fade candidate(s): {len(strong_fades)} strong, {len(fade_leans)} leans, {len(watch_fades)} watch")
+        
+        if strong_fades:
+            print(f"\n  [FADE ALERTS 🔴] {len(strong_fades)} STRONG FADE(s) detected:")
+            for fade in strong_fades[:5]:  # Show top 5
+                fade_display_bet(fade, "STRONG FADE")
+        
+        if fade_leans:
+            print(f"\n  [FADE LEANS 🟠] {len(fade_leans)} fade lean(s) detected:")
+            for fade in fade_leans[:3]:  # Show top 3
+                fade_display_bet(fade, "FADE LEAN")
+        
+        if watch_fades and len(watch_fades) <= 5:
+            print(f"\n  [WATCH 🟡] {len(watch_fades)} watch/avoid bet(s):")
+            for fade in watch_fades[:3]:
+                fade_display_bet(fade, "WATCH")
+    else:
+        print(f"  [FADE DETECTION] ✓ No fades detected (all bets have fade scores < 30)")
+    
+    # Add viable opposite side bets to the pool for consideration
+    if opposite_side_bets:
+        print(f"\n  [FADE OPPOSITE] Found {len(opposite_side_bets)} viable opposite-side opportunities:")
+        for opp_bet in opposite_side_bets[:5]:  # Show top 5
+            bet_type = opp_bet.get('type', 'unknown')
+            if bet_type == 'player_prop':
+                desc = f"{opp_bet.get('player', 'Unknown')} - {opp_bet.get('stat', 'points').title()} {opp_bet.get('prediction', 'OVER')} {opp_bet.get('line', 0)}"
+            else:
+                desc = f"{opp_bet.get('market', 'Unknown')} - {opp_bet.get('result', 'N/A')}"
+            prob = opp_bet.get('final_prob', 0)
+            ev = opp_bet.get('ev_per_100', 0)
+            odds = opp_bet.get('odds', 0)
+            print(f"    → {desc}: Prob {prob:.1%}, EV {ev:+.1f}%, Odds {odds:.2f}")
+        ev_filtered_bets.extend(opposite_side_bets)
+    
+    # VALIDATION: Validate EV consistency after filtering
+    from scrapers.bet_validation import BetEvaluation, validate_bet
+    ev_validated_bets = []
+    ev_validation_failures = []
+    
+    for bet in ev_filtered_bets:
+        bet_eval = BetEvaluation.from_bet_dict(bet)
+        if bet_eval:
+            try:
+                validate_bet(bet_eval, strict=False)
+                ev_validated_bets.append(bet)
+            except ValueError as e:
+                ev_validation_failures.append({'bet': bet, 'error': str(e)})
+                logger.debug(f"[VALIDATION] EV validation failed for bet: {e}")
+        else:
+            ev_validated_bets.append(bet)  # Include even if we can't validate
+    
+    if ev_validation_failures:
+        logger.warning(f"[VALIDATION] {len(ev_validation_failures)} bet(s) failed EV consistency check")
+        for failure in ev_validation_failures[:3]:  # Log first 3
+            logger.debug(f"  - {failure['error']}")
+    
+    # Market-specific tiered confidence thresholds with soft floor
+    # Import BEFORE using these functions
+    from scrapers.bet_validation import (
+        MARKET_TIER_THRESHOLDS, MARKET_WEIGHTS,
+        get_market_type, calculate_effective_confidence, get_tier_thresholds
+    )
+    
+    # Now sort ALL bets by confidence (penalties applied)
     try:
-        all_bets_sorted = sorted(ev_filtered_bets, key=lambda x: x.get('confidence', 0), reverse=True)
+        all_bets_sorted = sorted(ev_validated_bets, key=lambda x: x.get('confidence', 0), reverse=True)
     except Exception as e:
         logger.warning(f"Error sorting bets: {e}")
-        all_bets_sorted = ev_filtered_bets
+        all_bets_sorted = ev_validated_bets
     
-    # Use minimum confidence threshold
-    MIN_CONFIDENCE = 50
-    high_confidence_bets = [bet for bet in all_bets_sorted if bet.get('confidence', 0) >= MIN_CONFIDENCE]
+    # CRITICAL FIX: Tier assignment happens FIRST with RAW confidence
+    # Then market weight is applied for soft floor (only helps borderline cases)
+    # Correct order: raw_conf → tier assignment → market weight → display confidence
+    
+    a_tier_bets = []
+    b_tier_bets = []
+    c_tier_bets = []
+    
+    for bet in all_bets_sorted:
+        market_type = get_market_type(bet)
+        raw_conf = float(bet.get('confidence', 0))
+        
+        # Store for later
+        bet['market_type'] = market_type
+        bet['raw_confidence'] = raw_conf
+        
+        # STEP 1: Assign tier using RAW confidence
+        thresholds = get_tier_thresholds(market_type)
+        initial_tier = None
+        if raw_conf >= thresholds["A"]:
+            initial_tier = 'A'
+        elif raw_conf >= thresholds["B"]:
+            initial_tier = 'B'
+        elif raw_conf >= thresholds["C"]:
+            initial_tier = 'C'
+        else:
+            initial_tier = 'WATCHLIST'
+        
+        # STEP 2: Apply market weight for soft floor (helps borderline cases)
+        effective_conf = calculate_effective_confidence(bet)
+        bet['effective_confidence'] = effective_conf
+        
+        # STEP 3: If effective_confidence would upgrade tier, use it (soft floor benefit)
+        # But don't downgrade tier based on effective_confidence
+        final_tier = initial_tier
+        if effective_conf >= thresholds["A"] and initial_tier != 'A':
+            final_tier = 'A'  # Soft floor upgraded to A
+        elif effective_conf >= thresholds["B"] and initial_tier not in ['A', 'B']:
+            final_tier = 'B'  # Soft floor upgraded to B
+        elif effective_conf >= thresholds["C"] and initial_tier == 'WATCHLIST':
+            final_tier = 'C'  # Soft floor upgraded to C
+        
+        # Store tier
+        bet['initial_tier'] = initial_tier
+        bet['tier'] = final_tier
+        
+        # Add to appropriate tier list
+        if final_tier == 'A':
+            a_tier_bets.append(bet)
+        elif final_tier == 'B':
+            b_tier_bets.append(bet)
+        elif final_tier == 'C':
+            c_tier_bets.append(bet)
+    
+    # Get global thresholds for display (use team_sides as default)
+    default_thresholds = MARKET_TIER_THRESHOLDS["team_sides"]
+    A_TIER_CONFIDENCE = default_thresholds["A"]  # 65
+    B_TIER_CONFIDENCE = default_thresholds["B"]  # 50
+    C_TIER_CONFIDENCE = default_thresholds["C"]  # 40 (but will vary by market)
+    
+    # Near-miss bucket for calibration review (prob >= 55%, edge >= +4%, conf 35-49)
+    # Check from all bets to catch near-misses even if they failed probability threshold
+    # Use EFFECTIVE confidence for near-miss detection (accounts for soft floor)
+    # All bets now have effective_confidence already calculated above
+    near_miss_bets = []
+    c_tier_near_misses = []  # Effective conf just below C-Tier threshold
+    for bet in all_bets_sorted:  # Check all bets that passed EV filtering
+        # effective_confidence already calculated above
+        effective_conf = float(bet.get('effective_confidence', bet.get('confidence', 0)))
+        raw_conf = float(bet.get('raw_confidence', bet.get('confidence', 0)))
+        prob = float(bet.get('final_prob', bet.get('historical_probability', 0)))
+        edge = float(bet.get('edge', 0))
+        
+        # Get market-specific C-tier threshold
+        market_type = bet.get('market_type', 'team_sides')
+        thresholds = get_tier_thresholds(market_type)
+        c_threshold = thresholds["C"]
+        
+        # Near-miss criteria: Effective conf 32-49, Prob >= 55%, Edge >= +4%
+        # For player props, effective conf 32-49 (accounting for soft floor 0.92x: raw 35 = effective 32.2)
+        # For team sides, effective conf 35-49
+        if (c_threshold - 3.0) <= effective_conf < 50.0 and prob >= 0.55 and edge >= 4.0:
+            near_miss_bets.append(bet)
+            # Identify C-Tier near-misses (effective conf just below threshold)
+            # For player props: effective conf 32-34.99 (raw 35-38 with 0.92x = 32.2-34.96)
+            # For team sides: effective conf 35-39.99 (raw 35-40)
+            if (c_threshold - 3.0) <= effective_conf < c_threshold:
+                c_tier_near_misses.append(bet)
+    
+    # Log near-miss bets for post-game review
+    if near_miss_bets:
+        print(f"\n  [WATCHLIST] {len(near_miss_bets)} near-miss bet(s) for post-game review:")
+        for bet in sorted(near_miss_bets, key=lambda x: x.get('confidence', 0), reverse=True)[:10]:
+            bet_type = bet.get('type', 'unknown')
+            if bet_type == 'player_prop':
+                bet_desc = f"{bet.get('player', 'Unknown')} - {bet.get('stat', 'points').title()} {bet.get('prediction', 'OVER')} {bet.get('line', 0)}"
+            else:
+                bet_desc = f"{bet.get('market', 'Unknown')} - {bet.get('result', 'N/A')}"
+            prob = bet.get('final_prob', bet.get('historical_probability', 0))
+            edge = bet.get('edge', 0)
+            conf = float(bet.get('confidence', 0))
+            # Note C-Tier near-misses (use effective confidence)
+            note = ""
+            effective_conf = bet.get('effective_confidence', conf)
+            market_type = bet.get('market_type', 'team_sides')
+            thresholds = get_tier_thresholds(market_type)
+            c_threshold = thresholds["C"]
+            if (c_threshold - 3.0) <= effective_conf < c_threshold:
+                note = f" (C-Tier near-miss, effective conf {effective_conf:.1f} below {c_threshold} threshold for {market_type})"
+            print(f"    - {bet_desc}: Raw Conf {conf:.0f} (Effective: {effective_conf:.1f}), Prob {prob:.1%}, Edge {edge:+.1f}%{note}")
+    
+    # Combine A and B tier bets (all allowed)
+    high_confidence_bets = a_tier_bets + b_tier_bets
+    
+    # UPGRADED: Signal-density auto-promotion (instead of empty-slate only)
+    # Avoids over-promotion on small slates but prevents silence on normal slates
+    total_props_found = len([b for b in ev_validated_bets if b.get('type') == 'player_prop'])
+    props_passing = len([b for b in high_confidence_bets + c_tier_bets if b.get('type') == 'player_prop'])
+    
+    auto_promoted_c_tier = False
+    # Signal-density condition: If we found many props but few passed, auto-promote best watchlist
+    should_auto_promote = (
+        (total_props_found >= 10 and props_passing < 2) or  # Many props found, few passed
+        (len(c_tier_bets) == 0 and len(high_confidence_bets) == 0 and c_tier_near_misses)  # Empty slate fallback
+    )
+    
+    if should_auto_promote and c_tier_near_misses:
+        # Check if we have a strong watchlist candidate
+        best_near_miss = max(c_tier_near_misses, key=lambda x: (
+            x.get('confidence', 0),
+            x.get('final_prob', 0),
+            x.get('edge', 0)
+        ))
+        conf = best_near_miss.get('confidence', 0)
+        prob = best_near_miss.get('final_prob', 0)
+        edge = best_near_miss.get('edge', 0)
+        
+        # Auto-promote if strong enough (use effective_confidence - already calculated above)
+        effective_conf = float(best_near_miss.get('effective_confidence', conf))
+        market_type = best_near_miss.get('market_type', 'team_sides')
+        thresholds = get_tier_thresholds(market_type)
+        c_threshold = thresholds["C"]
+        
+        # Auto-promote if effective conf is within 3 points of C-tier threshold
+        if effective_conf >= (c_threshold - 3.0) and prob >= 0.57 and edge >= 4.0:
+            # Add as C-Tier
+            best_near_miss['tier'] = 'C'
+            best_near_miss['stake_cap_pct'] = 0.12
+            high_confidence_bets.append(best_near_miss)
+            auto_promoted_c_tier = True
+            bet_type = best_near_miss.get('type', 'unknown')
+            if bet_type == 'player_prop':
+                bet_desc = f"{best_near_miss.get('player', 'Unknown')} - {best_near_miss.get('stat', 'points').title()} {best_near_miss.get('prediction', 'OVER')} {best_near_miss.get('line', 0)}"
+            else:
+                bet_desc = f"{best_near_miss.get('market', 'Unknown')} - {best_near_miss.get('result', 'N/A')}"
+            reason = "signal-density escape" if total_props_found >= 10 else "empty slate escape"
+            print(f"  [INFO] Auto-promoted to C-Tier ({reason}, {total_props_found} props found, {props_passing} passed): {bet_desc} (Raw Conf {conf:.0f}, Effective {effective_conf:.1f}, Prob {prob:.1%}, Edge {edge:+.1f}%)")
+    
+    # Add max 1 C-tier bet (best one only) - unless auto-promotion happened
+    if c_tier_bets and not auto_promoted_c_tier:
+        high_confidence_bets.append(c_tier_bets[0])  # Best C-tier bet only
+        remaining_c_tier = c_tier_bets[1:] if len(c_tier_bets) > 1 else []
+        
+        # Track team bet rejections from C-tier limiting
+        if not hasattr(rank_all_bets, '_team_bet_rejections'):
+            rank_all_bets._team_bet_rejections = []
+        
+        # Fix #3: Add explicit logging for excluded C-tier bets (including player props)
+        for rejected_c_tier_bet in remaining_c_tier:
+            bet_type = rejected_c_tier_bet.get('type', 'unknown')
+            if bet_type == 'team_bet':
+                rejection_entry = {
+                    'bet': rejected_c_tier_bet,
+                    'reason': f'C-tier limit (best of {len(c_tier_bets)} selected)',
+                    'market': rejected_c_tier_bet.get('market', 'Unknown'),
+                    'result': rejected_c_tier_bet.get('result', ''),
+                    'confidence': rejected_c_tier_bet.get('confidence', 0),
+                    'edge': rejected_c_tier_bet.get('edge', 0),
+                    'probability': rejected_c_tier_bet.get('final_prob', rejected_c_tier_bet.get('historical_probability', 0))
+                }
+                team_bet_rejections.append(rejection_entry)
+                rank_all_bets._team_bet_rejections.append(rejection_entry)
+            elif bet_type == 'player_prop':
+                # Fix #3: Log excluded player props explicitly
+                player_name = rejected_c_tier_bet.get('player', 'Unknown')
+                stat = rejected_c_tier_bet.get('stat', 'points')
+                line = rejected_c_tier_bet.get('line', 0)
+                best_bet = c_tier_bets[0]
+                best_player = best_bet.get('player', 'Unknown')
+                best_stat = best_bet.get('stat', 'points')
+                logger.debug(f"  Excluded: {player_name} - {stat.title()} OVER {line} (C-tier limit)")
+        
+        if len(c_tier_bets) > 1:
+            print(f"  [INFO] Limited to 1 C-tier bet (best of {len(c_tier_bets)} candidates)")
+            # Fix #3: Show which bets were excluded
+            excluded_names = []
+            for excluded in remaining_c_tier[:3]:  # Show first 3
+                bet_type = excluded.get('type', 'unknown')
+                if bet_type == 'player_prop':
+                    excluded_names.append(f"{excluded.get('player', 'Unknown')} {excluded.get('stat', 'points').title()}")
+                else:
+                    excluded_names.append(f"{excluded.get('market', 'Unknown')}")
+            if excluded_names:
+                print(f"    Excluded: {', '.join(excluded_names)}" + (f" (+{len(remaining_c_tier)-3} more)" if len(remaining_c_tier) > 3 else ""))
+    
+    # Mark tier assignments with market-specific thresholds
+    for bet in high_confidence_bets:
+        market_type = bet.get('market_type', 'team_sides')
+        effective_conf = bet.get('effective_confidence', bet.get('confidence', 0))
+        thresholds = get_tier_thresholds(market_type)
+        
+        # Initial tier assignment
+        if effective_conf >= thresholds["A"]:
+            initial_tier = 'A'
+        elif effective_conf >= thresholds["B"]:
+            initial_tier = 'B'
+        elif effective_conf >= thresholds["C"]:
+            initial_tier = 'C'
+        else:
+            initial_tier = 'WATCHLIST'  # Below C-tier threshold
+        
+        # CORRELATION AWARENESS: De-tier correlated bets instead of blocking
+        if bet.get('correlated_with'):
+            # Downgrade tier by one level (A→B, B→C, C→WATCHLIST)
+            tier_map = {'A': 'B', 'B': 'C', 'C': 'WATCHLIST', 'WATCHLIST': 'WATCHLIST'}
+            initial_tier = tier_map.get(initial_tier, initial_tier)
+            bet['tier_downgrade_reason'] = 'correlation'
+        
+        bet['tier'] = initial_tier
+        
+        # Fix #2: Apply sample-size-based stake caps for C-tier bets
+        if bet['tier'] == 'C':
+            sample_size = bet.get('sample_size', 0)
+            bet_type = bet.get('type', '')
+            
+            # Default stake cap for C-tier (sample >= 10)
+            stake_cap_pct = 0.12  # 12%
+            
+            # Reduce stake cap for small samples (<10 games)
+            if sample_size < 10 and bet_type == 'player_prop':
+                stat_type = bet.get('stat_type', '')
+                if stat_type == 'rebounds':
+                    stake_cap_pct = 0.08  # 8% for rebounds (most volatile)
+                elif stat_type in ['points', 'assists']:
+                    stake_cap_pct = 0.09  # 9% for usage-sensitive props
+                else:
+                    stake_cap_pct = 0.10  # 10% for other stats
+            
+            bet['stake_cap_pct'] = stake_cap_pct
+        
+        # EXPLANATION CONSISTENCY CHECK: Downgrade tier if rationale contradicts data
+        from scrapers.consistency_validator import apply_consistency_check
+        bet = apply_consistency_check(bet)
+        
+        # Validate tier assignment with market type
+        bet_eval = BetEvaluation.from_bet_dict(bet)
+        if bet_eval:
+            try:
+                # Fix #1: Pass promoted_from for promoted bets (bypasses Tier A validation with lower floor)
+                promoted_from = bet.get('promoted_from')
+                if promoted_from:
+                    setattr(bet_eval, 'promoted_from', promoted_from)
+                validate_bet(bet_eval, strict=False, market_type=market_type)  # Log warnings, don't fail
+            except ValueError as e:
+                logger.debug(f"[VALIDATION] Tier validation warning for {bet.get('tier', 'unknown')} bet: {e}")
 
-    # IMPROVEMENT 2.3: Correlation Control Upgrade
-    # Instead of "max 2 per game", calculate correlation score:
-    # - Props from same player = very high correlation -> allow max 1
-    # - Props + total = moderate correlation -> allow max 2
-    # - Props from opposite teams = low correlation -> allow 3 max
+    # CORRELATION AWARENESS: Keep all bets but track correlation warnings
+    # (Correlation already handled by de-tiering above)
     filtered_bets = []
-    player_counts = {}  # Track bets per player
-    game_counts = {}  # Track bets per game
-    game_bets = {}  # Track bets by game for correlation calculation
-    confidence_filtered_out = []
+    correlation_warnings = []
 
     if high_confidence_bets:
         for bet in high_confidence_bets:
             if not bet or not isinstance(bet, dict):
                 continue
-            try:
-                game = bet.get('game', 'Unknown')
-                player = bet.get('player', None)
+            
+            # Include all bets (de-tiering handles correlation risk)
+            filtered_bets.append(bet)
+                
+            # Track correlation warnings for display
+            if bet.get('correlated_with'):
                 bet_type = bet.get('type', 'unknown')
-                
-                # Calculate correlation with existing bets
-                max_allowed = 3  # Default: low correlation
-                correlation_penalty = 0
-                
-                if bet_type == 'player_prop' and player:
-                    # Check if we already have a bet for this player
-                    if player in player_counts:
-                        # Same player = very high correlation -> allow max 1
-                        max_allowed = 1
-                        correlation_penalty = -10
-                    else:
-                        # Check correlation with existing bets in same game
-                        game_bet_list = game_bets.get(game, [])
-                        for existing_bet in game_bet_list:
-                            corr_score = calculate_correlation_score(bet, existing_bet)
-                            if corr_score >= 1.0:  # Very high correlation
-                                max_allowed = 1
-                                correlation_penalty = -10
-                                break
-                            elif corr_score >= 0.5:  # Moderate correlation
-                                max_allowed = 2
-                                correlation_penalty = -5
-                elif bet_type == 'team_bet':
-                    # Check correlation with existing bets in same game
-                    game_bet_list = game_bets.get(game, [])
-                    for existing_bet in game_bet_list:
-                        corr_score = calculate_correlation_score(bet, existing_bet)
-                        if corr_score >= 0.5:  # Moderate correlation
-                            max_allowed = 2
-                            correlation_penalty = -5
-                            break
-                
-                # Apply correlation penalty to confidence
-                if correlation_penalty < 0:
-                    bet['confidence'] = max(0, bet.get('confidence', 0) + correlation_penalty)
-                    bet['correlation_penalty'] = correlation_penalty
-                
-                # Check limits
-                game_count = game_counts.get(game, 0)
-                player_count = player_counts.get(player, 0) if player else 0
-                
-                # Apply limits based on correlation
-                can_add = True
-                if bet_type == 'player_prop' and player:
-                    if player_count >= max_allowed:
-                        can_add = False
-                        reason = f'Player limit (already {player_count} bets for {player}, max {max_allowed})'
-                elif game_count >= max_allowed:
-                    can_add = False
-                    reason = f'Game limit (already {game_count} bets for {game}, max {max_allowed})'
-                
-                if can_add:
-                    filtered_bets.append(bet)
-                    game_counts[game] = game_count + 1
-                    if player:
-                        player_counts[player] = player_count + 1
-                    if game not in game_bets:
-                        game_bets[game] = []
-                    game_bets[game].append(bet)
+                if bet_type == 'player_prop':
+                    bet_desc = f"{bet.get('player', 'Unknown')} - {bet.get('stat', 'points').title()} {bet.get('prediction', 'OVER')} {bet.get('line', 0)}"
                 else:
-                    # Track bets filtered by correlation limits
-                    if bet_type == 'player_prop':
-                        bet_desc = f"{bet.get('player', 'Unknown')} - {bet.get('stat', 'points').title()} {bet.get('prediction', 'OVER')} {bet.get('line', 0)}"
-                    else:
-                        bet_desc = f"{bet.get('market', 'Unknown')} - {bet.get('result', '')}"
-                    confidence_filtered_out.append({
-                        'desc': bet_desc,
-                        'reason': reason if not can_add else f'Already {len(filtered_bets)} bets',
-                        'confidence': bet.get('confidence', 0),
-                        'ev_pct': bet.get('edge', 0)
-                    })
-            except Exception as e:
-                logger.debug(f"  Error processing bet in ranking: {e}")
-                continue
+                    bet_desc = f"{bet.get('market', 'Unknown')} - {bet.get('result', '')}"
+                correlation_warnings.append({
+                    'desc': bet_desc,
+                    'correlated_with': bet.get('correlated_with', []),
+                    'reason': bet.get('correlation_reason', 'Correlated bets'),
+                    'tier': bet.get('tier', 'Unknown')
+                })
 
-    # Show filtering summary
-    logger.info(f"Found {len(filtered_bets)} bets with confidence >= {MIN_CONFIDENCE}/100")
+    # Show filtering summary with tier breakdown
+    a_tier_count = sum(1 for b in filtered_bets if b.get('tier') == 'A')
+    b_tier_count = sum(1 for b in filtered_bets if b.get('tier') == 'B')
+    c_tier_count = sum(1 for b in filtered_bets if b.get('tier') == 'C')
+    
+    logger.info(f"Tier evaluation: {len(filtered_bets)} passed (A: {a_tier_count}, B: {b_tier_count})")
+    
+    # Show market-specific C-tier thresholds
+    prop_c_threshold = MARKET_TIER_THRESHOLDS["player_prop"]["C"]
+    sides_c_threshold = MARKET_TIER_THRESHOLDS["team_sides"]["C"]
+    totals_c_threshold = MARKET_TIER_THRESHOLDS["totals"]["C"]
+    
+    if c_tier_count > 0:
+        # Fix #2: Show variable stake caps (8-12% depending on sample size)
+        c_tier_bet_caps = [b.get('stake_cap_pct', 0.12) for b in filtered_bets if b.get('tier') == 'C']
+        if c_tier_bet_caps:
+            unique_caps = sorted(set(c_tier_bet_caps))
+            if len(unique_caps) == 1:
+                cap_display = f"stake capped at {int(unique_caps[0]*100)}%"
+            else:
+                cap_display = f"stake capped at {', '.join([f'{int(c*100)}%' for c in unique_caps])}"
+        else:
+            cap_display = "stake capped at 12%"
+        print(f"    - C-Tier (Player Props >= {prop_c_threshold}, Sides >= {sides_c_threshold}, Totals >= {totals_c_threshold}, max 1): {c_tier_count} bet ({cap_display})")
+    elif len(c_tier_bets) > 0:
+        print(f"    - C-Tier candidates: {len(c_tier_bets)}, C-Tier allowed: 0 (already have A/B-tier bets or max 1 limit)")
+    elif len(c_tier_bets) == 0 and len(ev_filtered_bets) > 0:
+        # Check if there were any bets in the C-Tier range that failed (market-specific)
+        c_tier_candidates = []
+        for b in ev_filtered_bets:
+            market_type = get_market_type(b)
+            thresholds = get_tier_thresholds(market_type)
+            effective_conf = calculate_effective_confidence(b)
+            if B_TIER_CONFIDENCE > effective_conf >= thresholds["C"]:
+                c_tier_candidates.append(b)
+        if c_tier_candidates:
+            print(f"    - C-Tier candidates: {len(c_tier_candidates)}, C-Tier allowed: 0 (effective confidence below market-specific threshold after penalties)")
+    
+    if len(all_bets) > 0 and len(filtered_bets) == 0:
+        # No bets passed - show detailed breakdown
+        print(f"\n  [WARNING] All {len(all_bets)} bets were filtered out. Breakdown:")
+        
+        # Check each filter stage
+        ev_passed = len(ev_filtered_bets)
+        conf_passed = len(high_confidence_bets)
+        
+        print(f"    - EV/Probability filter: {ev_passed}/{len(all_bets)} passed")
+        print(f"    - Confidence Tier Evaluation (Market-Specific):")
+        print(f"        A-Tier (>= {A_TIER_CONFIDENCE}): {len(a_tier_bets)}")
+        print(f"        B-Tier (>= {B_TIER_CONFIDENCE}): {len(b_tier_bets)}")
+        print(f"        C-Tier (Props >= {prop_c_threshold}, Sides >= {sides_c_threshold}, Totals >= {totals_c_threshold}, max 1): {len(c_tier_bets)}")
+        print(f"    - Correlation/Game limit: {len(filtered_bets)}/{conf_passed} passed")
+        
+        # Show top bets that almost made it
+        if ev_filtered_bets:
+            print(f"\n  Top bets that failed confidence tier thresholds:")
+            # Filter to bets that didn't make it into high_confidence_bets
+            failed_bets = [b for b in ev_filtered_bets if b not in high_confidence_bets]
+            for bet in sorted(failed_bets, key=lambda x: x.get('effective_confidence', x.get('confidence', 0)), reverse=True)[:5]:
+                bet_type = bet.get('type', 'unknown')
+                if bet_type == 'player_prop':
+                    bet_desc = f"{bet.get('player', 'Unknown')} - {bet.get('stat', 'points').title()} {bet.get('prediction', 'OVER')} {bet.get('line', 0)}"
+                else:
+                    bet_desc = f"{bet.get('market', 'Unknown')} - {bet.get('result', '')}"
+                prob = bet.get('final_prob', bet.get('historical_probability', 0))
+                edge = bet.get('edge', 0)
+                raw_conf = float(bet.get('confidence', 0))
+                effective_conf = bet.get('effective_confidence', raw_conf)
+                market_type = bet.get('market_type', 'team_sides')
+                thresholds = get_tier_thresholds(market_type)
+                c_threshold = thresholds["C"]
+                # Check if it's a watchlist near-miss (use effective confidence)
+                note = ""
+                if (c_threshold - 3.0) <= effective_conf < c_threshold and prob >= 0.55 and edge >= 4.0:
+                    note = f" (C-Tier near-miss, effective conf {effective_conf:.1f} below {c_threshold} threshold for {market_type}, see WATCHLIST)"
+                elif (c_threshold - 3.0) <= effective_conf < 50.0 and prob >= 0.55 and edge >= 4.0:
+                    note = " (see WATCHLIST)"
+                # Show both raw and effective confidence
+                print(f"    - {bet_desc}: Raw Conf {raw_conf:.0f} (Effective: {effective_conf:.1f}, need >= {c_threshold} for C-Tier {market_type}){note}, Prob {prob:.1%}, Edge {edge:+.1f}%")
 
-    if len(filtered_bets) < len(ev_filtered_bets):
+    if len(filtered_bets) < len(ev_filtered_bets) and len(filtered_bets) > 0:
         total_available = len(ev_filtered_bets)
-        logger.info(f"  {len(filtered_bets)}/{total_available} bets passed all criteria")
+        print(f"  {len(filtered_bets)}/{total_available} bets passed all criteria")
 
-        # Show bets that passed EV but failed confidence
+        # Show bets that passed EV but failed confidence tiers
         if total_available > len(filtered_bets):
-            low_confidence = [bet for bet in ev_filtered_bets if bet.get('confidence', 0) < MIN_CONFIDENCE]
+            # Market-specific low confidence filtering
+            # Ensure effective_confidence is calculated for all bets first
+            # get_market_type is imported at the function level (line 2120)
+            from scrapers.bet_validation import get_market_type, calculate_effective_confidence
+            for bet in ev_filtered_bets:
+                if 'effective_confidence' not in bet:
+                    bet['effective_confidence'] = calculate_effective_confidence(bet)
+                    bet['market_type'] = get_market_type(bet)
+            
+            low_confidence = []
+            for bet in ev_filtered_bets:
+                market_type = bet.get('market_type', 'team_sides')
+                thresholds = get_tier_thresholds(market_type)
+                effective_conf = bet.get('effective_confidence', calculate_effective_confidence(bet))
+                if effective_conf < thresholds["C"]:
+                    low_confidence.append(bet)
+                    # Track team bet rejections from tier filtering
+                    if bet.get('type') == 'team_bet':
+                        team_bet_rejections.append({
+                            'bet': bet,
+                            'reason': f'Confidence below C-tier threshold ({effective_conf:.1f} < {thresholds["C"]} for {market_type})',
+                            'market': bet.get('market', 'Unknown'),
+                            'result': bet.get('result', ''),
+                            'confidence': effective_conf,
+                            'edge': bet.get('edge', 0),
+                            'probability': bet.get('final_prob', bet.get('historical_probability', 0))
+                        })
             if low_confidence:
-                logger.info(f"  {len(low_confidence)} bets filtered by confidence (< {MIN_CONFIDENCE}):")
+                print(f"  {len(low_confidence)} bets filtered by confidence tier (below market-specific C-tier threshold):")
                 for bet in sorted(low_confidence, key=lambda x: x.get('confidence', 0), reverse=True)[:5]:
                     bet_type = bet.get('type', 'unknown')
                     if bet_type == 'player_prop':
                         bet_desc = f"{bet.get('player', 'Unknown')} - {bet.get('stat', 'points').title()} {bet.get('prediction', 'OVER')} {bet.get('line', 0)}"
                     else:
                         bet_desc = f"{bet.get('market', 'Unknown')} - {bet.get('result', '')}"
-                    logger.info(f"    - {bet_desc}: Conf {bet.get('confidence', 0):.0f}, EV {bet.get('edge', 0):.1f}%")
+                    print(f"    - {bet_desc}: Conf {bet.get('confidence', 0):.0f}, EV {bet.get('edge', 0):.1f}%")
         
-        # Show bets filtered by game limit
-        if confidence_filtered_out:
-            logger.info(f"  {len(confidence_filtered_out)} bets filtered by game limit (max 2 per game):")
-            for filtered in confidence_filtered_out[:5]:
-                logger.info(f"    - {filtered['desc']}: {filtered['reason']}")
+        # Show correlation warnings (bets that were de-tiered)
+        if correlation_warnings:
+            print(f"\n  [CORRELATION] {len(correlation_warnings)} bet(s) de-tiered due to correlation:")
+            for warning in correlation_warnings[:5]:
+                correlated_list = ', '.join(warning['correlated_with'][:3])  # Show first 3
+                if len(warning['correlated_with']) > 3:
+                    correlated_list += f" (+{len(warning['correlated_with']) - 3} more)"
+                print(f"    - {warning['desc']} (Tier: {warning['tier']}): {warning['reason']}")
+                print(f"      Correlated with: {correlated_list}")
+    
+    # VALIDATION: Final health snapshot before returning
+    if filtered_bets:
+        final_health = health_snapshot_from_dicts(filtered_bets)
+        if final_health.get('validation_failures', 0) > 0 or final_health.get('ev_inconsistencies', 0) > 0:
+            logger.warning(f"[VALIDATION] Final bet list has {final_health.get('validation_failures', 0)} validation failures, "
+                          f"{final_health.get('ev_inconsistencies', 0)} EV inconsistencies")
+        elif final_health.get('count', 0) > 0:
+            logger.debug(f"[VALIDATION] Final bet list: {final_health['valid_count']}/{final_health['count']} valid, "
+                        f"mean EV: {final_health.get('mean_ev', 'N/A')}, mean conf: {final_health.get('mean_confidence', 'N/A')}")
+    
+    # Store team bet rejections for caller access
+    if hasattr(rank_all_bets, '_team_bet_rejections'):
+        rank_all_bets._team_bet_rejections.extend(team_bet_rejections)
     
     return filtered_bets
 
@@ -1779,19 +2756,16 @@ def print_unified_report(final_bets: List[Dict]):
     if not final_bets:
         print("\n" + "="*70)
         print("  NO HIGH-CONFIDENCE BETS FOUND")
-        print("="*70)
-        print("\nNo bets met the minimum confidence threshold (50/100).")
-        print("Consider analyzing more games or waiting for better opportunities.")
+        logger.debug("="*70)
+        logger.warning("No bets met the minimum confidence threshold (50/100)")
         return
 
-    print("\n" + "="*70)
-    print(f"  TOP {len(final_bets)} HIGH-CONFIDENCE BETS (Quality over Quantity)")
-    print("="*70)
+    logger.info(f"Found {len(final_bets)} high-confidence bets")
 
     team_count = sum(1 for b in final_bets if b and isinstance(b, dict) and b.get('type') == 'team_bet')
     prop_count = sum(1 for b in final_bets if b and isinstance(b, dict) and b.get('type') == 'player_prop')
 
-    print(f"\nTotal: {len(final_bets)} bets ({team_count} team, {prop_count} player)")
+    logger.info(f"Breakdown: {team_count} team bets, {prop_count} player props")
     # Determine actual confidence threshold used
     if final_bets:
         confidences = [bet.get('confidence', 0) for bet in final_bets if bet and isinstance(bet, dict)]
@@ -1894,11 +2868,20 @@ def print_unified_report(final_bets: List[Dict]):
                 final_prob = bet.get('final_prob', bet.get('historical_probability', 0))
                 original_hist_prob = bet.get('historical_prob', bet.get('original_historical_probability', final_prob))
                 
+                # P1: Show projection source in final display
+                projection_source = bet.get('projection_source', 'unknown')
+                source_display = {
+                    'model': 'Model',
+                    'blended': 'Blended (Model+Market)',
+                    'fallback': 'Fallback (Historical)',
+                    'insight-derived': 'Insight-Derived'
+                }.get(projection_source, projection_source.title())
+                
                 # Show projected stat value (e.g., "26.5 points") not EV
                 if projected_stat > 0:
-                    print(f"   Projected: {projected_stat:.1f} | Prob: {final_prob:.1%} (Proj: {projected_prob:.1%}, Hist: {original_hist_prob:.1%})")
+                    print(f"   Projected: {projected_stat:.1f} | Prob: {final_prob:.1%} (Proj: {projected_prob:.1%}, Hist: {original_hist_prob:.1%}) | Source: {source_display}")
                 else:
-                    print(f"   Projected EV: ${projected_ev:.2f}/100 | Prob: {final_prob:.1%} (Proj: {projected_prob:.1%}, Hist: {original_hist_prob:.1%})")
+                    print(f"   Projected EV: ${projected_ev:.2f}/100 | Prob: {final_prob:.1%} (Proj: {projected_prob:.1%}, Hist: {original_hist_prob:.1%}) | Source: {source_display}")
                 
                 if proj.get('minutes_projected') is not None:
                     pace_mult = proj.get('pace_multiplier', 1.0)
@@ -1924,7 +2907,7 @@ def print_unified_report(final_bets: List[Dict]):
             logger.warning(f"  Error displaying bet {i}: {e}")
             continue
 
-    print("="*70)
+    logger.debug("="*70)
 
 
 def save_results(final_bets: List[Dict], games_data: List[Dict]):
@@ -1970,13 +2953,13 @@ def main():
         print("\n" + "="*70)
         print("  UNIFIED ANALYSIS PIPELINE")
         print("  QUALITY OVER QUANTITY - ALL High-Confidence Bets")
-        print("="*70)
+        logger.debug("="*70)
         print("\nPipeline Flow:")
         print("  1. [SPORTSBET SCRAPER] Scrapes games, markets, insights, and player props")
-        print("  2. [DATABALLR SCRAPER] Fetches player game logs (robust, with retries)")
-        print("  3. [INSIGHT ANALYZER] Analyzes team bets using Context-Aware Value Engine")
-        print("  4. [MODEL PROJECTIONS] Calculates player prop projections with matchup adjustments")
-        print("  5. [DISPLAY] Filters to high-confidence bets and returns ALL qualifying bets (max 2 per game)")
+        print("  2. [DATA SOURCES] Player data priority: StatsMuse (0.85 conf) → DataballR (0.90 conf) → Inference (0.60 conf)")
+        print("  3. [INSIGHT ANALYZER] Analyzes team bets using Context-Aware Value Engine with decay penalties")
+        print("  4. [MODEL PROJECTIONS] Calculates player prop projections with role modifiers, PVI, and matchup adjustments")
+        print("  5. [FILTER & DISPLAY] Market-specific tiers, correlation de-tiering, consistency validation, CLV tracking")
         print()
     except Exception as e:
         logger.error(f"Failed to initialize: {e}")
@@ -2009,40 +2992,36 @@ def main():
                 max_games = 999
 
     if max_games >= 999:
-        print(f"\nAnalyzing ALL available games to find high-confidence bets...")
+        logger.info("Analyzing ALL available games to find high-confidence bets...")
     else:
-        print(f"\nAnalyzing {max_games} game(s)...")
+        logger.info(f"Starting analysis of {max_games} game(s)...")
 
     # Step 1: Scrape Sportsbet data
-    print("\n" + "-"*70)
-    print("STEP 1: [SPORTSBET SCRAPER] Scraping games, markets, insights, and player props")
-    print("-"*70)
+    logger.info("Step 1: Scraping games, markets, insights, and player props")
 
     try:
         games_data = scrape_games(max_games, headless=True)
     except Exception as e:
-        print(f"\n[ERROR] Failed to scrape games: {e}")
-        logger.error(f"Scraping error: {e}")
+        logger.error(f"Failed to scrape games: {e}")
         import traceback
         logger.debug(traceback.format_exc())
         return
 
     if not games_data:
-        print("\n[ERROR] No games data retrieved. Exiting.")
+        logger.error("No games data retrieved. Exiting.")
         return
 
-    print(f"\n[OK] Successfully scraped {len(games_data)} game(s)")
+    logger.info(f"Successfully scraped {len(games_data)} game(s)")
+    
+    # Generate post-scraping health snapshot (if bets exist)
+    if 'all_bets' in locals() and all_bets:
+        post_health = health_snapshot_from_dicts(all_bets)
+        if post_health.get('validation_failures', 0) > 0:
+            logger.debug(f"Validation: {post_health['valid_count']}/{post_health['count']} valid bets, "
+                       f"{post_health.get('ev_inconsistencies', 0)} EV inconsistencies")
 
     # Step 2: Analyze each game (DataballR -> Insights -> Model)
-    print("\n" + "-"*70)
-    print("STEP 2: [DATABALLR -> INSIGHTS -> MODEL] Analyzing bets")
-    print("-"*70)
-    if DATABALLR_ROBUST_AVAILABLE:
-        print("  * DataballR: Fetching player game logs ([OK] ROBUST scraper with retries & schema mapping)")
-    else:
-        print("  * DataballR: Fetching player game logs ([WARNING] Original scraper - robust version not available)")
-    print("  * Insights: Analyzing team bets with Context-Aware Value Engine")
-    print("  * Model: Calculating player prop projections with matchup adjustments")
+    logger.info("Step 2: Analyzing bets (DataballR -> Insights -> Model)")
 
     all_team_bets = []
     all_player_props = []
@@ -2057,12 +3036,16 @@ def main():
             game_name = f"{away_team} @ {home_team}"
             print(f"\n[{i}/{len(games_data)}] {game_name}")
 
-            # Analyze team bets
+            # Analyze team bets (returns both team bets AND player props from insights)
             print(f"  Analyzing team insights...")
             try:
-                team_bets = analyze_team_bets(game_data, headless=headless)
-                print(f"  Team bets: {len(team_bets)} value bets found")
-                all_team_bets.extend(team_bets)
+                team_bets_result = analyze_team_bets(game_data, headless=headless)
+                # Separate team bets from player props in the result for tracking
+                team_bets_only = [b for b in team_bets_result if b.get('_bet_type') != 'player_prop']
+                player_props_from_insights_count = len([b for b in team_bets_result if b.get('_bet_type') == 'player_prop'])
+                print(f"  Team bets: {len(team_bets_only)} value bets found")
+                # Keep all bets together (they'll be separated later in rank_all_bets)
+                all_team_bets.extend(team_bets_result)
             except Exception as e:
                 logger.error(f"  Error analyzing team bets: {e}")
                 import traceback
@@ -2075,21 +3058,189 @@ def main():
                 market_players = game_data.get('market_players', []) or []
                 all_markets = game_data.get('team_markets', []) or []
                 
-                if player_props_list:
-                    print(f"  Found {len(player_props_list)} player prop markets to analyze")
+                # Count player props from insights (they're extracted from insights, not markets)
+                # Check both match_insights and team_insights (different data structures)
+                match_insights = game_data.get('match_insights', []) or []
+                team_insights_raw = game_data.get('team_insights', []) or []
+                all_insights_to_check = match_insights + team_insights_raw
+                
+                player_prop_insights_count = 0
+                player_prop_stats_count = {
+                    'points': 0,
+                    'assists': 0,
+                    'rebounds': 0
+                }
+                for insight in all_insights_to_check:
+                    try:
+                        # Handle both dict and object formats using helper
+                        insight_dict = {
+                            'fact': _safe_insight_get(insight, 'fact', ''),
+                            'market': _safe_insight_get(insight, 'market', ''),
+                            'result': _safe_insight_get(insight, 'result', '')
+                        }
+                        if _is_player_prop_insight(insight_dict):
+                            player_prop_insights_count += 1
+                            # Count by stat type
+                            prop_info = _extract_prop_info_from_insight(insight_dict)
+                            if prop_info:
+                                stat_type = prop_info.get('stat', 'points')
+                                if stat_type == 'points':
+                                    player_prop_stats_count['points'] += 1
+                                elif stat_type == 'assists':
+                                    player_prop_stats_count['assists'] += 1
+                                elif stat_type == 'rebounds':
+                                    player_prop_stats_count['rebounds'] += 1
+                    except Exception as e:
+                        continue  # Skip invalid insights
+                
+                # Market breakdown logging
+                if all_markets:
+                    market_counts = {
+                        'sides': 0,
+                        'totals': 0,
+                        'player_points': 0,
+                        'player_assists': 0,
+                        'player_rebounds': 0,
+                        'other': 0
+                    }
+                    
+                    for market in all_markets:
+                        # Handle both dict and dataclass objects
+                        if isinstance(market, dict):
+                            market_category = str(market.get('market_category', market.get('market_type', 'unknown'))).lower()
+                            market_text = str(market.get('selection_text', '')).lower()
+                        else:
+                            market_category = str(getattr(market, 'market_category', getattr(market, 'market_type', 'unknown'))).lower()
+                            market_text = str(getattr(market, 'selection_text', '')).lower()
+                        
+                        # Count market types by category first, then by text if needed
+                        if market_category == 'prop' or 'player' in market_category or 'prop' in market_category:
+                            # Player prop - check text for specific stat
+                            if 'assist' in market_text:
+                                market_counts['player_assists'] += 1
+                            elif 'rebound' in market_text:
+                                market_counts['player_rebounds'] += 1
+                            elif 'points' in market_text:
+                                market_counts['player_points'] += 1
+                            else:
+                                market_counts['other'] += 1  # Unknown prop type
+                        elif market_category == 'total' or 'over' in market_category or 'under' in market_category:
+                            market_counts['totals'] += 1
+                        elif market_category in ['moneyline', 'match']:
+                            market_counts['sides'] += 1
+                        elif market_category == 'handicap' or 'spread' in market_category:
+                            market_counts['sides'] += 1
+                        elif 'points' in market_text and ('player' in market_text or 'player' in market_category):
+                            # Fallback: check text for player props
+                            if 'assist' in market_text:
+                                market_counts['player_assists'] += 1
+                            elif 'rebound' in market_text:
+                                market_counts['player_rebounds'] += 1
+                            else:
+                                market_counts['player_points'] += 1
+                        else:
+                            market_counts['other'] += 1
+                    
+                    # Print market breakdown
+                    breakdown_parts = []
+                    if market_counts['sides'] > 0:
+                        breakdown_parts.append(f"Sides: {market_counts['sides']}")
+                    if market_counts['totals'] > 0:
+                        breakdown_parts.append(f"Totals: {market_counts['totals']}")
+                    if market_counts['player_points'] > 0:
+                        breakdown_parts.append(f"Player Points: {market_counts['player_points']}")
+                    if market_counts['player_assists'] > 0:
+                        breakdown_parts.append(f"Player Assists: {market_counts['player_assists']}")
+                    if market_counts['player_rebounds'] > 0:
+                        breakdown_parts.append(f"Player Rebounds: {market_counts['player_rebounds']}")
+                    if market_counts['other'] > 0:
+                        breakdown_parts.append(f"Other: {market_counts['other']}")
+                    
+                    if breakdown_parts:
+                        print(f"  Markets found: {', '.join(breakdown_parts)}")
+                
+                # Add player props from insights to breakdown
+                if player_prop_insights_count > 0:
+                    insight_prop_parts = []
+                    if player_prop_stats_count['points'] > 0:
+                        insight_prop_parts.append(f"Player Points (insights): {player_prop_stats_count['points']}")
+                    if player_prop_stats_count['assists'] > 0:
+                        insight_prop_parts.append(f"Player Assists (insights): {player_prop_stats_count['assists']}")
+                    if player_prop_stats_count['rebounds'] > 0:
+                        insight_prop_parts.append(f"Player Rebounds (insights): {player_prop_stats_count['rebounds']}")
+                    if insight_prop_parts:
+                        print(f"  Player props from insights: {', '.join(insight_prop_parts)}")
+                
+                # Show player props count (from both markets and insights)
+                total_player_props = len(player_props_list) + player_prop_insights_count
+                if total_player_props > 0:
+                    prop_source_parts = []
+                    if len(player_props_list) > 0:
+                        prop_source_parts.append(f"{len(player_props_list)} from markets")
+                    if player_prop_insights_count > 0:
+                        prop_source_parts.append(f"{player_prop_insights_count} from insights")
+                    print(f"  Found {total_player_props} total player prop(s) ({', '.join(prop_source_parts)})")
                     if market_players:
                         print(f"  Players in markets: {', '.join(market_players[:5])}" + ("..." if len(market_players) > 5 else ""))
                 else:
                     # Debug: Check why no player props were extracted
                     prop_markets = [m for m in all_markets if 'player' in str(getattr(m, 'market_category', '')).lower() or any(stat in str(getattr(m, 'selection_text', '')).lower() for stat in ['points', 'rebounds', 'assists'])]
                     if prop_markets:
-                        print(f"  WARNING: {len(prop_markets)} potential player prop markets found but not extracted (check extraction logic)")
+                        print(f"  WARNING: {len(prop_markets)} potential player prop markets found in markets but not extracted (check extraction logic)")
                         logger.debug(f"  Sample market texts: {[getattr(m, 'selection_text', '')[:50] for m in prop_markets[:3]]}")
                     else:
-                        print(f"  WARNING: No player prop markets found in this game (total markets: {len(all_markets)})")
+                        print(f"  WARNING: No player prop markets matched supported schemas (total markets: {len(all_markets)}, insights: {len(all_insights_to_check)})")
                 
                 player_props, missing_players = analyze_player_props(game_data, headless=headless)
-                print(f"  Player props: {len(player_props)} predictions found (projection model)")
+                
+                # P1: Extract projection source counts for accurate logging
+                source_counts = {'model': 0, 'blended': 0, 'fallback': 0, 'insight-derived': 0}
+                if player_props:
+                    source_counts = player_props[0].get('_projection_source_counts', source_counts)
+                    # Remove temporary field
+                    if '_projection_source_counts' in player_props[0]:
+                        del player_props[0]['_projection_source_counts']
+                
+                # Count sources from all bets (including insight-derived from analyze_player_prop_insights)
+                total_all_sources = sum(source_counts.values())
+                if total_all_sources == 0:
+                    # Fallback: count from projection_source field in bets
+                    for prop in player_props:
+                        source = prop.get('projection_source', 'unknown')
+                        if source in source_counts:
+                            source_counts[source] += 1
+                
+                # P1: Update logging to show accurate counts
+                model_count = source_counts.get('model', 0)
+                blended_count = source_counts.get('blended', 0)
+                fallback_count = source_counts.get('fallback', 0)
+                insight_count = source_counts.get('insight-derived', 0)
+                
+                # Fix #2: Count player props from all sources (analyze_player_props + insights)
+                total_player_props_from_markets = len(player_props)
+                # Use player_prop_insights_count (already calculated above from insights)
+                total_player_props_from_insights = player_prop_insights_count  # Count of insights that are player props
+                total_all_player_props = total_player_props_from_markets + total_player_props_from_insights
+                
+                if total_all_player_props > 0:
+                    parts = []
+                    if model_count > 0:
+                        parts.append(f"{model_count} model")
+                    if blended_count > 0:
+                        parts.append(f"{blended_count} blended")
+                    if fallback_count > 0:
+                        parts.append(f"{fallback_count} fallback")
+                    if insight_count > 0 or total_player_props_from_insights > 0:
+                        insight_total = insight_count + total_player_props_from_insights
+                        if insight_total > 0:
+                            parts.append(f"{insight_total} insight-derived")
+                    
+                    if parts:
+                        print(f"  Player props: {total_all_player_props} predictions found ({', '.join(parts)})")
+                    else:
+                        print(f"  Player props: {total_all_player_props} predictions found")
+                else:
+                    print(f"  Player props: 0 predictions found")
                 
                 if missing_players:
                     print(f"  WARNING: {len(missing_players)} players missing from cache")
@@ -2112,12 +3263,35 @@ def main():
     print("-"*70)
     print("\nFilter Criteria:")
     print("  * EV Thresholds: Props >= +3%, Sides/Totals >= +2%")
-    print("  * Confidence: 50+/100 (lowered if needed)")
-    print("  * Max per game: 2 bets (correlation control)")
-    print("  * Trend-only bets: -20 confidence penalty")
+    print("  * Confidence Tiers (Market-Specific):")
+    print("    - Player Props: A >= 65, B >= 50, C >= 35")
+    print("    - Team Sides: A >= 65, B >= 50, C >= 40")
+    print("    - Totals: A >= 65, B >= 50, C >= 45")
+    print("  * Soft Floor: Market weights applied (Player Props: 0.92x, Totals: 1.05x)")
+    print("  * Correlation: De-tier correlated bets (A→B, B→C, C→WATCHLIST) instead of blocking")
+    print("  * Consistency: Downgrade tier if rationale contradicts data")
+    print("  * Watchlist: Near-miss bets (Conf 35-49, Prob >= 55%, Edge >= +4%) logged for review")
 
     try:
         final_bets = rank_all_bets(all_team_bets, all_player_props)
+
+        # P4: Apply B-tier promotion if no A-tier bets exist
+        a_tier_count = sum(1 for b in final_bets if b and isinstance(b, dict) and b.get('tier') == 'A')
+        if a_tier_count == 0:
+            final_bets = promote_best_b_tier(final_bets, min_confidence=48, min_probability=0.55, min_edge=4.0)
+        
+        # Log team bet rejections summary if available
+        if hasattr(rank_all_bets, '_team_bet_rejections') and rank_all_bets._team_bet_rejections:
+            total_team_bets_found = len(all_team_bets)
+            final_team_bets = sum(1 for b in final_bets if b and isinstance(b, dict) and b.get('type') == 'team_bet')
+            rejections = rank_all_bets._team_bet_rejections
+            
+            reason_summary = {}
+            for r in rejections:
+                reason = r['reason']
+                reason_summary[reason] = reason_summary.get(reason, 0) + 1
+            
+            logger.info(f"Team bets summary: {final_team_bets} selected from {total_team_bets_found} found")
     except Exception as e:
         logger.error(f"Error ranking bets: {e}")
         import traceback
@@ -2149,12 +3323,47 @@ def main():
         print("\n[INFO] No bets met the quality thresholds")
         print("  Possible reasons:")
         print("  - All bets below minimum EV (Props < 3%, Sides < 2%)")
-        print("  - All bets below confidence threshold (50+)")
+        print("  - All bets below required confidence tiers")
         print("  - Insufficient data quality")
 
     # Step 4: Display results using new BettingRecommendation display system
     try:
         if final_bets:
+            # VALIDATION: Validate all bets before display (strict=False to filter invalid ones)
+            # Fix promotion validation: preserve promoted_from for validation
+            from scrapers.bet_validation import validate_bet_list, BetEvaluation
+            for bet in final_bets:
+                if bet.get('promoted_from') and bet.get('tier') == 'A':
+                    # Ensure promoted_from is preserved for validation
+                    pass  # Already in dict, will be handled by validate_bet_dict
+            
+            validated_final_bets = validate_bet_list(final_bets, strict=False)
+            
+            if len(validated_final_bets) < len(final_bets):
+                logger.warning(f"[VALIDATION] Filtered {len(final_bets) - len(validated_final_bets)} invalid bet(s) before display")
+                final_bets = validated_final_bets
+            
+            # CLV TRACKING: Record bets at creation time
+            try:
+                from scrapers.clv_tracker import get_clv_tracker
+                from config.settings import Config
+                
+                if Config.ENABLE_CLV_TRACKING:
+                    clv_tracker = get_clv_tracker()
+                    for bet in final_bets:
+                        try:
+                            bet_id = clv_tracker.record_bet(
+                                bet=bet,
+                                opening_line=bet.get('line') or bet.get('market_line'),
+                                opening_odds=bet.get('odds')
+                            )
+                            # Store bet_id for later updates
+                            bet['bet_id'] = bet_id
+                        except Exception as e:
+                            logger.debug(f"[CLV] Failed to record bet: {e}")
+            except Exception as e:
+                logger.debug(f"[CLV] CLV tracking not available: {e}")
+            
             # Convert dictionaries to BettingRecommendation objects
             recommendations = []
             for bet in final_bets:
@@ -2211,15 +3420,13 @@ def main():
         import traceback
         logger.debug(traceback.format_exc())
 
-    print("\n" + "="*70)
-    print("  ANALYSIS COMPLETE")
-    print("="*70)
+    logger.info("Analysis complete")
     
     # Show missing players summary if any
     if all_missing_players:
         print("\n" + "="*70)
         print("  WARNING: MISSING PLAYER DATA - ACTION REQUIRED")
-        print("="*70)
+        logger.debug("="*70)
         print(f"\n{len(all_missing_players)} player(s) need to be added to cache:")
         print()
         
@@ -2238,23 +3445,14 @@ def main():
         except Exception as e:
             logger.error(f"Could not create PLAYERS_TO_ADD.txt: {e}")
         
-        print()
-        print("TO FIX:")
-        print("  1. Run: python build_databallr_player_cache.py")
-        print("     (This will add the players listed in PLAYERS_TO_ADD.txt)")
-        print("  2. Re-run this analysis to include these props")
-        print()
-        print(f"This will unlock {len(all_missing_players)} additional player prop opportunities!")
-        print("="*70)
-    
-    print()
+        logger.info("To fix: Run build_databallr_player_cache.py to add missing players")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\nInterrupted by user\n")
+        logger.warning("Interrupted by user")
     except Exception as e:
         # Log to file AND display
         error_log = Path(__file__).parent.parent / "error_log.txt"
@@ -2266,11 +3464,7 @@ if __name__ == "__main__":
         except:
             pass  # If logging fails, still show error
         
-        print("\n" + "="*70)
-        print("  ERROR - Script Failed")
-        print("="*70)
-        print(f"\n{e}\n")
-        print("\nFull traceback:")
+        logger.error(f"Script failed: {e}")
         traceback.print_exc()
         print(f"\nError also saved to: {error_log}")
         print("\nPress Enter to close...")

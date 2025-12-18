@@ -36,7 +36,7 @@ import statistics
 
 # Import game log entry type
 try:
-    from scrapers.nba_stats_api_scraper import GameLogEntry
+    from scrapers.data_models import GameLogEntry
 except ImportError:
     # Fallback if import fails
     GameLogEntry = None

@@ -1,13 +1,16 @@
 """
 NBA Trend Calculator
 ====================
-Calculates trends from actual NBA.com game log data instead of relying on Sportsbet insights.
+Calculates trends from game log data (StatsMuse/DataballR sources) instead of relying on Sportsbet insights.
 
 This module:
 1. Parses Sportsbet insights to determine what trend to calculate
-2. Fetches actual game logs from NBA.com
+2. Fetches actual game logs from StatsMuse/DataballR sources
 3. Calculates the trend from real data
 4. Returns outcomes in the format expected by the value engine
+
+Note: Team game logs and H2H matchups are not available from current data sources
+and will return empty results.
 
 Usage:
   from nba_trend_calculator import calculate_trend_from_insight
@@ -21,10 +24,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import re
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
-from scrapers.nba_stats_api_scraper import (
-    get_player_game_log, get_team_game_log, get_h2h_matchups,
-    calculate_trend_from_game_log
-)
+from scrapers.player_data_fetcher import get_player_game_log
+from scrapers.data_models import GameLogEntry
+# Note: get_team_game_log and get_h2h_matchups are disabled (return empty lists)
+# These functions are not available from StatMuse/DataballR sources
+# Code should handle empty results gracefully
+from scrapers.nba_stats_api_scraper import get_team_game_log, get_h2h_matchups, calculate_trend_from_game_log
 import logging
 
 # Initialize player cache on import
@@ -283,8 +288,8 @@ def calculate_trend_from_insight(insight: Dict, season: str = "2024-25") -> Tupl
         return (None, 0)
 
 
-# Import get_team_id from nba_stats_api_scraper
-from scrapers.nba_stats_api_scraper import get_team_id
+# Import get_team_id from team_ids (uses StatMuse IDs)
+from scrapers.team_ids import get_team_id
 
 
 def validate_insight_against_nba_data(
@@ -295,7 +300,7 @@ def validate_insight_against_nba_data(
     max_age_days: int = 30
 ) -> Dict:
     """
-    Validate Sportsbet insight against actual NBA.com data
+    Validate Sportsbet insight against actual game log data (StatsMuse/DataballR sources)
 
     Args:
         insight: Sportsbet insight dictionary

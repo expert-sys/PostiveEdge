@@ -75,10 +75,28 @@ def convert_dict_to_recommendation(bet_dict: Dict, game_info: Optional[Dict] = N
             
             sample_size = bet_dict.get('sample_size', 0)
             
-            # Projected probability - check multiple possible field names
-            projected_prob = bet_dict.get('projected_prob', bet_dict.get('projected_probability', bet_dict.get('final_prob', 0.0)))
+            # Fix #3: Use final blended probability for display (not raw model probability)
+            # Priority: final_prob > historical_probability (from analysis) > projected_prob (raw model)
+            analysis = bet_dict.get('analysis', {})
+            final_prob = bet_dict.get('final_prob')
+            if not final_prob and analysis:
+                final_prob = analysis.get('historical_probability')
+            if not final_prob:
+                final_prob = bet_dict.get('historical_probability')
+            
+            # Fallback to projected_prob (raw model) if no final_prob available
+            projected_prob = final_prob if final_prob else bet_dict.get('projected_prob', bet_dict.get('projected_probability', 0.0))
             if isinstance(projected_prob, (int, float)) and projected_prob > 1:
                 projected_prob = projected_prob / 100.0
+            
+            # Store raw model probability separately for transparency (if available)
+            raw_model_prob = None
+            if analysis:
+                raw_model_prob = analysis.get('projected_prob') or analysis.get('calibrated_prob')
+            if not raw_model_prob:
+                raw_model_prob = bet_dict.get('projected_prob')
+            if raw_model_prob and isinstance(raw_model_prob, (int, float)) and raw_model_prob > 1:
+                raw_model_prob = raw_model_prob / 100.0
             
             # DataBallr stats
             databallr_stats = bet_dict.get('databallr_stats', {})
@@ -96,7 +114,20 @@ def convert_dict_to_recommendation(bet_dict: Dict, game_info: Optional[Dict] = N
                     advanced_context = {}
                 advanced_context['projection_details'] = bet_dict['projection_details']
             
-            return BettingRecommendation(
+            # FIX #3: Extract player role from projection_details
+            player_role = None
+            proj_details = bet_dict.get('projection_details', {})
+            if isinstance(proj_details, dict):
+                player_role = proj_details.get('player_role')
+            # Also check if it's stored directly in bet_dict
+            if not player_role:
+                player_role = bet_dict.get('player_role')
+            
+            # Fix #3: Ensure raw_model_prob is available for later use
+            if 'raw_model_prob' not in locals() or raw_model_prob is None:
+                raw_model_prob = None
+            
+            rec = BettingRecommendation(
                 game=game,
                 match_time=match_time,
                 bet_type='player_prop',
@@ -118,8 +149,19 @@ def convert_dict_to_recommendation(bet_dict: Dict, game_info: Optional[Dict] = N
                 recommendation_strength=_get_strength_from_confidence(confidence, edge_percentage),
                 databallr_stats=databallr_stats if databallr_stats else None,
                 advanced_context=advanced_context if advanced_context else None,
-                sportsbet_insight=bet_dict.get('fact', bet_dict.get('insight', None))
+                sportsbet_insight=bet_dict.get('fact', bet_dict.get('insight', None)),
+                player_role=player_role,  # FIX #3: Store role for display
+                tier=bet_dict.get('tier'),  # Store tier for display
+                stake_cap_pct=bet_dict.get('stake_cap_pct'),  # Store stake cap for display
+                fade_opposite=bet_dict.get('fade_opposite', False),  # Fade detection
+                original_fade_score=bet_dict.get('original_fade_score')  # Fade detection
             )
+            # P4: Preserve promotion fields for display
+            if bet_dict.get('promoted_from'):
+                setattr(rec, 'promoted_from', bet_dict.get('promoted_from'))
+            if bet_dict.get('promotion_reason'):
+                setattr(rec, 'promotion_reason', bet_dict.get('promotion_reason'))
+            return rec
         
         else:
             # Team bet fields
@@ -140,8 +182,15 @@ def convert_dict_to_recommendation(bet_dict: Dict, game_info: Optional[Dict] = N
             
             # Analysis data
             analysis = bet_dict.get('analysis', {})
+            # Fix #3: Store raw model probability for transparency
+            raw_model_prob = None
             if analysis:
-                projected_prob = analysis.get('projected_prob', projected_prob)
+                # Use final blended probability from analysis if available
+                final_prob_from_analysis = analysis.get('historical_probability')
+                if final_prob_from_analysis:
+                    projected_prob = final_prob_from_analysis
+                # Store raw model prob separately
+                raw_model_prob = analysis.get('projected_prob') or analysis.get('calibrated_prob')
                 historical_hit_rate = analysis.get('historical_probability', historical_hit_rate)
             
             # Advanced context
@@ -155,7 +204,14 @@ def convert_dict_to_recommendation(bet_dict: Dict, game_info: Optional[Dict] = N
                     'projection': analysis['projection_details']
                 }
             
-            return BettingRecommendation(
+            # FIX #5: Extract insight boost from analysis
+            insight_boost = None
+            if analysis:
+                insight_boost = analysis.get('insight_boost')
+            if not insight_boost:
+                insight_boost = bet_dict.get('insight_boost')
+            
+            rec = BettingRecommendation(
                 game=game,
                 match_time=match_time,
                 bet_type=f"team_{bet_dict.get('market_type', 'unknown')}",
@@ -171,8 +227,19 @@ def convert_dict_to_recommendation(bet_dict: Dict, game_info: Optional[Dict] = N
                 confidence_score=confidence,
                 recommendation_strength=_get_strength_from_confidence(confidence, edge_percentage),
                 advanced_context=advanced_context if advanced_context else None,
-                sportsbet_insight=bet_dict.get('fact', bet_dict.get('insight', None))
+                sportsbet_insight=bet_dict.get('fact', bet_dict.get('insight', None)),
+                insight_boost=insight_boost,  # FIX #5: Store insight boost for display
+                tier=bet_dict.get('tier'),  # Store tier for display
+                stake_cap_pct=bet_dict.get('stake_cap_pct'),  # Store stake cap for display
+                fade_opposite=bet_dict.get('fade_opposite', False),  # Fade detection
+                original_fade_score=bet_dict.get('original_fade_score')  # Fade detection
             )
+            # P4: Preserve promotion fields for display
+            if bet_dict.get('promoted_from'):
+                setattr(rec, 'promoted_from', bet_dict.get('promoted_from'))
+            if bet_dict.get('promotion_reason'):
+                setattr(rec, 'promotion_reason', bet_dict.get('promotion_reason'))
+            return rec
     
     except Exception as e:
         import logging

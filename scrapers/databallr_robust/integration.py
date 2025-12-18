@@ -12,9 +12,9 @@ from .databallr.players import DataballrPlayerScraper
 
 # Import GameLogEntry for compatibility
 try:
-    from scrapers.nba_stats_api_scraper import GameLogEntry
+    from scrapers.data_models import GameLogEntry
 except ImportError:
-    from nba_stats_api_scraper import GameLogEntry
+    GameLogEntry = None
 
 logger = logging.getLogger(__name__)
 

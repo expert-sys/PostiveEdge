@@ -22,8 +22,9 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 from playwright.sync_api import sync_playwright, Page
 
-logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
-logger = logging.getLogger("statmuse_player_scraper")
+# Use centralized logging
+from config.logging_config import get_logger
+logger = get_logger(__name__)
 
 # Cache directory
 CACHE_DIR = Path(__file__).parent.parent / "data" / "statmuse_cache"
@@ -153,14 +154,14 @@ def robust_page_load(page: Page, url: str, max_retries: int = 3) -> bool:
     for attempt in range(max_retries):
         for strategy_idx, strategy in enumerate(strategies):
             try:
-                logger.info(f"Loading page (attempt {attempt + 1}/{max_retries}, strategy {strategy_idx + 1})")
+                logger.debug(f"Loading page (attempt {attempt + 1}/{max_retries})")
                 page.goto(url, **strategy)
                 
                 # Wait for content to appear
                 page.wait_for_selector('table, .player-card, .stats-table', timeout=10000)
                 time.sleep(1)
                 
-                logger.info(f"Successfully loaded page")
+                logger.debug(f"Page loaded")
                 return True
                 
             except Exception as e:
@@ -207,7 +208,7 @@ def scrape_player_profile(
         f"https://www.statmuse.com/nba/player/{player_slug}"
     ]
     
-    logger.info(f"Scraping profile for {player_name} ({season})")
+    logger.debug(f"Scraping profile: {player_name} ({season})")
     
     try:
         with sync_playwright() as p:
@@ -224,7 +225,7 @@ def scrape_player_profile(
             # Try each URL until one works
             loaded = False
             for url in urls_to_try:
-                logger.info(f"Trying URL: {url}")
+                logger.debug(f"URL: {url}")
                 if robust_page_load(page, url, max_retries=2):
                     loaded = True
                     break
@@ -384,7 +385,7 @@ def scrape_player_profile(
                 logger.warning(f"No stats found for {player_name}")
                 return None
             
-            logger.info(f"Successfully scraped: {profile.games_played} GP, {profile.points} PPG")
+            logger.debug(f"Scraped profile: {profile.games_played} GP, {profile.points} PPG")
             return profile
             
     except Exception as e:
@@ -418,8 +419,7 @@ def scrape_player_splits(
     player_slug = _player_name_to_slug(player_name)
     url = f"https://www.statmuse.com/nba/ask/{player_slug}-splits-{season}"
     
-    logger.info(f"Scraping splits for {player_name} ({season})")
-    logger.info(f"URL: {url}")
+    logger.debug(f"Scraping splits: {player_name} ({season})")
     
     splits = []
     
@@ -451,7 +451,7 @@ def scrape_player_splits(
             
             # Find all tables
             tables = soup.find_all('table')
-            logger.info(f"Found {len(tables)} tables")
+            logger.debug(f"Found {len(tables)} tables")
             
             for table in tables:
                 headers = []
@@ -522,7 +522,7 @@ def scrape_player_splits(
                         
                         splits.append(split)
             
-            logger.info(f"Successfully scraped {len(splits)} splits")
+            logger.debug(f"Scraped {len(splits)} splits")
             return splits
             
     except Exception as e:
@@ -548,10 +548,12 @@ def scrape_player_game_log(
         List of PlayerGameLog objects (most recent first)
     """
     player_slug = _player_name_to_slug(player_name)
-    url = f"https://www.statmuse.com/nba/ask/{player_slug}-game-log-{season}"
+    # NOTE: StatMuse game-log URLs should NOT include season/year - it breaks the scraper
+    # Working format: https://www.statmuse.com/nba/ask/{player_slug}-game-log
+    # Broken format: https://www.statmuse.com/nba/ask/{player_slug}-game-log-2024-25
+    url = f"https://www.statmuse.com/nba/ask/{player_slug}-game-log"
     
-    logger.info(f"Scraping game log for {player_name} ({season})")
-    logger.info(f"URL: {url}")
+    logger.debug(f"Scraping game log: {player_name}")
     
     logs = []
     
@@ -583,7 +585,7 @@ def scrape_player_game_log(
             
             # Find all tables
             tables = soup.find_all('table')
-            logger.info(f"Found {len(tables)} tables")
+            logger.debug(f"Found {len(tables)} tables")
             
             for table in tables:
                 headers = []
@@ -679,7 +681,7 @@ def scrape_player_game_log(
                         
                         logs.append(log)
             
-            logger.info(f"Successfully scraped {len(logs)} games")
+            logger.debug(f"Scraped {len(logs)} games")
             return logs
             
     except Exception as e:

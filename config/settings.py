@@ -93,6 +93,37 @@ class Config:
     USE_CACHE = os.getenv('USE_CACHE', 'true').lower() == 'true'
     """Enable caching for player stats (default: true)"""
     
+    # Cache TTLs by data type (hours)
+    CACHE_TTL_MINUTES = int(os.getenv('CACHE_TTL_MINUTES', '24'))
+    """TTL for minutes data (hours, default: 24)"""
+    
+    CACHE_TTL_INJURIES = int(os.getenv('CACHE_TTL_INJURIES', '6'))
+    """TTL for injury data (hours, default: 6)"""
+    
+    CACHE_TTL_ROLE = int(os.getenv('CACHE_TTL_ROLE', '48'))
+    """TTL for role data (hours, default: 48)"""
+    
+    # Market-specific tier thresholds
+    MARKET_TIER_THRESHOLDS = {
+        "player_prop": {"A": 65, "B": 50, "C": 35},
+        "team_sides": {"A": 65, "B": 50, "C": 40},
+        "totals": {"A": 65, "B": 50, "C": 45}
+    }
+    
+    # Market weights for soft floor
+    MARKET_WEIGHTS = {
+        "player_prop": 0.92,
+        "team_sides": 1.0,
+        "totals": 1.05
+    }
+    
+    # CLV tracking
+    ENABLE_CLV_TRACKING = os.getenv('ENABLE_CLV_TRACKING', 'true').lower() == 'true'
+    """Enable CLV tracking (default: true)"""
+    
+    CLV_DB_PATH = os.getenv('CLV_DB_PATH', 'data/clv_tracking.db')
+    """Path to CLV tracking database (default: data/clv_tracking.db)"""
+    
     # ========================================================================
     # Statistical Model Configuration
     # ========================================================================

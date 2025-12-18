@@ -34,6 +34,9 @@ from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 import statistics
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -867,6 +870,46 @@ class ContextAwareAnalyzer:
 
         return adjusted_prob
 
+    @staticmethod
+    def calculate_decay_weight(
+        days_old: int,
+        season: Optional[str] = None,
+        current_season: str = "2024-25",
+        roster_overlap: bool = True
+    ) -> float:
+        """
+        Calculate decay weight multiplier for insight age and relevance.
+        
+        Args:
+            days_old: Number of days since insight data was collected
+            season: Season of the insight data (e.g., "2023-24")
+            current_season: Current season (default: "2024-25")
+            roster_overlap: Whether current roster overlaps with insight roster
+        
+        Returns:
+            Weight multiplier (0.0-1.0), never fully removes (minimum 0.45)
+        """
+        # Age-based decay
+        if days_old <= 7:
+            weight = 1.0
+        elif days_old <= 30:
+            weight = 0.85
+        elif days_old <= 90:
+            weight = 0.65
+        else:
+            weight = 0.45  # Minimum weight (never fully remove)
+        
+        # Multi-season penalty
+        if season and season != current_season:
+            weight *= 0.75
+        
+        # Roster overlap penalty
+        if not roster_overlap:
+            weight *= 0.5
+        
+        # Ensure minimum weight (never fully remove insights)
+        return max(0.45, weight)
+
     def analyze_with_context(
         self,
         historical_outcomes: List[int],
@@ -878,7 +921,10 @@ class ContextAwareAnalyzer:
         context_factors: Optional[ContextFactors] = None,
         player_name: Optional[str] = None,
         insight_fact: Optional[str] = None,
-        market: Optional[str] = None
+        market: Optional[str] = None,
+        insight_date: Optional[str] = None,
+        insight_season: Optional[str] = None,
+        roster_overlap: bool = True
     ) -> Optional[ContextAwareAnalysis]:
         """
         Perform context-aware value analysis
@@ -1015,6 +1061,56 @@ class ContextAwareAnalyzer:
         # Apply cap
         final_confidence = min(base_confidence, max_confidence)
         final_confidence = max(0.0, min(100.0, final_confidence))
+        
+        # P2: Track base confidence AFTER initial cap but BEFORE penalties
+        base_confidence_after_initial_cap = final_confidence
+        
+        # FIX #2: Apply sample-size reliability dampening to confidence
+        from scrapers.player_projection_model import sample_reliability
+        reliability_mult = sample_reliability(sample_size)
+        final_confidence = final_confidence * reliability_mult
+        final_confidence = max(0.0, min(100.0, final_confidence))
+        
+        # Apply sample size confidence dampening (additional penalty for small samples)
+        from scrapers.bet_validation import apply_sample_size_confidence_dampener
+        confidence_before = final_confidence
+        final_confidence = apply_sample_size_confidence_dampener(final_confidence, sample_size)
+        if final_confidence != confidence_before:
+            logger.debug(f"[CONFIDENCE] Historical analysis: base={confidence_before:.1f}%, sample_size={sample_size}, dampened={final_confidence:.1f}%")
+        
+        # Apply insight decay weight (age, season, roster overlap)
+        decay_weight = 1.0
+        if insight_date:
+            try:
+                from datetime import datetime
+                insight_dt = datetime.fromisoformat(insight_date[:10]) if len(insight_date) >= 10 else None
+                if insight_dt:
+                    days_old = (datetime.now() - insight_dt).days
+                    decay_weight = self.calculate_decay_weight(
+                        days_old=days_old,
+                        season=insight_season,
+                        current_season="2024-25",
+                        roster_overlap=roster_overlap
+                    )
+                    # Apply decay to confidence (never fully remove, just reduce)
+                    final_confidence = final_confidence * decay_weight
+                    final_confidence = max(0.0, min(100.0, final_confidence))
+            except Exception as e:
+                logger.debug(f"[DECAY] Failed to calculate decay weight: {e}")
+        
+        # P2: Apply confidence stack cap after all penalties
+        from scrapers.bet_validation import apply_confidence_stack_cap
+        confidence_before_cap = final_confidence
+        final_confidence = apply_confidence_stack_cap(
+            confidence=final_confidence,
+            base_confidence=base_confidence_after_initial_cap,
+            max_total_dampening=None,  # Auto-calculate relative cap
+            probability=None,  # Not available here, edge boost will be applied later if needed
+            bookmaker_probability=None
+        )
+        if final_confidence != confidence_before_cap:
+            total_dampening = base_confidence_after_initial_cap - final_confidence
+            logger.debug(f"[CONFIDENCE CAP] Historical analysis: base={base_confidence_after_initial_cap:.1f}%, after_penalties={confidence_before_cap:.1f}%, capped={final_confidence:.1f}% (total_dampening={total_dampening:.1f}%)")
 
         # Enforce minimum confidence for TEAM_NARRATIVE_TREND (relaxed requirement)
         if trend_type == 'TEAM_NARRATIVE_TREND':
@@ -1142,6 +1238,13 @@ class ContextAwareAnalyzer:
         
         final_probability = (0.6 * adjusted_prob) + (0.3 * historical_prob) + (0.1 * bookmaker_prob)
         
+        # FIX #2: Apply sample-size reliability dampening to probability
+        from scrapers.player_projection_model import sample_reliability
+        reliability_mult = sample_reliability(sample_size)
+        final_probability = final_probability * reliability_mult
+        # Ensure probability stays in valid range after dampening
+        final_probability = max(0.01, min(0.99, final_probability))
+        
         # Since we're now model-driven (60%), label as model-heavy
         probability_source = "model-heavy"
 
@@ -1183,9 +1286,13 @@ class ContextAwareAnalyzer:
 
         # Expected Value (IMPROVEMENT: Fix #4 - Proper EV formula)
         # EV = (p · (odds - 1) - (1 - p)) per unit
-        # Use final_probability for EV calculation (confidence-weighted blend)
+        # Use final_probability for EV calculation (SINGLE SOURCE OF TRUTH)
         ev_per_unit = (final_probability * (bookmaker_odds - 1)) - (1 - final_probability)
         ev_per_100 = ev_per_unit * 100
+        
+        # Safety assertion - EV must match probability
+        expected_ev = (final_probability * (bookmaker_odds - 1) - 1 + final_probability) * 100
+        assert abs(ev_per_100 - expected_ev) < 0.001, f"EV calculation mismatch: {ev_per_100} vs {expected_ev} for prob {final_probability}"
         
         # Final value determination: Use EV > 0 instead of edge > 0
         # This is more appropriate when using blended probabilities

@@ -60,6 +60,12 @@ class BettingRecommendation:
     databallr_stats: Optional[Dict] = None
     matchup_factors: Optional[Dict] = None
     advanced_context: Optional[Dict] = None  # Advanced contextual factors
+    player_role: Optional[str] = None  # FIX #3: Inferred player role for display
+    insight_boost: Optional[float] = None  # FIX #5: Insight probability boost for display
+    tier: Optional[str] = None  # Bet tier: 'A', 'B', or 'C' (for stake sizing)
+    stake_cap_pct: Optional[float] = None  # Stake cap percentage (e.g., 0.12 for 12% of normal)
+    fade_opposite: bool = False  # True if this is an opposite-side fade bet
+    original_fade_score: Optional[int] = None  # Fade score of the original bet (if fade opposite)
     
     def to_dict(self) -> Dict:
         """

@@ -2058,133 +2058,16 @@ def scrape_match_complete(url: str, headless: bool = True) -> Optional[CompleteM
                         time.sleep(1)
 
                     # ============================================================
-                    # NEW: COMPREHENSIVE INSIGHTS EXTRACTION
+                    # INSIGHTS EXTRACTION (from embedded JSON in HTML)
                     # ============================================================
-
-                    # PHASE 1: Navigate to Tips & Insights Sub-tab
-                    logger.info("=" * 60)
-                    logger.info("PHASE 1: Tips & Insights Tab Navigation")
-                    logger.info("=" * 60)
-
-                    try:
-                        tips_tab_selectors = [
-                            'button:has-text("Tips")',
-                            '[role="tab"]:has-text("Tips")',
-                            'a:has-text("Match Insights")',
-                            'button:has-text("Insights")',
-                        ]
-
-                        tips_tab_found = False
-                        for selector in tips_tab_selectors:
-                            try:
-                                tips_tab = page.locator(selector).first
-                                if tips_tab.is_visible(timeout=2000):
-                                    logger.info(f"✓ Clicking Tips sub-tab: {selector}")
-                                    tips_tab.click()
-                                    time.sleep(3)  # Wait for insights to load
-                                    try:
-                                        page.wait_for_load_state('networkidle', timeout=10000)
-                                    except:
-                                        pass  # Continue even if networkidle times out
-                                    tips_tab_found = True
-                                    break
-                            except:
-                                continue
-
-                        if not tips_tab_found:
-                            logger.info("No separate Tips tab found - may already be on correct view")
-
-                    except Exception as e:
-                        logger.debug(f"Tips tab navigation: {e}")
-
-                    # PHASE 2: Click "Display More" for insights
-                    logger.info("=" * 60)
-                    logger.info("PHASE 2: Expanding Insights with Display More")
-                    logger.info("=" * 60)
-
-                    display_more_clicks = 0
-                    try:
-                        display_more_clicks = click_display_more_insights(page, max_clicks=5)
-                        logger.info(f"✓ Clicked Display More {display_more_clicks} times")
-                    except Exception as e:
-                        logger.debug(f"Display More clicks: {e}")
-                        display_more_clicks = 0
-
-                    # PHASE 3: Click all "Show Tip" buttons
-                    logger.info("=" * 60)
-                    logger.info("PHASE 3: Revealing Hidden Insights (Show Tip)")
-                    logger.info("=" * 60)
-
-                    show_tip_clicks = 0
-                    try:
-                        show_tip_clicks = click_show_tip_buttons(page, max_buttons=50)
-                        logger.info(f"✓ Clicked {show_tip_clicks} Show Tip buttons")
-                    except Exception as e:
-                        logger.debug(f"Show Tip clicks: {e}")
-                        show_tip_clicks = 0
-
-                    # Wait for all expansions to complete
-                    time.sleep(2)
-
-                    # PHASE 4: Extract insight cards from DOM
-                    logger.info("=" * 60)
-                    logger.info("PHASE 4: Extracting Insight Cards from DOM")
-                    logger.info("=" * 60)
-
-                    insight_cards = []
-                    try:
-                        insight_cards = extract_insight_cards_from_dom(page)
-                        logger.info(f"✓ Extracted {len(insight_cards)} insight cards from DOM")
-                    except Exception as e:
-                        logger.error(f"Insight cards extraction failed: {e}")
-                        insight_cards = []
-
-                    # PHASE 5: Extract match preview
-                    logger.info("=" * 60)
-                    logger.info("PHASE 5: Extracting Match Preview Text")
-                    logger.info("=" * 60)
-
-                    match_preview = None
-                    try:
-                        match_preview = extract_match_preview(page)
-                        if match_preview:
-                            logger.info(f"✓ Match preview extracted ({len(match_preview.preview_text)} chars)")
-                        else:
-                            logger.warning("✗ Match preview not found")
-                    except Exception as e:
-                        logger.debug(f"Match preview extraction: {e}")
-                        match_preview = None
-
-                    # Screenshot for verification
-                    try:
-                        screenshot_path = Path(__file__).parent.parent / "debug" / "insights_expanded.png"
-                        screenshot_path.parent.mkdir(parents=True, exist_ok=True)
-                        page.screenshot(path=str(screenshot_path), full_page=True)
-                        logger.info(f"Saved insights screenshot: {screenshot_path}")
-                    except Exception as e:
-                        logger.debug(f"Could not save screenshot: {e}")
-
-                    # PHASE 6: Navigate back to Stats sub-tab for season results/H2H
-                    logger.info("=" * 60)
-                    logger.info("PHASE 6: Switching to Stats Sub-tab")
-                    logger.info("=" * 60)
-
-                    try:
-                        for selector in ['text="Stats"', 'button:has-text("Stats")', '[role="tab"]:has-text("Stats")']:
-                            try:
-                                stats_subtab = page.locator(selector).first
-                                if stats_subtab.is_visible(timeout=1000):
-                                    logger.info(f"Clicking Stats sub-tab: {selector}")
-                                    stats_subtab.click()
-                                    time.sleep(3)
-                                    break
-                            except:
-                                continue
-                    except Exception as e:
-                        logger.debug(f"Stats sub-tab navigation: {e}")
-
+                    # Insights are extracted from embedded JSON in HTML, not from DOM manipulation
+                    # Phases 1-5 (DOM extraction) removed - they don't find anything useful
+                    # Insights will be extracted directly from HTML JSON later
+                    
+                    logger.debug("Skipping DOM-based insight extraction (insights come from embedded JSON)")
+                    
                     # ============================================================
-                    # END: COMPREHENSIVE INSIGHTS EXTRACTION
+                    # END: INSIGHTS EXTRACTION
                     # ============================================================
 
                     # Click team toggle buttons to get both teams' season results

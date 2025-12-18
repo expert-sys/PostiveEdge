@@ -27,12 +27,13 @@ from utils.retry_utils import retry_scraper_call
 
 # Import GameLogEntry for data structure compatibility only
 try:
-    from scrapers.nba_stats_api_scraper import GameLogEntry
+    from scrapers.data_models import GameLogEntry
 except ImportError:
-    from nba_stats_api_scraper import GameLogEntry
+    GameLogEntry = None
 
-logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
-logger = logging.getLogger("databallr_scraper")
+# Use centralized logging
+from config.logging_config import get_logger
+logger = get_logger(__name__)
 
 
 # Static player ID mapping (fallback when NBA API is down)
@@ -275,7 +276,7 @@ def smart_search_player_databallr(page, player_name: str) -> Optional[Tuple[int,
     logger.warning(f"[Databallr] Player {player_name} not in cache. Skipping search to avoid loops.")
     logger.info(f"[Databallr] To add this player:")
     logger.info(f"[Databallr]   1. Find on databallr.com: https://databallr.com")
-    logger.info(f"[Databallr]   2. Copy URL (format: https://databallr.com/last-games/[ID]/[slug])")
+    logger.debug(f"Databallr: Copy URL format: https://databallr.com/last-games/[ID]/[slug]")
     logger.info(f"[Databallr]   3. Add to PlayerIDs.txt")
     logger.info(f"[Databallr]   4. Run: python build_databallr_player_cache.py")
     return None
@@ -304,7 +305,7 @@ def search_player_databallr(page, player_name: str) -> Optional[str]:
         # smart_search already navigated and verified the page, so we can return the URL
         # But verify we're still on the right page
         if page.url.startswith("https://databallr.com/last-games/"):
-            logger.info(f"[Databallr] Successfully found player: {player_name} (ID: {player_id})")
+            logger.debug(f"Found player: {player_name} (ID: {player_id})")
             return player_url
         else:
             # Navigate to the URL if we're not already there
@@ -312,7 +313,7 @@ def search_player_databallr(page, player_name: str) -> Optional[str]:
                 page.goto(player_url, timeout=30000)
                 page.wait_for_load_state("networkidle", timeout=10000)
                 page.wait_for_selector("table, [class*='game'], [class*='stat']", timeout=5000)
-                logger.info(f"[Databallr] Successfully loaded player page: {player_url}")
+                logger.debug(f"Loaded player page: {player_url}")
                 return player_url
             except Exception as e:
                 logger.error(f"[Databallr] Navigation error: {e}")
@@ -397,7 +398,7 @@ def _parse_table_row(cells) -> Optional[Dict]:
 
 def scrape_player_game_log_databallr(page, player_url: str, last_n_games: int = 20) -> List[Dict]:
     """Scrape game log from player page using Table View."""
-    logger.info(f"[Databallr] Scraping individual games from Table View: {player_url}")
+    logger.debug(f"Scraping games from: {player_url}")
     try:
         if page.url != player_url:
             page.goto(player_url, timeout=30000)
@@ -452,7 +453,7 @@ def scrape_player_game_log_databallr(page, player_url: str, last_n_games: int = 
                 if game:
                     games.append(game)
 
-        logger.info(f"[Databallr] Successfully scraped {len(games)} individual games")
+        logger.debug(f"Scraped {len(games)} games")
         return games[:last_n_games]
     except Exception as e:
         logger.error(f"[Databallr] Failed to scrape game log: {e}")
@@ -519,7 +520,7 @@ def get_player_game_log(
     # If player not in ID cache, don't even try - just return empty list
     if player_not_in_cache:
         logger.warning(f"[Databallr] Player {player_name} not in ID cache. Skipping (no retries).")
-        logger.info(f"[Databallr] To add: Find on databallr.com, add URL to PlayerIDs.txt, run build_databallr_player_cache.py")
+        logger.debug(f"To add player: Find on databallr.com, add URL to PlayerIDs.txt")
         return []
     
     # Check stats cache for pre-fetched data (FAST PATH)

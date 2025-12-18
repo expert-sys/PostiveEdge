@@ -105,12 +105,62 @@ def _display_single_recommendation(rec: Union[BettingRecommendation, 'EnhancedBe
         output(f"   Game: {rec.game} ({match_time})")
 
         recommendation_strength = getattr(rec, 'recommendation_strength', 'N/A')
-        output(f"   Odds: {rec.odds:.2f} | Confidence: {rec.confidence_score:.0f}% | Strength: {recommendation_strength}")
+        # Show tier if available
+        tier = getattr(rec, 'tier', None)
+        promoted_from = getattr(rec, 'promoted_from', None)
+        confidence = getattr(rec, 'confidence_score', 0)
+        
+        # Fix #1: For promoted bets, show confidence-aligned tier with validation flag
+        if tier and promoted_from:
+            # Determine actual tier based on confidence (use team_sides thresholds for team bets)
+            from scrapers.bet_validation import MARKET_TIER_THRESHOLDS
+            market_type = getattr(rec, 'market_type', 'team_sides')
+            if market_type not in MARKET_TIER_THRESHOLDS:
+                market_type = 'team_sides'
+            thresholds = MARKET_TIER_THRESHOLDS[market_type]
+            
+            # Determine actual tier from confidence
+            if confidence >= thresholds["A"]:
+                actual_tier = "A"
+            elif confidence >= thresholds["B"]:
+                actual_tier = "B"
+            elif confidence >= thresholds["C"]:
+                actual_tier = "C"
+            else:
+                actual_tier = "WATCHLIST"
+            
+            # Show confidence-aligned tier with validation flag
+            tier_display = f" | Tier: {actual_tier} (CLV-validated)"
+        elif tier:
+            tier_display = f" | Tier: {tier}"
+        else:
+            tier_display = ""
+        stake_cap = getattr(rec, 'stake_cap_pct', None)
+        stake_display = f" (Stake: {stake_cap*100:.0f}%)" if stake_cap else ""
+        output(f"   Odds: {rec.odds:.2f} | Confidence: {rec.confidence_score:.0f}% | Strength: {recommendation_strength}{tier_display}{stake_display}")
         output(f"   Edge: {rec.edge_percentage:+.1f}% | EV: {rec.expected_value:+.1f}%")
 
         historical_hit_rate = getattr(rec, 'historical_hit_rate', 0.0)
         output(f"   Sample Size: {rec.sample_size} games | Historical: {historical_hit_rate:.1%}")
-        output(f"   Projected Probability: {rec.projected_probability:.1%}")
+        # Fix #3: Show final blended probability (what's used for EV calculation)
+        output(f"   Final Probability: {rec.projected_probability:.1%}")
+        
+        # Fix #3: Show raw model probability if available and significantly different
+        raw_model_prob = getattr(rec, 'raw_model_probability', None)
+        if raw_model_prob is not None:
+            diff_from_raw = abs(rec.projected_probability - raw_model_prob) * 100
+            if diff_from_raw > 5.0:  # Show if difference > 5%
+                output(f"   Raw Model Probability: {raw_model_prob:.1%} (before blending)")
+        
+        # FIX #6: WHY THIS BET section
+        output("\n   WHY:")
+        model_prob = getattr(rec, 'projected_probability', rec.projected_probability)
+        market_prob = getattr(rec, 'implied_probability', 1.0 / rec.odds if rec.odds > 0 else 0.5)
+        diff_pct = (model_prob - market_prob) * 100
+        output(f"   - Model > Market by +{diff_pct:.1f}%")
+        insight_boost = getattr(rec, 'insight_boost', None)
+        if insight_boost and insight_boost > 0:
+            output(f"   - Insight boost: +{insight_boost*100:.1f}%")
     else:
         # Player prop
         output(f"\nPLAYER PROP: {rec.player_name} - {rec.market} {rec.selection}")
@@ -118,12 +168,75 @@ def _display_single_recommendation(rec: Union[BettingRecommendation, 'EnhancedBe
         output(f"   Game: {rec.game} ({match_time})")
 
         recommendation_strength = getattr(rec, 'recommendation_strength', 'N/A')
-        output(f"   Odds: {rec.odds:.2f} | Confidence: {rec.confidence_score:.0f}% | Strength: {recommendation_strength}")
+        # Show tier if available
+        tier = getattr(rec, 'tier', None)
+        promoted_from = getattr(rec, 'promoted_from', None)
+        confidence = getattr(rec, 'confidence_score', 0)
+        
+        # Fix #1: For promoted bets, show confidence-aligned tier with validation flag
+        if tier and promoted_from:
+            # Determine actual tier based on confidence (use player_prop thresholds for player props)
+            from scrapers.bet_validation import MARKET_TIER_THRESHOLDS
+            thresholds = MARKET_TIER_THRESHOLDS["player_prop"]
+            
+            # Determine actual tier from confidence
+            if confidence >= thresholds["A"]:
+                actual_tier = "A"
+            elif confidence >= thresholds["B"]:
+                actual_tier = "B"
+            elif confidence >= thresholds["C"]:
+                actual_tier = "C"
+            else:
+                actual_tier = "WATCHLIST"
+            
+            # Show confidence-aligned tier with validation flag
+            tier_display = f" | Tier: {actual_tier} (CLV-validated)"
+        elif tier:
+            tier_display = f" | Tier: {tier}"
+        else:
+            tier_display = ""
+        stake_cap = getattr(rec, 'stake_cap_pct', None)
+        stake_display = f" (Stake: {stake_cap*100:.0f}%)" if stake_cap else ""
+        output(f"   Odds: {rec.odds:.2f} | Confidence: {rec.confidence_score:.0f}% | Strength: {recommendation_strength}{tier_display}{stake_display}")
         output(f"   Edge: {rec.edge_percentage:+.1f}% | EV: {rec.expected_value:+.1f}%")
 
         historical_hit_rate = getattr(rec, 'historical_hit_rate', 0.0)
         output(f"   Sample Size: {rec.sample_size} games | Historical: {historical_hit_rate:.1%}")
-        output(f"   Projected Probability: {rec.projected_probability:.1%}")
+        # Fix #3: Show final blended probability (what's used for EV calculation)
+        output(f"   Final Probability: {rec.projected_probability:.1%}")
+        
+        # Fix #3: Show raw model probability if available and significantly different
+        raw_model_prob = getattr(rec, 'raw_model_probability', None)
+        if raw_model_prob is not None:
+            diff_from_raw = abs(rec.projected_probability - raw_model_prob) * 100
+            if diff_from_raw > 5.0:  # Show if difference > 5%
+                output(f"   Raw Model Probability: {raw_model_prob:.1%} (before blending)")
+        
+        # FIX #6: WHY THIS BET section
+        output("\n   WHY:")
+        model_prob = getattr(rec, 'projected_probability', rec.projected_probability)
+        market_prob = getattr(rec, 'implied_probability', 1.0 / rec.odds if rec.odds > 0 else 0.5)
+        diff_pct = (model_prob - market_prob) * 100
+        output(f"   - Model > Market by +{diff_pct:.1f}%")
+        player_role = getattr(rec, 'player_role', None)
+        if player_role:
+            output(f"   - Role: {player_role.replace('_', ' ').title()}")
+        # Show matchup advantages
+        advanced_context = getattr(rec, 'advanced_context', None)
+        if advanced_context and isinstance(advanced_context, dict):
+            proj_details = advanced_context.get('projection_details', {})
+            if isinstance(proj_details, dict):
+                pace_mult = proj_details.get('pace_multiplier', 1.0)
+                def_adj = proj_details.get('defense_adjustment', 1.0)
+                if abs(pace_mult - 1.0) > 0.05:
+                    output(f"   - Pace advantage: {pace_mult:.3f}x")
+                if abs(def_adj - 1.0) > 0.05:
+                    output(f"   - Defense adjustment: {def_adj:.3f}x")
+        
+        # Show fade alert if this is a fade opposite bet
+        if getattr(rec, 'fade_opposite', False):
+            original_fade_score = getattr(rec, 'original_fade_score', 0)
+            output(f"   - 🔴 FADE OPPOSITE: Original bet had fade score {original_fade_score}/100")
 
 
 def display_recommendations_summary(recommendations: List[BettingRecommendation]):

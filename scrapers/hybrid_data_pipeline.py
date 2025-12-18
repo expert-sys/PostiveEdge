@@ -95,11 +95,16 @@ class HybridPlayerDataPipeline:
         # Check cache
         if self.use_cache and cache_key in self._cache:
             cached_data, cached_time = self._cache[cache_key]
-            if datetime.now() - cached_time < timedelta(hours=self.cache_ttl_hours):
-                logger.info(f"Using cached data for {player_name}")
+            age = datetime.now() - cached_time
+            ttl_delta = timedelta(hours=self.cache_ttl_hours)
+            if age < ttl_delta:
+                ttl_remaining = (ttl_delta - age).total_seconds() / 3600.0
+                logger.debug(f"Cache hit: {player_name} ({season})")
                 return cached_data
+            else:
+                logger.debug(f"Cache miss (expired): {player_name} ({season})")
         
-        logger.info(f"Fetching full profile for {player_name} ({season})")
+        logger.debug(f"Cache miss: {player_name} ({season}), fetching...")
         
         # 1. Get base profile from StatsMuse
         profile = scrape_player_profile(player_name, season, headless)
@@ -164,7 +169,7 @@ class HybridPlayerDataPipeline:
         databallr_metrics = None
         if include_databallr:
             try:
-                logger.info(f"Fetching Databallr data for {player_name}")
+                logger.debug(f"Fetching Databallr data for {player_name}")
                 # Get recent games from Databallr to extract advanced metrics
                 games = databallr_get_game_log(player_name, season, last_n_games=5, use_cache=True)
                 
@@ -373,7 +378,7 @@ class HybridPlayerDataPipeline:
 
         try:
             # Use DataballR for game logs - it's excellent for this
-            logger.info(f"Fetching game log for {player_name} (last {last_n_games} games)")
+            logger.debug(f"Fetching game log for {player_name} (last {last_n_games} games)")
             game_log = databallr_get_game_log(
                 player_name=player_name,
                 season=season,

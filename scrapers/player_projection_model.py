@@ -23,14 +23,17 @@ Usage:
 
 import math
 import statistics
-from typing import List, Optional, Dict, Tuple
+import logging
+from typing import List, Optional, Dict, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
 
 # Import data structures
-from scrapers.nba_stats_api_scraper import GameLogEntry
+from scrapers.data_models import GameLogEntry
 from scrapers.sportsbet_final_enhanced import TeamStats, MatchStats
 from scrapers.player_archetype_classifier import classify_player
+
+logger = logging.getLogger(__name__)
 
 
 class StatType(Enum):
@@ -100,10 +103,56 @@ class StatProjection:
     minutes_projection: Optional[MinutesProjection] = None
     matchup_adjustments: Optional[MatchupAdjustments] = None
     role_change: Optional[RoleChange] = None
+    player_role: str = "secondary_creator"  # FIX #3: Inferred player role for display
     distribution_type: str = "normal"  # "normal", "poisson", "negative_binomial", "zero_inflated_poisson"
     archetype_name: str = "Unknown"  # Player archetype classification
     archetype_cap: float = 0.82  # Maximum probability for this archetype
     historical_hit_rate: float = 0.0  # Historical hit rate against the line
+    role_modifier_details: Optional[Dict[str, Any]] = None  # Role modifier details (modifier, confidence, rationale, offensive_role, usage_state, minutes_state)
+
+
+def blend_probabilities(
+    model_prob: float,
+    market_prob: float,
+    weight_model: float = 0.70,
+    weight_market: float = 0.30
+) -> float:
+    """
+    Blend model probability with market-implied probability.
+    
+    Args:
+        model_prob: Model's probability estimate
+        market_prob: Market-implied probability (1/odds)
+        weight_model: Weight for model probability (default 0.70)
+        weight_market: Weight for market probability (default 0.30)
+    
+    Returns:
+        Blended probability
+    """
+    return (weight_model * model_prob) + (weight_market * market_prob)
+
+
+def sample_reliability(n: int) -> float:
+    """
+    Reliability multiplier based on sample size.
+    
+    Reduces confidence and probabilities for small samples to prevent over-trusting.
+    
+    Args:
+        n: Sample size (number of games)
+    
+    Returns:
+        Multiplier between 0.4 and 1.0
+    """
+    if n >= 30:
+        return 1.0
+    if n >= 20:
+        return 0.9
+    if n >= 10:
+        return 0.75
+    if n >= 5:
+        return 0.6
+    return 0.4
 
 
 class PlayerProjectionModel:
@@ -197,14 +246,58 @@ class PlayerProjectionModel:
             stat_type, adjusted_expected, adjusted_std_dev, prop_line
         )
 
-        # 8. CLASSIFY PLAYER ARCHETYPE (determines probability cap)
+        # 8. INFER PLAYER ROLE and apply role-based adjustments (FIX #3)
+        from scrapers.player_role_heuristics import infer_player_role, apply_role_adjustment
+        role_info = infer_player_role(valid_games, stat_type)
+        player_role = role_info.get('display_name', role_info.get('offensive_role', 'secondary_creator'))  # Use display name for compatibility
+        # Apply role adjustment to raw probability before calibration (use offensive_role for adjustment lookup)
+        role_for_adjustment = role_info.get('offensive_role', 'secondary_creator')
+        prob_over_line = apply_role_adjustment(prob_over_line, role_for_adjustment, stat_type)
+
+        # 8b. Apply advanced role modifier (minutes increase + teammate impact)
+        role_modifier_result = None
+        try:
+            from scrapers.role_modifier import calculate_role_modifier
+            from datetime import datetime
+            
+            # Extract minutes from recent games
+            recent_minutes = [g.minutes for g in valid_games[:5] if hasattr(g, 'minutes') and g.minutes > 0]
+            historical_minutes = [g.minutes for g in valid_games[:15] if hasattr(g, 'minutes') and g.minutes > 0]
+            
+            # Get game date (use most recent game date or current date)
+            game_date = datetime.now().strftime('%Y-%m-%d')
+            if valid_games and hasattr(valid_games[0], 'game_date'):
+                try:
+                    game_date = valid_games[0].game_date.strftime('%Y-%m-%d') if hasattr(valid_games[0].game_date, 'strftime') else str(valid_games[0].game_date)[:10]
+                except:
+                    pass
+            
+            # Calculate role modifier (teammate roster would need to be passed in, skip for now)
+            role_modifier_result = calculate_role_modifier(
+                player_name=player_name,
+                team=player_team or "Unknown",
+                date=game_date,
+                recent_minutes=recent_minutes,
+                historical_minutes=historical_minutes,
+                teammate_roster=None,  # TODO: Pass teammate roster when available
+                game_log=valid_games
+            )
+            
+            # Apply modifier to probability
+            if role_modifier_result and role_modifier_result.modifier > 0:
+                prob_over_line = min(0.99, prob_over_line + role_modifier_result.modifier)
+        except Exception as e:
+            logger.debug(f"[ROLE MODIFIER] Failed to apply role modifier for {player_name}: {e}")
+            role_modifier_result = None
+
+        # 9. CLASSIFY PLAYER ARCHETYPE (determines probability cap)
         archetype = classify_player(
             player_name=player_name,
             game_log=valid_games,
             stat_type=stat_type
         )
 
-        # 9. Calculate CALIBRATED probability (single source of truth)
+        # 10. Calculate CALIBRATED probability (single source of truth)
         # Apply volatility penalty, role penalty, and archetype cap
         calibrated_prob = self.get_calibrated_probability(
             base_probability=prob_over_line,
@@ -213,25 +306,105 @@ class PlayerProjectionModel:
             role_penalty=role_change.confidence_penalty
         )
 
-        # 10. PHASE 6: Calculate historical hit rate for confidence formula
+        # CRITICAL FIX: Sample size should ONLY affect confidence, NOT probability
+        # Probability reflects the true model estimate - sample size uncertainty is captured in confidence
+        # DO NOT apply sample_reliability to probability - it silently kills valid props
+        sample_size = len(valid_games)
+        
+        # Ensure probability stays in valid range (but don't artificially reduce it)
+        calibrated_prob = max(0.01, min(0.99, calibrated_prob))
+
+        # 11. PHASE 6: Calculate historical hit rate for confidence formula
         historical_hit_rate = self._calculate_historical_hit_rate(
             valid_games, stat_type, prop_line
         )
 
-        # 11. Calculate confidence score (4 components)
-        confidence = self._calculate_confidence_score(
+        # 12. Calculate confidence score (4 components)
+        # P2: Track base confidence BEFORE any penalties
+        base_confidence = self._calculate_confidence_score(
             primary_stats, minutes_proj, role_change, matchup_adj, historical_hit_rate
         )
+        confidence = base_confidence
+        
+        # Fix #4: Rebounds-specific volatility penalty (-5% confidence unless stability conditions met)
+        if stat_type == 'rebounds':
+            avg_reb = primary_stats.mean if primary_stats else 0.0
+            avg_minutes = minutes_proj.historical_avg if minutes_proj else 0.0
+            opponent_pace_ok = False
+            if matchup_adj and matchup_adj.pace_multiplier:
+                # pace_multiplier >= 1.0 means matchup pace >= league average
+                opponent_pace_ok = matchup_adj.pace_multiplier >= 1.0
+            
+            # Apply penalty unless ALL conditions met: avg_reb >= 10.5 AND minutes >= 30 AND pace >= league_avg
+            if not (avg_reb >= 10.5 and avg_minutes >= 30.0 and opponent_pace_ok):
+                confidence_before_rebounds_penalty = confidence
+                confidence *= 0.95  # -5% confidence penalty
+                logger.debug(f"[REBOUNDS-VOLATILITY] {player_name}: -5% penalty applied (avg_reb={avg_reb:.1f}, min={avg_minutes:.1f}, pace_ok={opponent_pace_ok})")
+            else:
+                logger.debug(f"[REBOUNDS-VOLATILITY] {player_name}: penalty waived (avg_reb={avg_reb:.1f}>=10.5, min={avg_minutes:.1f}>=30, pace_ok={opponent_pace_ok})")
+        
+        # Apply Prop Volatility Index (PVI) penalty to confidence
+        pvi_penalty = self._calculate_volatility_penalty(
+            game_log=valid_games,
+            stat_type=stat_type,
+            minutes_proj=minutes_proj,
+            primary_stats=primary_stats
+        )
+        # Max 50% confidence reduction from volatility
+        confidence *= (1 - pvi_penalty * 0.5)
+        
+        # CRITICAL FIX: Apply sample-size reliability dampening to confidence ONLY
+        # Sample size uncertainty affects how much we trust the probability, not the probability itself
+        reliability_mult = sample_reliability(sample_size)
+        confidence = confidence * reliability_mult
+        confidence = max(0.0, min(100.0, confidence))
 
         # PHASE 6: Confidence must LAG probability (never exceed it)
         if confidence > (calibrated_prob * 100):
             confidence = calibrated_prob * 100
 
+        # Apply sample size confidence dampening
+        # Get sample size from game log
+        sample_size = len(game_log) if game_log else 0
+        if sample_size > 0:
+            from scrapers.bet_validation import apply_sample_size_confidence_dampener
+            confidence_before_dampening = confidence
+            confidence = apply_sample_size_confidence_dampener(confidence, sample_size)
+            if confidence != confidence_before_dampening:
+                logger.debug(f"[CONFIDENCE] {player_name} {stat_type}: before_damp={confidence_before_dampening:.1f}%, sample_size={sample_size}, dampened={confidence:.1f}%")
+        
+        # P2: Apply confidence stack cap (relative cap prevents catastrophic drops)
+        # Note: Edge boost will be applied later when probabilities are available for blending
+        from scrapers.bet_validation import apply_confidence_stack_cap
+        confidence_before_cap = confidence
+        confidence = apply_confidence_stack_cap(
+            confidence=confidence,
+            base_confidence=base_confidence,
+            max_total_dampening=None,  # Auto-calculate relative cap
+            probability=None,  # Not available here, will be applied later during blending
+            bookmaker_probability=None
+        )
+        if confidence != confidence_before_cap:
+            total_dampening = base_confidence - confidence
+            logger.debug(f"[CONFIDENCE CAP] {player_name} {stat_type}: base={base_confidence:.1f}%, after_penalties={confidence_before_cap:.1f}%, capped={confidence:.1f}% (total_dampening={total_dampening:.1f}%)")
+
+        # Store role modifier details if available
+        role_modifier_dict = None
+        if role_modifier_result:
+            role_modifier_dict = {
+                'modifier': role_modifier_result.modifier,
+                'confidence': role_modifier_result.confidence,
+                'rationale': role_modifier_result.rationale,
+                'offensive_role': role_modifier_result.offensive_role,
+                'usage_state': role_modifier_result.usage_state,
+                'minutes_state': role_modifier_result.minutes_state
+            }
+        
         return StatProjection(
             expected_value=adjusted_expected,
             variance=adjusted_variance,
             std_dev=adjusted_std_dev,
-            probability_over_line=prob_over_line,  # RAW probability
+            probability_over_line=prob_over_line,  # RAW probability (after role adjustment)
             calibrated_probability=calibrated_prob,  # CALIBRATED probability (use this for EV/Fair Odds)
             confidence_score=confidence,
             rolling_stats_5=rolling_stats_5,
@@ -240,10 +413,12 @@ class PlayerProjectionModel:
             minutes_projection=minutes_proj,
             matchup_adjustments=matchup_adj,
             role_change=role_change,
+            player_role=player_role,  # FIX #3: Store inferred role for display
             distribution_type=self._get_distribution_type(stat_type),
             archetype_name=archetype.name,  # Player archetype classification
             archetype_cap=archetype.max_probability,  # Maximum probability for this archetype
-            historical_hit_rate=historical_hit_rate  # Percentage of games hitting the line
+            historical_hit_rate=historical_hit_rate,  # Percentage of games hitting the line
+            role_modifier_details=role_modifier_dict  # Role modifier details for display
         )
 
     def get_calibrated_probability(
@@ -563,6 +738,61 @@ class PlayerProjectionModel:
             minutes_change_pct=change_pct * 100,
             confidence_penalty=confidence_penalty
         )
+
+    def _calculate_volatility_penalty(
+        self,
+        game_log: List[GameLogEntry],
+        stat_type: str,
+        minutes_proj: MinutesProjection,
+        primary_stats: RollingStats
+    ) -> float:
+        """
+        Calculate Prop Volatility Index (PVI) penalty.
+        
+        Penalizes:
+        - Bench players (avg minutes < 20)
+        - Low-minute players (avg minutes < 15)
+        - High standard deviation (std_dev > threshold)
+        
+        Args:
+            game_log: List of game log entries
+            stat_type: Type of stat being projected
+            minutes_proj: Minutes projection object
+            primary_stats: Rolling stats for the stat type
+        
+        Returns:
+            Volatility score (0.0-1.0) where higher = more penalty
+        """
+        volatility_score = 0.0
+        
+        # Check if bench player (avg minutes < 20)
+        if minutes_proj.historical_avg < 20:
+            if minutes_proj.historical_avg < 15:
+                volatility_score += 0.4  # Very low minutes
+            else:
+                volatility_score += 0.3  # Bench player
+        
+        # High standard deviation penalty
+        if primary_stats.std_dev > 0:
+            # Threshold depends on stat type
+            if stat_type == 'points':
+                threshold = 8.0  # Points: std_dev > 8 is high variance
+            elif stat_type == 'rebounds':
+                threshold = 5.0  # Rebounds: std_dev > 5 is high variance
+            elif stat_type == 'assists':
+                threshold = 4.0  # Assists: std_dev > 4 is high variance
+            else:
+                threshold = primary_stats.mean * 0.4  # 40% of mean
+            
+            if primary_stats.std_dev > threshold:
+                volatility_score += 0.3
+        
+        # High minutes volatility (inconsistent playing time)
+        if minutes_proj.volatility > 8.0:  # Standard deviation of minutes > 8
+            volatility_score += 0.2
+        
+        # Cap at 1.0
+        return min(volatility_score, 1.0)
 
     def _calculate_usage_proxy(
         self,

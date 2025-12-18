@@ -19,8 +19,9 @@ import logging
 from typing import List, Dict, Optional, Tuple
 from scrapers.context_aware_analysis import ContextAwareAnalyzer, ContextFactors, ContextAwareAnalysis
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("insights_to_value_analysis")
+# Use centralized logging
+from config.logging_config import get_logger
+logger = get_logger(__name__)
 
 # Disable NBA API usage - system uses only Databallr and Sportsbet
 # Try to import NBA trend calculator (optional - falls back to parsing if not available)
@@ -33,7 +34,7 @@ try:
     NBA_DATA_AVAILABLE = False
 except ImportError:
     NBA_DATA_AVAILABLE = False
-    logger.warning("NBA trend calculator not available - will use Sportsbet insight parsing")
+    logger.debug("NBA trend calculator not available - using Sportsbet insight parsing")
 
 
 def extract_historical_outcomes_from_insight(fact: str) -> Tuple[Optional[List[int]], int]:
@@ -418,8 +419,12 @@ def analyze_insight_with_context(
             logger.debug(f"Could not calculate from NBA data, falling back to parsing: {e}")
 
     # Fallback to parsing Sportsbet insight (only if NBA data unavailable, not if validation failed)
+    # Note: NBA data is intentionally disabled - system uses only Databallr and Sportsbet
     if not outcomes and validation_result is None:
-        logger.info("Using Sportsbet insight parsing (NBA data unavailable)")
+        # Only log once per game (not per insight) to reduce noise
+        if not hasattr(analyze_insight_with_context, '_nba_fallback_logged'):
+            logger.debug("Using Sportsbet insight parsing (NBA data intentionally disabled)")
+            analyze_insight_with_context._nba_fallback_logged = True
         outcomes, sample_size = extract_historical_outcomes_from_insight(fact)
     
     if not outcomes:
@@ -448,6 +453,11 @@ def analyze_insight_with_context(
     try:
         analyzer = ContextAwareAnalyzer()
 
+        # Extract insight date and season for decay calculation
+        insight_date = insight.get('date') or insight.get('game_date') or None
+        insight_season = insight.get('season') or "2024-25"  # Default to current season
+        roster_overlap = insight.get('roster_overlap', True)  # Default to True (assume overlap)
+        
         analysis = analyzer.analyze_with_context(
             historical_outcomes=historical_outcomes,
             recent_outcomes=recent_outcomes,
@@ -455,7 +465,10 @@ def analyze_insight_with_context(
             context_factors=context_factors,
             player_name=f"{result} - {market}",
             insight_fact=fact,  # Pass fact for trend classification
-            market=market       # Pass market for context
+            market=market,       # Pass market for context
+            insight_date=insight_date,  # Pass date for decay calculation
+            insight_season=insight_season,  # Pass season for decay calculation
+            roster_overlap=roster_overlap  # Pass roster overlap flag
         )
 
         return analysis
@@ -498,6 +511,9 @@ def analyze_all_insights(
     """
 
     results = []
+    # Reset the flag for each game
+    if hasattr(analyze_insight_with_context, '_nba_fallback_logged'):
+        analyze_insight_with_context._nba_fallback_logged = False
 
     for insight in insights:
         analysis = analyze_insight_with_context(
